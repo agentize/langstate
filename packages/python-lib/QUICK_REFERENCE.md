@@ -25,13 +25,22 @@ python verify.py
 git clone <repo-url>
 cd khandhas/packages/python-lib
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Linux/Mac
 # .venv\Scripts\activate    # Windows
 
 # Install in development mode
 pip install -e ".[dev]"
+
+# Verify setup
+python -c "import khandhas; print('✅ Setup complete')"
+```
+
+**Important**: Always activate your virtual environment before running any commands:
+```bash
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate    # Windows
 ```
 
 ### Run Tests

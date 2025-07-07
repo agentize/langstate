@@ -2,8 +2,11 @@
 
 import asyncio
 import logging
-from typing import Optional, Dict, Any, Callable, List
+from typing import Optional, Dict, Any, Callable, List, TYPE_CHECKING
 from contextlib import asynccontextmanager
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 try:
     from fastapi import FastAPI, Request, Response
@@ -27,7 +30,7 @@ class KhandhasServer:
         """Initialize the server."""
         self.config = config or Config()
         self.logger = get_logger(__name__)
-        self.app: Optional[FastAPI] = None
+        self.app = None
         self._startup_handlers: List[Callable] = []
         self._shutdown_handlers: List[Callable] = []
 
@@ -36,7 +39,7 @@ class KhandhasServer:
                 "FastAPI not installed. Some features will be unavailable."
             )
 
-    def create_app(self) -> FastAPI:
+    def create_app(self):
         """Create and configure the FastAPI application."""
         if FastAPI is None:
             raise RuntimeError(
@@ -44,7 +47,7 @@ class KhandhasServer:
             )
 
         @asynccontextmanager
-        async def lifespan(app: FastAPI):
+        async def lifespan(app):
             # Startup
             self.logger.info("Starting Khandhas...")
             for handler in self._startup_handlers:
@@ -168,6 +171,14 @@ class KhandhasServer:
             **kwargs,
         }
 
+        # Disable reload when passing app object directly to avoid uvicorn warning
+        if run_config.get("reload", False):
+            self.logger.info(
+                "Auto-reload disabled when running with app object. "
+                "For full reload functionality, use the CLI: 'khandhas dev'"
+            )
+            run_config["reload"] = False
+
         self.logger.info(
             f"Starting application on {run_config['host']}:{run_config['port']}"
         )
@@ -188,7 +199,7 @@ class KhandhasServer:
         server = uvicorn.Server(config)
         await server.serve()
 
-    def get_app(self) -> FastAPI:
+    def get_app(self):
         """Get the FastAPI application."""
         if not self.app:
             self.create_app()

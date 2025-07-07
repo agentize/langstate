@@ -14,9 +14,26 @@ A Python library for khandhas application with support for development and produ
 
 ## Installation
 
+### Prerequisites
+
+**Important**: Always use a virtual environment to avoid dependency conflicts:
+
+```bash
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment (do this every time you work on the project)
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate    # Windows
+```
+
 ### For Development
 
 ```bash
+# Make sure virtual environment is activated
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate    # Windows
+
 # Install in development mode with live reloading
 pip install -e .
 
@@ -27,6 +44,10 @@ pip install -e ".[dev]"
 ### For Production
 
 ```bash
+# Make sure virtual environment is activated (if using one)
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate    # Windows
+
 # Install from PyPI (when published)
 pip install khandhas
 
