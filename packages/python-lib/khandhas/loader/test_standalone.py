@@ -17,25 +17,21 @@ def test_yaml_loading():
     """Test loading YAML files directly."""
     print("=== Testing YAML Loading ===")
     
-    # Test legacy format
-    legacy_path = Path("system_prompt_generator_legacy.yaml")
-    if legacy_path.exists():
-        with open(legacy_path, 'r') as f:
-            legacy_data = yaml.safe_load(f)
-        
-        print(f"Legacy format loaded successfully")
-        print(f"  Name: {legacy_data.get('name')}")
-        print(f"  Fields: {len(legacy_data.get('fields', []))}")
-        print(f"  Field alias: {legacy_data.get('field_alias')}")
-        print(f"  Tones: {legacy_data.get('tones', [])}")
-        
-        if legacy_data.get('fields'):
-            field = legacy_data['fields'][0]
-            print(f"  First field:")
-            print(f"    Name: {field.get('name')}")
-            print(f"    Display name: {field.get('display_name')}")
-            print(f"    Type: {field.get('type')}")
-            print(f"    Has instruction template: {'instruction_prompt_template' in field}")
+    # Test YAML loading (only new format)
+    new_path = Path("system_prompt_generator.yaml")
+    if new_path.exists():
+        with open(new_path, 'r') as f:
+            data = yaml.safe_load(f)
+        print(f"YAML loaded successfully (from {new_path})")
+        print(f"  ID: {data.get('id', data.get('name'))}")
+        print(f"  Properties: {len(data.get('properties', []))}")
+        print(f"  Has metadata: {'metadata' in data}")
+        if data.get('properties'):
+            prop = data['properties'][0]
+            print(f"  First property:")
+            print(f"    ID: {prop.get('id')}")
+            print(f"    Type: {prop.get('type')}")
+            print(f"    Has prompt template: {'prompt_template' in prop}")
     
     # Test new format
     new_path = Path("system_prompt_generator.yaml")
@@ -72,48 +68,41 @@ def test_form_structure():
             self.properties = properties or []
             self.metadata = metadata or {}
     
-    # Test legacy format conversion
-    legacy_path = Path("system_prompt_generator_legacy.yaml")
-    if legacy_path.exists():
-        with open(legacy_path, 'r') as f:
-            legacy_data = yaml.safe_load(f)
-        
-        # Convert legacy format to form structure
+    # Test form structure conversion (only new format)
+    new_path = Path("system_prompt_generator.yaml")
+    if new_path.exists():
+        with open(new_path, 'r') as f:
+            data = yaml.safe_load(f)
         info = MockInfo(
-            name=legacy_data.get('name'),
-            description=legacy_data.get('info', {}).get('description')
+            name=data.get('id', data.get('name')),
+            description=data.get('info', {}).get('description') if 'info' in data else None
         )
-        
         properties = []
-        for field in legacy_data.get('fields', []):
+        for prop in data.get('properties', []):
             properties.append({
-                'id': field.get('name'),
-                'display_name': field.get('display_name'),
-                'type': field.get('type'),
-                'description': field.get('description'),
-                'has_template': 'instruction_prompt_template' in field
+                'id': prop.get('id'),
+                'display_name': prop.get('display_name', None),
+                'type': prop.get('type'),
+                'description': prop.get('description', None),
+                'has_template': 'prompt_template' in prop
             })
-        
         metadata = {
-            'field_alias': legacy_data.get('field_alias'),
-            'tones': legacy_data.get('tones', []),
-            'welcome_message': legacy_data.get('welcome_message')
+            'field_alias': data.get('field_alias', None),
+            'tones': data.get('tones', []),
+            'welcome_message': data.get('welcome_message', None)
         }
-        
         form = MockForm(
-            id=legacy_data.get('name'),
+            id=data.get('id', data.get('name')),
             info=info,
             properties=properties,
             metadata=metadata
         )
-        
-        print(f"Converted legacy format:")
+        print(f"Converted form structure (from {new_path}):")
         print(f"  Form ID: {form.id}")
         print(f"  Form name: {form.info.name}")
         print(f"  Properties count: {len(form.properties)}")
         print(f"  Field alias: {form.metadata.get('field_alias')}")
         print(f"  Tones: {form.metadata.get('tones')}")
-        
         for prop in form.properties:
             print(f"    Property: {prop['id']} ({prop['type']})")
             print(f"      Display: {prop['display_name']}")
