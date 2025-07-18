@@ -4,19 +4,12 @@ from enum import Enum
 
 from pydantic import BaseModel
 
-# Define protocols for extensible enum-like objects
-class ExtensionProtocol(Protocol):
-    @property
-    def value(self) -> str: ...
-
-
-class Language(str, Enum):
-    EN = "en"
-    ZH = "zh"
-
 class DisplayName(BaseModel):
-    language: Union[Language, ExtensionProtocol]
+    language: str
     value: str
+
+    class Config:
+        arbitrary_types_allowed = True
 
 class Path(BaseModel):
     type: Literal["key", "index"]

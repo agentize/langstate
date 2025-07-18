@@ -3,7 +3,7 @@ from typing_extensions import TypedDict
 from enum import Enum
 
 from pydantic import BaseModel
-from .basic import Language, ExtensionProtocol, DisplayName, Path, Info
+from .basic import Path, Info
 from .agent import Agent
 
 class PropertyStatusType(str, Enum):
@@ -26,8 +26,8 @@ class ValueSimilarityCondition(BaseModel):
     threshold: float  # Similarity threshold (0-1.0)
 
 class StatusTypeCondition(BaseModel):
-    allowed_condtions: List[Union[PropertyStatusType, ExtensionProtocol]]
-    disallowed_conditions: List[Union[PropertyStatusType, ExtensionProtocol]]
+    allowed_condtions: List[str]
+    disallowed_conditions: List[str]
 
 class PromptCondition(BaseModel):
     prompt: str  # The prompt to be used for this condition
@@ -58,7 +58,7 @@ class Property(BaseModel):
     id: str
     info: Info
     prompt_template: Optional[PromptTemplate]
-    type: Union[PropertyType, ExtensionProtocol] = PropertyType.STRING
+    type: str = PropertyType.STRING
     # List of property names this property depends on with relationship of "OR". if any of these dependencies are met, this property is considered valid
     depends_on: List[PropertyDependency] = []
     tags: List[str] = []
@@ -68,7 +68,7 @@ class Property(BaseModel):
         extra = "allow"
 
 class PropertyStatus(BaseModel):
-    type: Union[PropertyStatusType, ExtensionProtocol] = PropertyStatusType.UNKNOWN
+    type: str = PropertyStatusType.UNKNOWN
     value: Optional[str] = None
 
 class PropertySnapshot(BaseModel):
