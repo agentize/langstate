@@ -1,38 +1,42 @@
-from typing import Any, Dict, List, Optional, Union, Literal, Protocol
-from typing_extensions import TypedDict
+"""Basic model definitions for the khandhas package.
+
+This module contains fundamental data structures and protocols used throughout
+the khandhas library, including language definitions, display names, paths,
+and base information models.
+"""
+
+from typing import Any, Dict, List, Optional, Union, Literal
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-# Define protocols for extensible enum-like objects
-class ExtensionProtocol(Protocol):
-    @property
-    def value(self) -> str: ...
 
 
 class Language(str, Enum):
+    """Supported languages."""
     EN = "en"
     ZH = "zh"
 
+
 class DisplayName(BaseModel):
-    language: Union[Language, ExtensionProtocol]
+    """Display name with language information."""
+    language: Union[Language, str]
     value: str
 
+
 class Path(BaseModel):
+    """Path specification for navigation."""
     type: Literal["key", "index"]
     value: str
 
 
 class Info(BaseModel):
-    """
-    Base class for metadata information.
+    """Base class for metadata information.
     
     This class can be extended to include additional metadata fields as needed.
     """
     name: Optional[str] = None
     description: Optional[str] = None
-    display_names: List[DisplayName] = []
+    display_names: List[DisplayName] = Field(default_factory=list)
     uri: Optional[str] = None
-
-    # Additional metadata can be added here
-    metadata: Dict[str, Any] = {}
+    metadata: Dict[str, Any] = Field(default_factory=dict)

@@ -48,6 +48,8 @@ class PropertyType(str, Enum):
     NUMBER = "number"
 
 class PromptTemplate(BaseModel):
+    id: str
+    info: Info
     # Template for generating the property value without considering an existing value
     generate: Optional[str] = None
     # Template for updating the property value considering an existing value
@@ -57,7 +59,7 @@ class PromptTemplate(BaseModel):
 class Property(BaseModel):
     id: str
     info: Info
-    prompt_template: Optional[PromptTemplate]
+    prompt_template: PromptTemplate | str | None = None
     type: Union[PropertyType, ExtensionProtocol] = PropertyType.STRING
     # List of property names this property depends on with relationship of "OR". if any of these dependencies are met, this property is considered valid
     depends_on: List[PropertyDependency] = []
