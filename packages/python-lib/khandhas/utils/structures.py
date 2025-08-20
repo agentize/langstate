@@ -1,5 +1,4 @@
 from typing import List, Dict, Optional, TypeVar, Generic
-from studio.services.assistant.models import DynamicField, FieldDependency
 
 T = TypeVar("T")
 

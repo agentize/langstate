@@ -6,7 +6,7 @@ which are collections of properties and metadata used in the khandhas system.
 
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-from .property import Property, PropertySnapshot
+from .property import Property, Touch
 from .basic import Info
 
 class Form(BaseModel):
