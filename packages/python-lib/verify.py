@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Verification script for Khandhas installation and testing.
+Verification script for LangState installation and testing.
 
-This script helps users verify that their Khandhas installation is working correctly
+This script helps users verify that their LangState installation is working correctly
 and provides guidance for testing and releasing the package.
 """
 
@@ -19,13 +19,13 @@ def run_command(cmd, description, required=True):
         # Use the same Python executable as the current process
         if cmd.startswith("python "):
             cmd = cmd.replace("python ", f"{sys.executable} ")
-        elif cmd.startswith("khandhas "):
-            # Try to find khandhas in the same environment
-            khandhas_path = Path(sys.executable).parent / "khandhas"
-            if khandhas_path.exists():
-                cmd = cmd.replace("khandhas ", f"{khandhas_path} ")
+        elif cmd.startswith("langstate "):
+            # Try to find langstate in the same environment
+            langstate_path = Path(sys.executable).parent / "langstate"
+            if langstate_path.exists():
+                cmd = cmd.replace("langstate ", f"{langstate_path} ")
             else:
-                cmd = cmd.replace("khandhas ", f"{sys.executable} -m khandhas.cli ")
+                cmd = cmd.replace("langstate ", f"{sys.executable} -m langstate.cli ")
         
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
@@ -60,9 +60,9 @@ def check_package_import():
     """Check if package can be imported."""
     print("📦 Checking package import...")
     try:
-        import khandhas
+        import langstate
         print(f"  ✅ Package imported successfully")
-        print(f"  📌 Version: {khandhas.__version__}")
+        print(f"  📌 Version: {langstate.__version__}")
         return True
     except ImportError as e:
         print(f"  ❌ Import failed: {e}")
@@ -118,7 +118,7 @@ def check_code_quality():
     checks = [
         ("python -m black --check .", "Code formatting (black)"),
         ("python -m flake8 .", "Linting (flake8)"),
-        ("python -m mypy khandhas/", "Type checking (mypy)"),
+        ("python -m mypy langstate/", "Type checking (mypy)"),
     ]
     
     passed = 0
@@ -128,7 +128,7 @@ def check_code_quality():
     
     print(f"\n📊 Code quality: {passed}/{len(checks)} checks passed")
     if passed < len(checks):
-        print("💡 Fix issues or run: python -m black . && python -m flake8 . && python -m mypy khandhas/")
+        print("💡 Fix issues or run: python -m black . && python -m flake8 . && python -m mypy langstate/")
     
     return passed == len(checks)
 
@@ -138,8 +138,8 @@ def check_cli():
     print("\n🖥️  CLI Checks:")
     
     checks = [
-        ("khandhas version", "Version command"),
-        ("khandhas --help", "Help command"),
+        ("langstate version", "Version command"),
+        ("langstate --help", "Help command"),
     ]
     
     passed = 0
@@ -161,10 +161,10 @@ def show_next_steps():
     print("  🧪 Run specific tests:")
     print("     • pytest tests/test_config.py - Test configuration")
     print("     • pytest tests/test_server.py - Test server functionality")
-    print("     • pytest --cov=khandhas - Test with coverage")
+    print("     • pytest --cov=langstate - Test with coverage")
     print()
     print("  🚀 Release checklist:")
-    print("     • Update version in khandhas/__init__.py")
+    print("     • Update version in langstate/__init__.py")
     print("     • Update CHANGELOG.md")
     print("     • python -m build")
     print("     • python -m twine upload --repository testpypi dist/*")
@@ -174,7 +174,7 @@ def show_next_steps():
 def main():
     """Main verification function."""
     print("=" * 60)
-    print("🔍 Khandhas Package Verification")
+    print("🔍 LangState Package Verification")
     print("=" * 60)
     
     # Basic checks

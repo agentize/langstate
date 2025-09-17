@@ -1,7 +1,7 @@
 """Formation and form model definitions.
 
 This module contains models for representing forms and formations,
-which are collections of properties and metadata used in the khandhas system.
+which are collections of properties and metadata used in the langstate system.
 """
 
 from typing import Any, Dict, List, Optional

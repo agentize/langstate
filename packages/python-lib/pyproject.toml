@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0.0", "wheel>=0.42.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "khandhas"
+name = "langstate"
 version = "0.1.0"
-description = "A Python library for khandhas application"
+description = "A Python library for langstate application"
 authors = [
     {name = "Your Name", email = "your.email@example.com"},
 ]
@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-keywords = ["fastapi", "web", "api", "khandhas", "library"]
+keywords = ["fastapi", "web", "api", "langstate", "library"]
 dependencies = [
     "fastapi>=0.104.0,<1.0.0",
     "uvicorn[standard]>=0.24.0,<1.0.0",
@@ -53,25 +53,25 @@ docs = [
     "mkdocs-material>=9.0.0,<10.0.0",
 ]
 all = [
-    "khandhas[dev,docs]",
+    "langstate[dev,docs]",
 ]
 
 [project.scripts]
-khandhas = "khandhas.cli:main"
+langstate = "langstate.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/khandhas"
-Repository = "https://github.com/yourusername/khandhas"
-Documentation = "https://khandhas.readthedocs.io/"
-Issues = "https://github.com/yourusername/khandhas/issues"
+Homepage = "https://github.com/yourusername/langstate"
+Repository = "https://github.com/yourusername/langstate"
+Documentation = "https://langstate.readthedocs.io/"
+Issues = "https://github.com/yourusername/langstate/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["khandhas*"]
+include = ["langstate*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
-khandhas = ["py.typed", "*.pyi"]
+langstate = ["py.typed", "*.pyi"]
 
 [tool.black]
 line-length = 88
@@ -115,7 +115,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "--cov=khandhas_server",
+    "--cov=langstate_server",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -127,7 +127,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["khandhas"]
+source = ["langstate"]
 omit = [
     "*/tests/*",
     "*/test_*",

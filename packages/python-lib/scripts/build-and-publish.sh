@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Build and publish script for khandhas
+# Build and publish script for langstate
 
 set -e
 
-echo "🚀 Starting build and publish process for khandhas"
+echo "🚀 Starting build and publish process for langstate"
 
 # Check if we're in the right directory
 if [ ! -f "pyproject.toml" ]; then
@@ -29,7 +29,7 @@ VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['
 echo "📦 Current version: $VERSION"
 
 # Check if this version already exists on PyPI
-if pip index versions khandhas 2>/dev/null | grep -q "$VERSION"; then
+if pip index versions langstate 2>/dev/null | grep -q "$VERSION"; then
     echo "❌ Version $VERSION already exists on PyPI"
     exit 1
 fi
@@ -48,11 +48,11 @@ python -m pytest
 
 # Run linting
 echo "🔍 Running linting..."
-flake8 khandhas/
+flake8 langstate/
 
 # Run type checking
 echo "🔍 Running type checking..."
-mypy khandhas/
+mypy langstate/
 
 # Build the package
 echo "📦 Building package..."

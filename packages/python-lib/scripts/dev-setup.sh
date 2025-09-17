@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Development setup script for khandhas
+# Development setup script for langstate
 
 set -e
 
-echo "🔧 Setting up development environment for khandhas"
+echo "🔧 Setting up development environment for langstate"
 
 # Check if we're in the right directory
 if [ ! -f "pyproject.toml" ]; then
@@ -50,7 +50,7 @@ python -m pytest --maxfail=1
 
 # Run linting
 echo "🔍 Running linting check..."
-flake8 khandhas/ --count --select=E9,F63,F7,F82 --show-source --statistics
+flake8 langstate/ --count --select=E9,F63,F7,F82 --show-source --statistics
 
 echo "✅ Development environment setup complete!"
 echo ""
@@ -59,10 +59,10 @@ echo ""
 echo "Useful commands:"
 echo "  • Activate virtual environment: source venv/bin/activate"
 echo "  • Run tests: pytest"
-echo "  • Run application: khandhas dev"
-echo "  • Run linting: flake8 khandhas/"
-echo "  • Run type checking: mypy khandhas/"
-echo "  • Format code: black khandhas/"
+echo "  • Run application: langstate dev"
+echo "  • Run linting: flake8 langstate/"
+echo "  • Run type checking: mypy langstate/"
+echo "  • Format code: black langstate/"
 echo ""
 echo "📝 Don't forget to:"
 echo "  • Update your name and email in pyproject.toml and setup.py"

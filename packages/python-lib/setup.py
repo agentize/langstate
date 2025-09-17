@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup configuration for khandhas-server package."""
+"""Setup configuration for langstate-server package."""
 
 from setuptools import setup, find_packages
 import os
@@ -17,8 +17,8 @@ def read_readme():
 
 # Read version from __init__.py
 def read_version():
-    """Read version from khandhas/__init__.py."""
-    version_file = os.path.join(os.path.dirname(__file__), "khandhas", "__init__.py")
+    """Read version from langstate/__init__.py."""
+    version_file = os.path.join(os.path.dirname(__file__), "langstate", "__init__.py")
     if os.path.exists(version_file):
         with open(version_file, "r", encoding="utf-8") as f:
             for line in f:
@@ -28,14 +28,14 @@ def read_version():
 
 
 setup(
-    name="khandhas",
+    name="langstate",
     version=read_version(),
     author="Your Name",
     author_email="your.email@example.com",
-    description="A Python library for khandhas application",
+    description="A Python library for langstate application",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/khandhas",
+    url="https://github.com/yourusername/langstate",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -78,11 +78,11 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "khandhas=khandhas.cli:main",
+            "langstate=langstate.cli:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "khandhas": ["py.typed", "*.pyi"],
+        "langstate": ["py.typed", "*.pyi"],
     },
 )

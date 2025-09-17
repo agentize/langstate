@@ -1,6 +1,6 @@
-# Khandhas
+# LangState
 
-A Python library for khandhas application with support for development and production modes.
+A Python library for langstate application with support for development and production modes.
 
 ## Features
 
@@ -49,7 +49,7 @@ source .venv/bin/activate  # Linux/Mac
 # .venv\Scripts\activate    # Windows
 
 # Install from PyPI (when published)
-pip install khandhas
+pip install langstate
 
 # Or install from source
 pip install .
@@ -60,10 +60,10 @@ pip install .
 ### Python API
 
 ```python
-from khandhas import KhandhasServer, Config
+from langstate import LangStateServer, Config
 
-# Create server with default configuration
-server = KhandhasServer()
+# Basic server
+server = LangStateServer()
 
 # Or with custom configuration
 config = Config(
@@ -72,7 +72,7 @@ config = Config(
     debug=True,
     reload=True
 )
-server = KhandhasServer(config)
+server = LangStateServer(config)
 
 # Run the server
 server.run()
@@ -81,17 +81,17 @@ server.run()
 ### Command Line Interface
 
 ```bash
-# Run application with default settings
-khandhas run
+# Run in production mode
+langstate run
 
-# Run in development mode with auto-reload
-khandhas dev --reload
+# Run in development mode with reload
+langstate dev --reload
 
-# Run with custom host and port
-khandhas run --host 127.0.0.1 --port 8080
+# Custom host and port
+langstate run --host 127.0.0.1 --port 8080
 
-# Run with debug mode
-khandhas run --debug --log-level DEBUG
+# Debug mode with verbose logging
+langstate run --debug --log-level DEBUG
 ```
 
 ### Environment Configuration
@@ -99,12 +99,12 @@ khandhas run --debug --log-level DEBUG
 Create a `.env` file:
 
 ```env
-KHANDHAS_HOST=0.0.0.0
-KHANDHAS_PORT=8000
-KHANDHAS_DEBUG=true
-KHANDHAS_RELOAD=true
-KHANDHAS_LOG_LEVEL=INFO
-KHANDHAS_SECRET_KEY=your-secret-key-here
+LANGSTATE_HOST=0.0.0.0
+LANGSTATE_PORT=8000
+LANGSTATE_DEBUG=true
+LANGSTATE_RELOAD=true
+LANGSTATE_LOG_LEVEL=INFO
+LANGSTATE_SECRET_KEY=your-secret-key-here
 ```
 
 ## Development vs Production Mode
@@ -162,22 +162,22 @@ The server provides several built-in endpoints:
 
 ### Environment Variables
 
-All configuration options can be set via environment variables with the `KHANDHAS_` prefix:
+All configuration options can be set via environment variables with the `LANGSTATE_` prefix:
 
-- `KHANDHAS_HOST`
-- `KHANDHAS_PORT`
-- `KHANDHAS_DEBUG`
-- `KHANDHAS_RELOAD`
-- `KHANDHAS_LOG_LEVEL`
+- `LANGSTATE_HOST`
+- `LANGSTATE_PORT`
+- `LANGSTATE_DEBUG`
+- `LANGSTATE_RELOAD`
+- `LANGSTATE_LOG_LEVEL`
 - etc.
 
 ## Extending the Server
 
 ```python
-from khandhas import KhandhasServer, Config
+from langstate import LangStateServer, Config
 
-# Create server
-server = KhandhasServer()
+# Create and run server
+server = LangStateServer()
 
 # Add custom startup handler
 async def startup_handler():
@@ -207,7 +207,7 @@ server.run()
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd khandhas/packages/python-lib
+cd langstate/packages/python-lib
 
 # Install in development mode
 pip install -e ".[dev]"
@@ -216,13 +216,13 @@ pip install -e ".[dev]"
 pytest
 
 # Run linting
-flake8 khandhas/
+flake8 langstate/
 
 # Format code
-black khandhas/
+black langstate/
 
 # Type checking
-mypy khandhas/
+mypy langstate/
 ```
 
 ## Testing
@@ -234,7 +234,7 @@ mypy khandhas/
 pytest
 
 # Run tests with coverage
-pytest --cov=khandhas
+pytest --cov=langstate
 
 # Run specific test file
 pytest tests/test_server.py
@@ -243,7 +243,7 @@ pytest tests/test_server.py
 pytest -v
 
 # Test installation
-python -c "import khandhas; print(khandhas.__version__)"
+python -c "import langstate; print(langstate.__version__)"
 ```
 
 ### Comprehensive Testing
@@ -251,10 +251,11 @@ python -c "import khandhas; print(khandhas.__version__)"
 For detailed testing instructions, see [TESTING.md](TESTING.md).
 
 **Development Environment Setup:**
+
 ```bash
 # 1. Clone and setup
 git clone <repo-url>
-cd khandhas/packages/python-lib
+cd langstate/packages/python-lib
 python -m venv .venv
 source .venv/bin/activate
 
@@ -262,10 +263,11 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 
 # 3. Run full test suite
-pytest tests/ -v --cov=khandhas
+pytest tests/ -v --cov=langstate
 ```
 
 **Code Quality Checks:**
+
 ```bash
 # Format code
 black .
@@ -274,7 +276,7 @@ black .
 flake8 .
 
 # Type checking
-mypy khandhas/
+mypy langstate/
 
 # Run all pre-commit hooks
 pre-commit run --all-files
@@ -303,15 +305,17 @@ python -m twine upload dist/*
 For complete release instructions, see [RELEASE.md](RELEASE.md).
 
 **Version Management:**
+
 - Follow [Semantic Versioning](https://semver.org/)
-- Update version in `khandhas/__init__.py`
+- Update version in `langstate/__init__.py`
 - Update `CHANGELOG.md` with release notes
 
 **Release Checklist:**
+
 - [ ] All tests pass: `pytest`
 - [ ] Code formatted: `black --check .`
 - [ ] No lint errors: `flake8 .`
-- [ ] Type checking: `mypy khandhas/`
+- [ ] Type checking: `mypy langstate/`
 - [ ] Version updated
 - [ ] Changelog updated
 - [ ] Build package: `python -m build`
@@ -342,6 +346,7 @@ MIT License - see LICENSE file for details.
 ## Changelog
 
 ### 0.1.0
+
 - Initial release
 - FastAPI-based server
 - CLI interface

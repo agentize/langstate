@@ -1,4 +1,4 @@
-# Khandhas
+# LangState
 
 A modern, lightweight Python library for building FastAPI-based web applications with built-in configuration management, CLI tools, and development utilities.
 
@@ -18,11 +18,11 @@ A modern, lightweight Python library for building FastAPI-based web applications
 
 ```bash
 # Install from PyPI
-pip install khandhas
+pip install langstate
 
 # Or for development, clone and install locally:
 git clone <repository-url>
-cd khandhas/packages/python-lib
+cd langstate/packages/python-lib
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -36,13 +36,14 @@ pip install -e ".[dev]"
 ### Basic Usage
 
 **Note**: Always activate your virtual environment first if using local development:
+
 ```bash
 source .venv/bin/activate  # Linux/Mac
 # .venv\Scripts\activate    # Windows
 ```
 
 ```python
-from khandhas import KhandhasServer, Config
+from langstate import LangStateServer, Config
 
 # Create configuration
 config = Config(
@@ -52,7 +53,7 @@ config = Config(
 )
 
 # Create and run server
-server = KhandhasServer(config)
+server = LangStateServer(config)
 server.run()
 ```
 
@@ -64,13 +65,13 @@ source .venv/bin/activate  # Linux/Mac
 # .venv\Scripts\activate    # Windows
 
 # Run in development mode
-khandhas dev
+langstate dev
 
 # Run in production mode
-khandhas run --host 0.0.0.0 --port 8000
+langstate run --host 0.0.0.0 --port 8000
 
 # Show version
-khandhas version
+langstate version
 ```
 
 ## Documentation
@@ -95,6 +96,7 @@ setup.bat
 ```
 
 These scripts will:
+
 - Create a virtual environment
 - Install all dependencies
 - Verify the installation
@@ -106,7 +108,7 @@ These scripts will:
 ```bash
 # 1. Clone the repository
 git clone <repository-url>
-cd khandhas
+cd langstate
 
 # 2. Create virtual environment
 python -m venv .venv
