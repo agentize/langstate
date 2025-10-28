@@ -115,7 +115,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "--cov=langstate_server",
+    "--cov=langstate",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -124,6 +124,7 @@ filterwarnings = [
     "error",
     "ignore::UserWarning",
     "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
 ]
 
 [tool.coverage.run]

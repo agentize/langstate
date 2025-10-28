@@ -5,12 +5,13 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 from .basic import Info
+from .updater import Updater
 from .agent import Agent
-from ..utils import Tree
+from ..utils import TreeNode
 
 
 class TouchState(str, Enum):
-    """Enumeration representing the different status types of a property."""
+    """Enumeration representing the different status types of a field."""
     UNTOUCHED = "untouched"
     GENERATED = "generated"
     EDITED = "edited"
@@ -42,8 +43,8 @@ class PromptCondition(BaseModel):
     """Condition that uses a prompt for evaluation."""
     prompt: str  # The prompt to be used for this condition
 
-class PropertyDependency(BaseModel):
-    """Defines a dependency relationship between properties with various condition types. It's OR relationship between any of two items"""
+class FieldDependency(BaseModel):
+    """Defines a dependency relationship between fields with various condition types. It's OR relationship between any of two items"""
     property_id: str
     enumerationCondition: Optional[EnumerationCondition] = None
     valueRangeCondition: Optional[ValueRangeCondition] = None
@@ -52,16 +53,16 @@ class PropertyDependency(BaseModel):
     promptCondition: Optional[PromptCondition] = None
     
     class Config:
-        """Configuration for PropertyDependency model."""
+        """Configuration for FieldDependency model."""
         extra = "allow"
 
-PropertyValue = Union[
+FieldValue = Union[
     None, bool, int, float, str,
-    List["PropertyValue"],
-    Dict[str, "PropertyValue"],
-    "Property",  
+    List["FieldValue"],
+    Dict[str, "FieldValue"],
+    "Field",  
 ]
-class PropertyValueType(str, Enum):
+class FieldValueType(str, Enum):
     STRING   = "string"
     INTEGER  = "integer"
     NUMBER   = "number"
@@ -69,36 +70,38 @@ class PropertyValueType(str, Enum):
     NULL     = "null"
     ARRAY    = "array"
     OBJECT   = "object"
-    PROPERTY = "property"
+    FIELD = "field"
 
-class PromptTemplate(BaseModel):
-    """Template for generating prompts used in property processing."""
+
+class Field(BaseModel):
+    """Represents a field with its metadata, dependencies, and configuration."""
     id: str
     info: Info
-    # Template for generating the property value without considering an existing value
-    generate: Optional[str] = None
-    # Template for updating the property value considering an existing value
-    update: Optional[str] = None
-
-
-class Property(Tree["Property", "PropertyValue"]):
-    """Represents a property with its metadata, dependencies, and configuration."""
-    id: str
-    info: Info
-    prompt_template: PromptTemplate | str | None = None
-    value_type: PropertyValueType
-    depends_on: List[PropertyDependency] = [] # AND relationship between items
+    valid_value_types: List[FieldValueType]
+    dependencies: List[FieldDependency] = [] # AND relationship between items
+    default_updaters: List[Updater] = []
     tags: List[str] = []
-
     class Config:
-        """Configuration for Property model."""
+        """Configuration for Field model."""
         extra = "allow"
 
-class PropertyState(BaseModel):
-    """Represents the value of a property."""
+class FieldInstance(BaseModel):
+    """An instance of a Field with a specific value."""
+    field: Field
+    value: FieldValue
+
+class Schema(TreeNode["Field"]):
+    """Represents a schema containing fields and nested schemas."""
+    id: str
+    info: Info
+    fields: List[Field] = []
+
+class State(TreeNode["FieldInstance"]):
+    """Represents the value of a field."""
     property_id: str
-    property: Optional[Property] = None
+    property: Optional[Field] = None
     value: Union[str, int, float, bool, None]
+    
 
 class Touch(BaseModel):
     property_states: List["PropertyState"]

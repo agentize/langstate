@@ -11,16 +11,9 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
-
-class Language(str, Enum):
-    """Supported languages."""
-    EN = "en"
-    ZH = "zh"
-
-
 class DisplayName(BaseModel):
     """Display name with language information."""
-    language: Union[Language, str]
+    locale: str
     value: str
 
 
@@ -40,3 +33,9 @@ class Info(BaseModel):
     display_names: List[DisplayName] = Field(default_factory=list)
     uri: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class ModelInfo(Info):
+    """Model-specific information extending the base Info class."""
+    model_name: Optional[str] = None
+    model_version: Optional[str] = None
+    provider: Optional[str] = None
