@@ -1,6 +1,37 @@
 from pydantic import BaseModel, Field as PydField
-from typing import Any, Dict, List, Optional, Union, TypeAlias
+from typing import Any, Dict, List, Optional, Union, TypeAlias, Generic, TypeVar
 from .basic import FieldStatus, ValueType
+
+T = TypeVar("T")
+
+class AllowDisallowCondition(Generic[T], BaseModel):
+    """
+    Generic class for allow/disallow logic.
+
+    Evaluation policy:
+    1) If `allowed` is NON-EMPTY:
+        -> Only items in `allowed` are allowed. `disallowed` is ignored.
+    2) Else:
+        -> All items allowed EXCEPT those in `disallowed`.
+    3) Both empty -> all items allowed.
+
+    Notes:
+    - If an item is in both lists, it is ALLOWED when `allowed` is non-empty.
+    - Prefer omitting an item from `allowed` if you want to block it while using an allowlist.
+    """
+    allowed: List[T] = PydField(default_factory=list)
+    disallowed: List[T] = PydField(default_factory=list)
+
+    def matches(self, value: T) -> bool:
+        """
+        Check if a given value matches the allow/disallow condition.
+
+        :param value: The value to check.
+        :return: True if the value matches the condition, False otherwise.
+        """
+        if self.allowed:
+            return value in self.allowed
+        return value not in self.disallowed
 
 class EnumerationCondition(BaseModel):
     """Condition that specifies allowed values through enumeration."""
@@ -18,51 +49,17 @@ class ValueSimilarityCondition(BaseModel):
     reference: str
     threshold: float  # Similarity threshold (0-1.0)
 
-class FieldStatusCondition(BaseModel):
+class FieldStatusCondition(AllowDisallowCondition[FieldStatus]):
     """
-    Gate by field status using allow/deny lists.
-
-    Evaluation policy (deterministic, simple):
-    1) If `allowed_status` is NON-EMPTY:
-        -> Only statuses present in `allowed_status` are allowed.
-            `disallowed_status` is IGNORED entirely in this case.
-    2) Else (no allowed_status):
-        -> All statuses are allowed EXCEPT those present in `disallowed_status`.
-    3) If both lists are empty:
-        -> All statuses are allowed.
-
-    Implications:
-    - If a status appears in BOTH lists, it is ALLOWED when `allowed_status` is non-empty
-    (because allowlist is authoritative).
-    - To block something while using an allowlist, simply omit it from `allowed_status`.
-
-    Examples:
-    - allowed=[READY, STABLE], disallowed=[DEPRECATED]  -> only READY/STABLE are allowed.
-    - allowed=[], disallowed=[INVALID]                  -> everything except INVALID is allowed.
-    - allowed=[], disallowed=[]                         -> all statuses allowed.
+    Condition to gate by field status using allow/disallow lists.
     """
-    allowed_status: List[FieldStatus] = PydField(default_factory=list)
-    disallowed_status: List[FieldStatus] = PydField(default_factory=list)
+    pass
 
-
-class FieldTypeCondition(BaseModel):
+class FieldTypeCondition(AllowDisallowCondition[ValueType]):
     """
-    Gate by field value types using allow/deny lists.
-
-    Same policy as FieldStatusCondition:
-    1) If `allowed_types` is NON-EMPTY:
-        -> Only types in `allowed_types` are allowed. `disallowed_types` is ignored.
-    2) Else:
-        -> All types allowed EXCEPT those in `disallowed_types`.
-    3) Both empty -> all types allowed.
-
-    Notes:
-    - If a type is in both lists, it is ALLOWED when `allowed_types` is non-empty.
-    - Prefer omitting a type from `allowed_types` if you want to block it while using an allowlist.
+    Condition to gate by field value types using allow/disallow lists.
     """
-    # Use your actual enum: FieldValueType (you had a naming slip: ValueType vs FieldValueType)
-    allowed_types: List[ValueType] = PydField(default_factory=list)
-    disallowed_types: List[ValueType] = PydField(default_factory=list)
+    pass
 
 class PromptCondition(BaseModel):
     """Condition that uses a prompt for evaluation."""
