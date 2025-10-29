@@ -49,3 +49,27 @@ class FieldStatus(str, Enum):
     VALIDATED = "validated"
     UNKNOWN = "unknown"
     CUSTOM = "custom"
+
+
+FieldValue = Union[ bool, int, float, str ]
+
+class ValueType(str, Enum):
+    """
+    ValueType is an enumeration that defines the possible types of values a field can have.
+
+    Attributes:
+        STRING: Represents a string value.
+        INTEGER: Represents an integer value.
+        NUMBER: Represents a numeric value (can include floats).
+        BOOLEAN: Represents a boolean value (True or False).
+        ARRAY: Represents an array value. The value will be the length of the array. 
+               The content of the array is managed by a Directed Acyclic Graph (DAG) for dependencies.
+        REFERENCE: Represents a reference value. The value will be a reference string to the id of another Field. 
+                   The content of the reference is managed by a Directed Acyclic Graph (DAG) for dependencies.
+    """
+    STRING   = "string"
+    INTEGER  = "integer"
+    NUMBER   = "number"
+    BOOLEAN  = "boolean"
+    ARRAY    = "array"
+    REFERENCE   = "reference"

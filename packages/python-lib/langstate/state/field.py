@@ -4,40 +4,26 @@ from typing import Any, Dict, List, Optional, Union, TypeAlias
 from enum import Enum
 
 from pydantic import BaseModel, Field as PydField
-from .basic import FieldStatus, Info
+from .basic import FieldStatus, FieldValue, ValueType, Info
 from .updater import Updater
 from ..data_structure.dag import DirectedAcyclicGraphNode, DirectedAcyclicGraphEdge, DirectedAcyclicGraph
-from .dependency import FieldDependency
-
-
-FieldValue = Union[ bool, int, float, str ]
-
-class FieldValueType(str, Enum):
-    """
-    FieldValueType is an enumeration that defines the possible types of values a field can have.
-
-    Attributes:
-        STRING: Represents a string value.
-        INTEGER: Represents an integer value.
-        NUMBER: Represents a numeric value (can include floats).
-        BOOLEAN: Represents a boolean value (True or False).
-        ARRAY: Represents an array value. The value will be the length of the array. 
-               The content of the array is managed by a Directed Acyclic Graph (DAG) for dependencies.
-        OBJECT: Represents an object value. The value will be a reference string. 
-                The content of the object is managed by a Directed Acyclic Graph (DAG) for dependencies.
-    """
-    STRING   = "string"
-    INTEGER  = "integer"
-    NUMBER   = "number"
-    BOOLEAN  = "boolean"
-    ARRAY    = "array"
-    OBJECT   = "object"
+from .constraints import Constraint
 
 class Field(BaseModel):
-    """Represents a field with its metadata, dependencies, and configuration."""
+    """Represents a field with its metadata, dependencies, and configuration.
+
+    Attributes:
+        id: A unique identifier for the field.
+        info: Metadata information about the field.
+        constraints: A list of constraints that define the relationships or rules
+            applied to this field.
+        default_value: The default value assigned to the field, if any.
+        default_updaters: A list of updaters that can modify the field's value.
+        tags: A list of tags for categorization or additional metadata.
+    """
     id: str
     info: Info
-    valid_value_types: List[FieldValueType]
+    constraints: List[Constraint] = PydField(default_factory=list)
     default_value: Optional[FieldValue] = None
     default_updaters: List[Updater] = PydField(default_factory=list)
     tags: List[str] = PydField(default_factory=list)
@@ -65,10 +51,26 @@ class FieldInstance(BaseModel):
     snapshots: List[FieldSnapshot] = PydField(default_factory=list)
 
 class FieldDependencyInstance(BaseModel):
-    id: str
-    dependency: FieldDependency
-    value: FieldValue
+    """
+    FieldDependencyInstance represents a dependency instance with an associated confidence level.
 
-Schema: TypeAlias = DirectedAcyclicGraph[Field, FieldDependency]
+    Attributes:
+        id (str): A unique identifier for the dependency instance.
+        dependency (Constraint): The constraint or condition that this dependency represents.
+        match_confidence (float): A value between 0.0 and 1.0 indicating the confidence level 
+            that the dependency is fulfilled. Higher values indicate greater confidence.
+    """
+    id: str
+    dependency: Constraint
+    match_confidence: float = PydField(..., ge=0.0, le=1.0)
+
+"""
+Defines the dependency relationship between fields.
+
+The Constraint from FieldA to FieldB means:
+Only when this Constraint is matched on FieldA, can FieldB be "talked" or interacted with.
+"""
+Schema: TypeAlias = DirectedAcyclicGraph[Field, Constraint]
+
 State: TypeAlias = DirectedAcyclicGraph[FieldInstance, FieldDependencyInstance]
 
