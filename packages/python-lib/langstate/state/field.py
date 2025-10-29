@@ -1,111 +1,74 @@
 from __future__ import annotations
 import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TypeAlias
 from enum import Enum
 
-from pydantic import BaseModel, Field
-from .basic import Info
+from pydantic import BaseModel, Field as PydField
+from .basic import FieldStatus, Info
 from .updater import Updater
-from .agent import Agent
-from ..utils import TreeNode
+from ..data_structure.dag import DirectedAcyclicGraphNode, DirectedAcyclicGraphEdge, DirectedAcyclicGraph
+from .dependency import FieldDependency
 
 
-class TouchState(str, Enum):
-    """Enumeration representing the different status types of a field."""
-    UNTOUCHED = "untouched"
-    GENERATED = "generated"
-    EDITED = "edited"
-    VALIDATED = "validated"
-    UNKNOWN = "unknown"
-    CUSTOM = "custom"
+FieldValue = Union[ bool, int, float, str ]
 
-
-class EnumerationCondition(BaseModel):
-    """Condition that specifies allowed values through enumeration."""
-    values: List[Any]
-
-class ValueRangeCondition(BaseModel):
-    """Condition that specifies allowed values through a numeric range."""
-    min: float
-    max: float
-
-class ValueSimilarityCondition(BaseModel):
-    """Condition that specifies allowed values based on similarity to a reference."""
-    reference: str
-    threshold: float  # Similarity threshold (0-1.0)
-
-class StatusTypeCondition(BaseModel):
-    """Condition that specifies allowed and disallowed status types."""
-    allowed_touch_state: List[TouchState]
-    disallowed_touch_state: List[TouchState]
-
-class PromptCondition(BaseModel):
-    """Condition that uses a prompt for evaluation."""
-    prompt: str  # The prompt to be used for this condition
-
-class FieldDependency(BaseModel):
-    """Defines a dependency relationship between fields with various condition types. It's OR relationship between any of two items"""
-    property_id: str
-    enumerationCondition: Optional[EnumerationCondition] = None
-    valueRangeCondition: Optional[ValueRangeCondition] = None
-    valueSimilarityCondition: Optional[ValueSimilarityCondition] = None
-    statusTypeCondition: Optional[StatusTypeCondition] = None
-    promptCondition: Optional[PromptCondition] = None
-    
-    class Config:
-        """Configuration for FieldDependency model."""
-        extra = "allow"
-
-FieldValue = Union[
-    None, bool, int, float, str,
-    List["FieldValue"],
-    Dict[str, "FieldValue"],
-    "Field",  
-]
 class FieldValueType(str, Enum):
+    """
+    FieldValueType is an enumeration that defines the possible types of values a field can have.
+
+    Attributes:
+        STRING: Represents a string value.
+        INTEGER: Represents an integer value.
+        NUMBER: Represents a numeric value (can include floats).
+        BOOLEAN: Represents a boolean value (True or False).
+        ARRAY: Represents an array value. The value will be the length of the array. 
+               The content of the array is managed by a Directed Acyclic Graph (DAG) for dependencies.
+        OBJECT: Represents an object value. The value will be a reference string. 
+                The content of the object is managed by a Directed Acyclic Graph (DAG) for dependencies.
+    """
     STRING   = "string"
     INTEGER  = "integer"
     NUMBER   = "number"
     BOOLEAN  = "boolean"
-    NULL     = "null"
     ARRAY    = "array"
     OBJECT   = "object"
-    FIELD = "field"
-
 
 class Field(BaseModel):
     """Represents a field with its metadata, dependencies, and configuration."""
     id: str
     info: Info
     valid_value_types: List[FieldValueType]
-    dependencies: List[FieldDependency] = [] # AND relationship between items
-    default_updaters: List[Updater] = []
-    tags: List[str] = []
+    default_value: Optional[FieldValue] = None
+    default_updaters: List[Updater] = PydField(default_factory=list)
+    tags: List[str] = PydField(default_factory=list)
+
     class Config:
         """Configuration for Field model."""
         extra = "allow"
 
-class FieldInstance(BaseModel):
-    """An instance of a Field with a specific value."""
-    field: Field
+class ValueConfidence(BaseModel):
+    confidence: float = PydField(..., ge=-1.0, le=1.0)  # Confidence score [-1.0, 1.0]
     value: FieldValue
 
-class Schema(TreeNode["Field"]):
-    """Represents a schema containing fields and nested schemas."""
+class FieldSnapshot(BaseModel):
     id: str
-    info: Info
-    fields: List[Field] = []
+    status: FieldStatus
+    value_confidences: List[ValueConfidence] = PydField(default_factory=list)
+    timestamp: datetime.datetime
+    updater: Optional[Updater] = None
+    meta_data: Dict[str, Any] = PydField(default_factory=dict)
 
-class State(TreeNode["FieldInstance"]):
-    """Represents the value of a field."""
-    property_id: str
-    property: Optional[Field] = None
-    value: Union[str, int, float, bool, None]
-    
+class FieldInstance(BaseModel):
+    """An instance of a Field with a specific value."""
+    id: str
+    field: Field
+    snapshots: List[FieldSnapshot] = PydField(default_factory=list)
 
-class Touch(BaseModel):
-    property_states: List["PropertyState"]
-    requested_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    requested_by: List[Agent] = []
-    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_by: List[Agent] = []
+class FieldDependencyInstance(BaseModel):
+    id: str
+    dependency: FieldDependency
+    value: FieldValue
+
+Schema: TypeAlias = DirectedAcyclicGraph[Field, FieldDependency]
+State: TypeAlias = DirectedAcyclicGraph[FieldInstance, FieldDependencyInstance]
+

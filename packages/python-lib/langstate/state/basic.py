@@ -39,3 +39,13 @@ class ModelInfo(Info):
     model_name: Optional[str] = None
     model_version: Optional[str] = None
     provider: Optional[str] = None
+
+
+class FieldStatus(str, Enum):
+    """Enumeration representing the different status types of a field."""
+    UNTOUCHED = "untouched"
+    GENERATED = "generated"
+    EDITED = "edited"
+    VALIDATED = "validated"
+    UNKNOWN = "unknown"
+    CUSTOM = "custom"
