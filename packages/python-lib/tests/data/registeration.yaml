@@ -1,0 +1,126 @@
+openapi: 3.1.0
+info:
+  title: Event Registration Schema (SUP)
+  version: 1.0.0
+
+x-sup-root-entity: Registration
+
+components:
+  schemas:
+    # ---------- Base class ----------
+    Person:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          pattern: "^[A-Za-z][A-Za-z .,'-]{0,98}[A-Za-z]$"
+        email:
+          type: string
+          pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        age_group:
+          type: string
+          enum: [child, adult, senior]
+      required: [id, name, email, age_group]
+      x-sup-constraints:
+        - target_field_id: person.age_group
+          field_type: { allowed: ["string"] }
+          enumeration: { values: ["child","adult","senior"] }
+
+    # ---------- Subclasses ----------
+    Registrant:
+      allOf:
+        - $ref: '#/components/schemas/Person'
+        - type: object
+          description: "Primary event registrant"
+          x-sup-role: "root_user"
+          x-sup-dependencies:
+            - from: registrant.id
+              dependency:
+                target_field_id: registrant.id
+                prompt: { prompt: "Registrant ID must be unique." }
+
+    Guest:
+      allOf:
+        - $ref: '#/components/schemas/Person'
+        - type: object
+          description: "Additional guest attending with the registrant"
+          x-sup-role: "dependent_user"
+          x-sup-dependencies:
+            - from: registration.slot_ref
+              dependency:
+                target_field_id: registration.slot_ref
+                prompt: { prompt: "Guests unlock only after a valid slot is selected." }
+
+    Slot:
+      type: object
+      properties:
+        id:        { type: string }
+        date:      { type: string, enum: [Fri, Sat, Sun] }
+        start_at:  { type: string, enum: ["2:00PM","4:00PM","6:00PM","8:00PM","10:00PM"] }
+        capacity:  { type: integer, minimum: 1, maximum: 500 }
+        remaining: { type: integer, minimum: 0, maximum: 500 }
+      required: [id, date, start_at]
+      x-sup-dependencies:
+        - from: slot.date
+          dependency:
+            target_field_id: slot.date
+            prompt: { prompt: "Is the selected start_at available for the chosen date?" }
+
+    Registration:
+      type: object
+      properties:
+        id:             { type: string }
+        registrant_ref: { type: string }   # reference to Registrant
+        slot_ref:       { type: string }   # reference to Slot
+        guest_refs:     { type: integer, minimum: 0 }  # stores array length
+        attendee_count: { type: integer, minimum: 1, maximum: 50 }
+      required: [id, registrant_ref]
+      x-sup-dependencies:
+        - from: registrant.id
+          dependency:
+            target_field_id: registrant.id
+            prompt: { prompt: "registrant_ref must reference existing registrant.id" }
+        - from: registrant.email
+          dependency:
+            target_field_id: registrant.email
+            prompt: { prompt: "Valid email required before slot selection" }
+        - from: slot.id
+          dependency:
+            target_field_id: slot.id
+            prompt: { prompt: "slot_ref must reference existing slot.id" }
+        - from: guest.id
+          dependency:
+            target_field_id: guest.id
+            prompt: { prompt: "guest_refs only after valid slot; guest IDs must exist" }
+
+    Pricing:
+      type: object
+      properties:
+        currency:     { type: string, enum: [USD, CAD, EUR, GBP] }
+        adult_price:  { type: number, minimum: 0, maximum: 10000 }
+        child_price:  { type: number, minimum: 0, maximum: 10000 }
+        senior_price: { type: number, minimum: 0, maximum: 10000 }
+        coupon_code:  { type: string, pattern: "^[A-Z0-9]{3,12}$" }
+        total:        { type: number, minimum: 0, maximum: 1000000 }
+      x-sup-dependencies:
+        - from: registration.slot_ref
+          dependency:
+            target_field_id: registration.slot_ref
+            prompt: { prompt: "Valid slot selected?" }
+        - from: registration.attendee_count
+          dependency:
+            target_field_id: registration.attendee_count
+            prompt: { prompt: "attendee_count validated?" }
+        - from: registrant.age_group
+          dependency:
+            target_field_id: registrant.age_group
+            enumeration: { values: ["child","adult","senior"] }
+        - from: guest.age_group
+          dependency:
+            target_field_id: guest.age_group
+            enumeration: { values: ["child","adult","senior"] }
+
+x-sup-graph:
+  edges: []

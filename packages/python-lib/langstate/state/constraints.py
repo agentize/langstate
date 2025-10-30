@@ -1,8 +1,14 @@
-from pydantic import BaseModel, Field as PydField
-from typing import Any, Dict, List, Optional, Union, TypeAlias, Generic, TypeVar
+from pydantic import BaseModel, Field as PydField, ConfigDict, field_validator, model_validator
+from typing import Any, Dict, List, Optional, Union, TypeAlias, Generic, TypeVar, TYPE_CHECKING
+from datetime import datetime, timezone
 from .basic import FieldStatus, ValueType
 
 T = TypeVar("T")
+
+
+def utc_now() -> datetime:
+    """Return current datetime in UTC timezone."""
+    return datetime.now(timezone.utc)
 
 class AllowDisallowCondition(Generic[T], BaseModel):
     """
@@ -43,17 +49,40 @@ class ValueRangeCondition(BaseModel):
     max: float
     inclusive_min: bool = True
     inclusive_max: bool = True
+    
+    @field_validator('max')
+    @classmethod
+    def validate_range(cls, v: float, info) -> float:
+        """Ensure max >= min."""
+        if 'min' in info.data and v < info.data['min']:
+            raise ValueError(f"max ({v}) must be greater than or equal to min ({info.data['min']})")
+        return v
 
 class ValueSimilarityCondition(BaseModel):
     """Condition that specifies allowed values based on similarity to a reference."""
     reference: str
-    threshold: float  # Similarity threshold (0-1.0)
+    threshold: float = PydField(ge=0.0, le=1.0)  # Similarity threshold (0-1.0)
 
 class FieldStatusCondition(AllowDisallowCondition[FieldStatus]):
     """
     Condition to gate by field status using allow/disallow lists.
+
+    Accepts values as either strings (matching the pattern) or Enum values; coerces to strings.
     """
-    pass
+    @field_validator("allowed", "disallowed", mode="before")
+    @classmethod
+    def coerce_enum_values(cls, v):  # type: ignore[override]
+        # Normalize any Enum members to their string values
+        if v is None:
+            return []
+        result = []
+        for item in v:
+            try:
+                # Enum members have a 'value' attr; strings will just raise AttributeError
+                result.append(getattr(item, "value", item))
+            except Exception:
+                result.append(item)
+        return result
 
 class FieldTypeCondition(AllowDisallowCondition[ValueType]):
     """
@@ -61,20 +90,31 @@ class FieldTypeCondition(AllowDisallowCondition[ValueType]):
     """
     pass
 
+class RegexCondition(BaseModel):
+    """Condition that specifies allowed values through regex pattern matching."""
+    pattern: str  # The regex pattern to match against
+
 class PromptCondition(BaseModel):
     """Condition that uses a prompt for evaluation."""
     prompt: str  # The prompt to be used for this condition
 
 class Constraint(BaseModel):
-    """A constraint applied to a field based on various conditions."""
-    field_id: str
-    fieldTypeCondition: Optional[FieldTypeCondition] = None
-    enumerationCondition: Optional[EnumerationCondition] = None
-    valueRangeCondition: Optional[ValueRangeCondition] = None
-    valueSimilarityCondition: Optional[ValueSimilarityCondition] = None
-    statusCondition: Optional[FieldStatusCondition] = None
-    promptCondition: Optional[PromptCondition] = None
+    """A constraint applied to a field based on various conditions.
     
-    class Config:
-        """Configuration for Constraint model."""
-        extra = "allow"
+    When used as a DAG edge payload, the field_id MUST match the source node's ID.
+    This ensures constraints are properly bound to the upstream field they evaluate.
+
+    If multiple conditions are assigned, the relationship between them will be OR.
+    """
+    model_config = ConfigDict(extra='allow', frozen=True)
+    
+    target_field_id: str
+    
+    field_type: Optional[FieldTypeCondition] = None
+    regex: Optional[RegexCondition] = None
+    enumeration: Optional[EnumerationCondition] = None
+    value_range: Optional[ValueRangeCondition] = None
+    value_similarity: Optional[ValueSimilarityCondition] = None
+    status: Optional[FieldStatusCondition] = None
+    prompt: Optional[PromptCondition] = None
+    
