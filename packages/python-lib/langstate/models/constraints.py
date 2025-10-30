@@ -1,5 +1,9 @@
 from pydantic import BaseModel, Field as PydField, ConfigDict, field_validator, model_validator
-from typing import Any, Dict, List, Optional, Union, TypeAlias, Generic, TypeVar, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Union, Generic, TypeVar, TYPE_CHECKING
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
 from datetime import datetime, timezone
 from .basic import FieldStatus, ValueType
 

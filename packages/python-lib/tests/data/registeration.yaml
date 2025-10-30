@@ -64,6 +64,7 @@ components:
       required: [id, date, start_at]
       x-sup-dependencies:
         - from: slot.date
+          to: slot.start_at
           dependency:
             target_field_id: slot.date
             prompt: { prompt: "Is the selected start_at available for the chosen date?" }
@@ -79,18 +80,22 @@ components:
       required: [id, registrant_ref]
       x-sup-dependencies:
         - from: registrant.id
+          to: registration.registrant_ref
           dependency:
             target_field_id: registrant.id
             prompt: { prompt: "registrant_ref must reference existing registrant.id" }
         - from: registrant.email
+          to: registration.slot_ref
           dependency:
             target_field_id: registrant.email
             prompt: { prompt: "Valid email required before slot selection" }
         - from: slot.id
+          to: registration.slot_ref
           dependency:
             target_field_id: slot.id
             prompt: { prompt: "slot_ref must reference existing slot.id" }
         - from: guest.id
+          to: registration.guest_refs
           dependency:
             target_field_id: guest.id
             prompt: { prompt: "guest_refs only after valid slot; guest IDs must exist" }
@@ -106,18 +111,22 @@ components:
         total:        { type: number, minimum: 0, maximum: 1000000 }
       x-sup-dependencies:
         - from: registration.slot_ref
+          to: pricing.currency
           dependency:
             target_field_id: registration.slot_ref
             prompt: { prompt: "Valid slot selected?" }
         - from: registration.attendee_count
+          to: pricing.total
           dependency:
             target_field_id: registration.attendee_count
             prompt: { prompt: "attendee_count validated?" }
         - from: registrant.age_group
+          to: pricing.adult_price
           dependency:
             target_field_id: registrant.age_group
             enumeration: { values: ["child","adult","senior"] }
         - from: guest.age_group
+          to: pricing.child_price
           dependency:
             target_field_id: guest.age_group
             enumeration: { values: ["child","adult","senior"] }

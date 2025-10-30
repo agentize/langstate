@@ -4,7 +4,7 @@ from typing import Generic, List, Optional, TypeVar
 
 T = TypeVar("T")
 
-@dataclass(slots=True)
+@dataclass
 class TreeNode(Generic[T]):
     """Pure data-structure representation of a tree node."""
     value: Optional[T] = None

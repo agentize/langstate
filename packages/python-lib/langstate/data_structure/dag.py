@@ -31,7 +31,7 @@ E = TypeVar("E")  # Edge metadata
 # Edge & Node
 # ---------------------------------------------------------------------------
 
-@dataclass(slots=True)
+@dataclass
 class DirectedAcyclicGraphEdge(Generic[E]):
     """Edge stored on the dependent side: dependent  ←edge—  prerequisite.
 

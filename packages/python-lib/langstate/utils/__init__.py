@@ -2,7 +2,9 @@ import sys
 import logging
 from typing import Optional
 
-from .data_structure import TreeNode, DAGNode, DAGEdge, DAGGraph
+# TreeNode, DAGNode, DAGEdge, DAGGraph can be imported from parent data_structure if needed
+# For now, comment out to avoid circular import issues
+# from ..data_structure import TreeNode, DAGNode, DAGEdge, DAGGraph
 
 
 def get_logger(name: str, level: str = "INFO") -> logging.Logger:

@@ -1,6 +1,10 @@
 from __future__ import annotations
 import datetime
-from typing import Any, Dict, List, Optional, Union, TypeAlias
+from typing import Any, Dict, List, Optional, Union
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
 from enum import Enum
 
 from pydantic import BaseModel, Field as PydField, ConfigDict, field_validator
