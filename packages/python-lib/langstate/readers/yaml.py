@@ -5,7 +5,7 @@ import yaml
 
 # --- import your models ---
 # Adjust import paths to your project layout
-from langstate.models import Info, ValueType, Field, FieldInstance, FieldSnapshot, ValueConfidence, Constraint, FieldTypeCondition, EnumerationCondition, RegexCondition, ValueRangeCondition, FieldStatusCondition, PromptCondition, FieldDependencyInstance
+from langstate.models import Info, ValueType, Property, PropertyInstance, PropertySnapshot, ValueConfidence, Constraint, PropertyTypeCondition, EnumerationCondition, RegexCondition, ValueRangeCondition, PropertyStatusCondition, PromptCondition, PropertyDependencyInstance
 from langstate.data_structure.dag import DirectedAcyclicGraph, DirectedAcyclicGraphEdge, DirectedAcyclicGraphNode
 
 # ---------------------------
@@ -41,14 +41,14 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     """Translate JSON Schema facets (type/enum/pattern/min/max) into self constraints."""
     out: List[Constraint] = []
 
-    # type -> FieldTypeCondition
+    # type -> PropertyTypeCondition
     types = prop_schema.get("type")
     vt = _value_type_from_jsonschema(types)
     if vt:
         out.append(
             Constraint(
-                target_field_id=field_id,
-                field_type=FieldTypeCondition(allowed=vt)
+                target_property_id=field_id,
+                property_type=PropertyTypeCondition(allowed=vt)
             )
         )
 
@@ -56,7 +56,7 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     if "enum" in prop_schema and isinstance(prop_schema["enum"], list) and prop_schema["enum"]:
         out.append(
             Constraint(
-                target_field_id=field_id,
+                target_property_id=field_id,
                 enumeration=EnumerationCondition(values=prop_schema["enum"])
             )
         )
@@ -66,7 +66,7 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     if pattern:
         out.append(
             Constraint(
-                target_field_id=field_id,
+                target_property_id=field_id,
                 regex=RegexCondition(pattern=pattern)
             )
         )
@@ -79,7 +79,7 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
         # Default inclusivity per JSON Schema: inclusive bounds when minimum/maximum used
         out.append(
             Constraint(
-                target_field_id=field_id,
+                target_property_id=field_id,
                 value_range=ValueRangeCondition(
                     min=float(numeric_min if numeric_min is not None else float("-inf")),
                     max=float(numeric_max if numeric_max is not None else float("+inf")),
@@ -95,14 +95,14 @@ def _mk_constraints_from_extension(field_id: str, items: List[Dict[str, Any]]) -
     """Parse x-sup-constraints entries (already shaped like your Constraint)."""
     out: List[Constraint] = []
     for item in items or []:
-        # Enforce/auto-fill target_field_id if omitted
+        # Enforce/auto-fill target_property_id if omitted
         payload = dict(item)
-        payload.setdefault("target_field_id", field_id)
+        payload.setdefault("target_property_id", field_id)
 
         # Normalize nested objects into model types if present
-        if "field_type" in payload and payload["field_type"]:
-            ft = payload["field_type"]
-            payload["field_type"] = FieldTypeCondition(
+        if "property_type" in payload and payload["property_type"]:
+            ft = payload["property_type"]
+            payload["property_type"] = PropertyTypeCondition(
                 allowed=ft.get("allowed", []),
                 disallowed=ft.get("disallowed", []),
             )
@@ -120,7 +120,7 @@ def _mk_constraints_from_extension(field_id: str, items: List[Dict[str, Any]]) -
             )
         if "status" in payload and payload["status"]:
             st = payload["status"]
-            payload["status"] = FieldStatusCondition(
+            payload["status"] = PropertyStatusCondition(
                 allowed=st.get("allowed", []),
                 disallowed=st.get("disallowed", []),
             )
@@ -130,7 +130,7 @@ def _mk_constraints_from_extension(field_id: str, items: List[Dict[str, Any]]) -
 
         c = Constraint(**payload)
         # guard: must equal source later (for edges); for self-constraints source==field_id
-        if c.target_field_id != field_id:
+        if c.target_property_id != field_id:
             # leave it; these will be used for cross-field edges if desired
             pass
         out.append(c)
@@ -164,7 +164,7 @@ def _full_field_id(entity: str, prop: str) -> str:
 # Public API
 # ---------------------------
 
-def load_schema_from_openapi_yaml(doc: str | Path) -> DirectedAcyclicGraph[Field, Constraint]:
+def load_schema_from_openapi_yaml(doc: str | Path) -> DirectedAcyclicGraph[Property, Constraint]:
     """
     Build a Schema DAG from an OpenAPI 3.1 + x-sup-* YAML.
 
@@ -175,14 +175,14 @@ def load_schema_from_openapi_yaml(doc: str | Path) -> DirectedAcyclicGraph[Field
       - x-sup-dependencies (under a schema):        [{from, dependency, to}]  # 'to' REQUIRED here
 
     Rules:
-      - Each dependency's payload MUST satisfy payload.target_field_id == from.
-      - Field ids are materialized as "<Entity>.<property>".
+      - Each dependency's payload MUST satisfy payload.target_property_id == from.
+      - Property ids are materialized as "<Entity>.<property>".
     """
     spec = _load_yaml(doc)
     entities = dict(_iter_entities(spec))
 
-    # 1) Create Field nodes
-    fields: Dict[str, Field] = {}
+    # 1) Create Property nodes
+    properties: Dict[str, Property] = {}
     for entity, schema in entities.items():
         props = _entity_properties(schema)
         for prop, prop_schema in props.items():
@@ -196,8 +196,8 @@ def load_schema_from_openapi_yaml(doc: str | Path) -> DirectedAcyclicGraph[Field
             # x-sup-constraints on the property itself (optional)
             constraints.extend(_mk_constraints_from_extension(fid, _get_ext(prop_schema, "x-sup-constraints", [])))
 
-            # Build Field
-            fields[fid] = Field(
+            # Build Property
+            properties[fid] = Property(
                 id=fid,
                 info=info,
                 constraints=constraints,
@@ -206,18 +206,18 @@ def load_schema_from_openapi_yaml(doc: str | Path) -> DirectedAcyclicGraph[Field
                 tags=[]
             )
 
-    # 2) Create DAG nodes from Fields
-    nodes: List[DirectedAcyclicGraphNode[Field, Constraint]] = []
-    for field in fields.values():
-        node = DirectedAcyclicGraphNode[Field, Constraint](id=field.id, value=field)
+    # 2) Create DAG nodes from Properties
+    nodes: List[DirectedAcyclicGraphNode[Property, Constraint]] = []
+    for property_obj in properties.values():
+        node = DirectedAcyclicGraphNode[Property, Constraint](id=property_obj.id, value=property_obj)
         nodes.append(node)
 
     # 3) Create DAG
-    dag = DirectedAcyclicGraph[Field, Constraint](nodes=nodes)
+    dag = DirectedAcyclicGraph[Property, Constraint](nodes=nodes)
 
-    # 4) Add edges (source: upstream field id; target: unlocked field id)
+    # 4) Add edges (source: upstream property id; target: unlocked property id)
 
-    # 4a) Field-level dependencies
+    # 4a) Property-level dependencies
     for entity, schema in entities.items():
         props = _entity_properties(schema)
         for prop, prop_schema in props.items():
@@ -227,9 +227,9 @@ def load_schema_from_openapi_yaml(doc: str | Path) -> DirectedAcyclicGraph[Field
                 payload = dep["dependency"]                 # Constraint shape
                 to_override = dep.get("to")                 # rarely needed at field level
                 constraint = _mk_constraints_from_extension(src, [payload])[0]
-                if constraint.target_field_id != src:
+                if constraint.target_property_id != src:
                     raise ValueError(
-                        f"Dependency payload.target_field_id '{constraint.target_field_id}' "
+                        f"Dependency payload.target_property_id '{constraint.target_property_id}' "
                         f"must equal 'from' '{src}'"
                     )
                 to_field = to_override or fid_target
@@ -244,9 +244,9 @@ def load_schema_from_openapi_yaml(doc: str | Path) -> DirectedAcyclicGraph[Field
                 raise ValueError(f"x-sup-dependencies entry under '{entity}' requires a 'to' field id.")
             payload = dep["dependency"]
             constraint = _mk_constraints_from_extension(src, [payload])[0]
-            if constraint.target_field_id != src:
+            if constraint.target_property_id != src:
                 raise ValueError(
-                    f"Dependency payload.target_field_id '{constraint.target_field_id}' "
+                    f"Dependency payload.target_property_id '{constraint.target_property_id}' "
                     f"must equal 'from' '{src}'"
                 )
             dag.add_edge(prereq_id=src, dep_id=to_field, metadata=constraint)
@@ -258,12 +258,12 @@ def load_state_from_openapi_yaml(
     doc: str | Path,
     initial_values: Optional[Dict[str, Any]] = None,
     default_confidence: float = 0.0,
-) -> DirectedAcyclicGraph[FieldInstance, FieldDependencyInstance]:
+) -> DirectedAcyclicGraph[PropertyInstance, PropertyDependencyInstance]:
     """
     Build an initial State DAG from the same OpenAPI YAML.
 
-    - Creates a FieldInstance for every Field (value left None unless provided in `initial_values`).
-    - Creates a FieldDependencyInstance for every Schema edge, bundling that edge’s Constraint
+    - Creates a PropertyInstance for every Field (value left None unless provided in `initial_values`).
+    - Creates a PropertyDependencyInstance for every Schema edge, bundling that edge’s Constraint
       into `dependencies=[...]` with `match_confidence=default_confidence`.
 
     Parameters
@@ -276,19 +276,19 @@ def load_state_from_openapi_yaml(
 
     # 1) Node instances
     fv = initial_values or {}
-    instance_nodes: List[DirectedAcyclicGraphNode[FieldInstance, FieldDependencyInstance]] = []
-    instances: Dict[str, FieldInstance] = {}
-    for field_node in schema_dag.nodes.values():
-        field = field_node.value
-        # Skip placeholder nodes that were created by add_edge but have no Field value
-        if field is None:
+    instance_nodes: List[DirectedAcyclicGraphNode[PropertyInstance, PropertyDependencyInstance]] = []
+    instances: Dict[str, PropertyInstance] = {}
+    for property_node in schema_dag.nodes.values():
+        property_obj = property_node.value
+        # Skip placeholder nodes that were created by add_edge but have no Property value
+        if property_obj is None:
             continue
-        value = fv.get(field.id, None)
-        snapshots: List[FieldSnapshot] = []
+        value = fv.get(property_obj.id, None)
+        snapshots: List[PropertySnapshot] = []
         if value is not None:
             snapshots.append(
-                FieldSnapshot(
-                    id=f"{field.id}@t0",
+                PropertySnapshot(
+                    id=f"{property_obj.id}@t0",
                     status="generated",             # or your own default status
                     value_confidences=[
                         ValueConfidence(value=value, confidence=default_confidence)
@@ -298,22 +298,22 @@ def load_state_from_openapi_yaml(
                     meta_data={}
                 )
             )
-        field_instance = FieldInstance(id=field.id, field=field, snapshots=snapshots)
-        instances[field.id] = field_instance
-        instance_nodes.append(DirectedAcyclicGraphNode[FieldInstance, FieldDependencyInstance](
-            id=field_instance.id,
-            value=field_instance
+        property_instance = PropertyInstance(id=property_obj.id, property=property_obj, snapshots=snapshots)
+        instances[property_obj.id] = property_instance
+        instance_nodes.append(DirectedAcyclicGraphNode[PropertyInstance, PropertyDependencyInstance](
+            id=property_instance.id,
+            value=property_instance
         ))
 
     # 2) Create State DAG
-    state_dag = DirectedAcyclicGraph[FieldInstance, FieldDependencyInstance](nodes=instance_nodes)
+    state_dag = DirectedAcyclicGraph[PropertyInstance, PropertyDependencyInstance](nodes=instance_nodes)
 
     # 3) Add edge instances
     for prereq_id, dep_id, constraint_metadata in schema_dag.iter_edges():
         # Skip edges where either endpoint doesn't exist (e.g., $ref not resolved)
         if prereq_id not in instances or dep_id not in instances:
             continue
-        dep_inst = FieldDependencyInstance(
+        dep_inst = PropertyDependencyInstance(
             id=f"{prereq_id}=>{dep_id}",
             dependencies=[constraint_metadata],    # keep list to allow OR semantics in future
             match_confidence=default_confidence

@@ -1,135 +1,207 @@
 openapi: 3.1.0
 info:
   title: Event Registration Schema (SUP)
-  version: 1.0.0
+  version: 1.0.4
 
-x-sup-root-entity: Registration
+x-sup:
+  version: 1
+  root_entity: Registration
+  id_pattern: "^[A-Za-z0-9._:-]{1,64}$"
+  defaults:
+    numeric_range_inclusive: true
 
 components:
   schemas:
-    # ---------- Base class ----------
+
     Person:
       type: object
+      description: "Base participant profile."
       properties:
         id:
           type: string
+          pattern: "^[A-Za-z0-9._:-]{1,64}$"
+          x-sup:
+            constraints:
+              - field_type: { allowed: ["string"] }
         name:
           type: string
           pattern: "^[A-Za-z][A-Za-z .,'-]{0,98}[A-Za-z]$"
+          x-sup:
+            constraints:
+              - field_type: { allowed: ["string"] }
         email:
           type: string
           pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+          x-sup:
+            constraints:
+              - field_type: { allowed: ["string"] }
         age_group:
           type: string
           enum: [child, adult, senior]
+          x-sup:
+            constraints:
+              - enumeration: { values: ["child","adult","senior"] }
       required: [id, name, email, age_group]
-      x-sup-constraints:
-        - target_field_id: person.age_group
-          field_type: { allowed: ["string"] }
-          enumeration: { values: ["child","adult","senior"] }
+      x-sup:
+        role: abstract_entity
 
-    # ---------- Subclasses ----------
+    # ---------------- Registrant (Style-A composition) ----------------
     Registrant:
       allOf:
         - $ref: '#/components/schemas/Person'
-        - type: object
-          description: "Primary event registrant"
-          x-sup-role: "root_user"
-          x-sup-dependencies:
-            - from: registrant.id
-              dependency:
-                target_field_id: registrant.id
-                prompt: { prompt: "Registrant ID must be unique." }
-
-    Guest:
-      allOf:
-        - $ref: '#/components/schemas/Person'
-        - type: object
-          description: "Additional guest attending with the registrant"
-          x-sup-role: "dependent_user"
-          x-sup-dependencies:
-            - from: registration.slot_ref
-              dependency:
-                target_field_id: registration.slot_ref
-                prompt: { prompt: "Guests unlock only after a valid slot is selected." }
+      type: object
+      description: "Primary registrant (root participant)."
+      properties:
+        registration_ids:
+          type: array
+          description: "Registrations owned by this registrant (IDs only)."
+          items:
+            type: string
+            pattern: "^[A-Za-z0-9._:-]{1,64}$"
+          x-sup:
+            constraints:
+              - field_type: { allowed: ["array"] }
+      x-sup:
+        role: root_user
+        dependencies:
+          - from: registrant.email
+            to: registration.slot_ref
+            dependency:
+              prompt: { prompt: "Proceed to slot selection only after registrant email is valid." }
 
     Slot:
       type: object
+      description: "Bookable chat slot."
       properties:
-        id:        { type: string }
-        date:      { type: string, enum: [Fri, Sat, Sun] }
-        start_at:  { type: string, enum: ["2:00PM","4:00PM","6:00PM","8:00PM","10:00PM"] }
-        capacity:  { type: integer, minimum: 1, maximum: 500 }
-        remaining: { type: integer, minimum: 0, maximum: 500 }
+        id:
+          type: string
+          pattern: "^[A-Za-z0-9._:-]{1,64}$"
+        date:
+          type: string
+          enum: [Fri, Sat, Sun]
+        start_at:
+          type: string
+          enum: ["2:00PM","4:00PM","6:00PM","8:00PM","10:00PM"]
+          x-sup:
+            field-dependencies:
+              - from: slot.date
+                dependency:
+                  prompt: { prompt: "Is the selected start_at available for the chosen date?" }
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 500
+        remaining:
+          type: integer
+          minimum: 0
+          maximum: 500
       required: [id, date, start_at]
-      x-sup-dependencies:
-        - from: slot.date
-          to: slot.start_at
-          dependency:
-            target_field_id: slot.date
-            prompt: { prompt: "Is the selected start_at available for the chosen date?" }
+      x-sup:
+        role: reference_entity
 
     Registration:
       type: object
+      description: "Registration ties registrant, slot, people list, and pricing."
       properties:
-        id:             { type: string }
-        registrant_ref: { type: string }   # reference to Registrant
-        slot_ref:       { type: string }   # reference to Slot
-        guest_refs:     { type: integer, minimum: 0 }  # stores array length
-        attendee_count: { type: integer, minimum: 1, maximum: 50 }
+        id:
+          type: string
+          pattern: "^[A-Za-z0-9._:-]{1,64}$"
+        registrant_ref:
+          type: string
+          description: "Identifier of Registrant (runtime identity)."
+        slot_ref:
+          type: string
+          description: "Identifier of Slot (runtime identity)."
+        people:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+          x-sup:
+            field-dependencies:
+              - from: registration.slot_ref
+                dependency:
+                  prompt: { prompt: "Add/edit people only after selecting a valid slot." }
+        attendee_count:
+          type: integer
+          minimum: 1
+          maximum: 50
+          x-sup:
+            field-dependencies:
+              - from: registration.people
+                dependency:
+                  prompt: { prompt: "Update attendee_count when people list changes." }
+        status:
+          type: string
+          enum: [draft, confirmed, cancelled]
       required: [id, registrant_ref]
-      x-sup-dependencies:
-        - from: registrant.id
-          to: registration.registrant_ref
-          dependency:
-            target_field_id: registrant.id
-            prompt: { prompt: "registrant_ref must reference existing registrant.id" }
-        - from: registrant.email
-          to: registration.slot_ref
-          dependency:
-            target_field_id: registrant.email
-            prompt: { prompt: "Valid email required before slot selection" }
-        - from: slot.id
-          to: registration.slot_ref
-          dependency:
-            target_field_id: slot.id
-            prompt: { prompt: "slot_ref must reference existing slot.id" }
-        - from: guest.id
-          to: registration.guest_refs
-          dependency:
-            target_field_id: guest.id
-            prompt: { prompt: "guest_refs only after valid slot; guest IDs must exist" }
+      x-sup:
+        role: root_flow
+        dependencies:
+          - from: registrant.id
+            to: registration.slot_ref
+            dependency:
+              prompt: { prompt: "Select a slot only after registrant is provided." }
+          - from: registration.slot_ref
+            to: registration.people
+            dependency:
+              prompt: { prompt: "People list becomes available after selecting a slot." }
+          - from: registration.slot_ref
+            to: registration.attendee_count
+            dependency:
+              prompt: { prompt: "Attendee count available once a slot is selected." }
 
     Pricing:
       type: object
+      description: "Computed pricing (system-managed)."
       properties:
-        currency:     { type: string, enum: [USD, CAD, EUR, GBP] }
+        currency:
+          type: string
+          enum: [USD, CAD, EUR, GBP]
         adult_price:  { type: number, minimum: 0, maximum: 10000 }
         child_price:  { type: number, minimum: 0, maximum: 10000 }
         senior_price: { type: number, minimum: 0, maximum: 10000 }
-        coupon_code:  { type: string, pattern: "^[A-Z0-9]{3,12}$" }
-        total:        { type: number, minimum: 0, maximum: 1000000 }
-      x-sup-dependencies:
-        - from: registration.slot_ref
-          to: pricing.currency
-          dependency:
-            target_field_id: registration.slot_ref
-            prompt: { prompt: "Valid slot selected?" }
-        - from: registration.attendee_count
-          to: pricing.total
-          dependency:
-            target_field_id: registration.attendee_count
-            prompt: { prompt: "attendee_count validated?" }
-        - from: registrant.age_group
-          to: pricing.adult_price
-          dependency:
-            target_field_id: registrant.age_group
-            enumeration: { values: ["child","adult","senior"] }
-        - from: guest.age_group
-          to: pricing.child_price
-          dependency:
-            target_field_id: guest.age_group
-            enumeration: { values: ["child","adult","senior"] }
+        coupon_code:
+          type: string
+          pattern: "^[A-Z0-9]{3,12}$"
+        total:
+          type: number
+          minimum: 0
+          maximum: 1000000
+      required: [currency]
+      x-sup:
+        role: system_context
+        dependencies:
+          - from: registration.slot_ref
+            to: pricing.total
+            dependency:
+              prompt: { prompt: "Compute total only after slot is selected." }
+          - from: registration.attendee_count
+            to: pricing.total
+            dependency:
+              prompt: { prompt: "Compute total after attendee count is set." }
+          - from: registrant.age_group
+            to: pricing.total
+            dependency:
+              enumeration: { values: ["child","adult","senior"] }
 
-x-sup-graph:
-  edges: []
+    Invitation:
+      type: object
+      description: "Text to send after pricing is confirmed."
+      properties:
+        subject:
+          type: string
+          pattern: "^.{1,120}$"
+        body:
+          type: string
+          pattern: "^.{1,2000}$"
+      x-sup:
+        role: supporting_text
+        dependencies:
+          - from: pricing.total
+            to: invitation.subject
+            dependency:
+              prompt: { prompt: "Compose invitation after pricing is computed." }
+          - from: pricing.total
+            to: invitation.body
+            dependency:
+              prompt: { prompt: "Compose invitation after pricing is computed." }

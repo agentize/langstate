@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 from langstate.readers.yaml import load_schema_from_openapi_yaml, load_state_from_openapi_yaml
-from langstate.models import Schema, State, Field, FieldInstance, Constraint
+from langstate.models import Schema, State, Property, PropertyInstance, Constraint
 
 
 class TestYAMLReaders:
@@ -22,22 +22,22 @@ class TestYAMLReaders:
         # Verify it's a Schema (DirectedAcyclicGraph)
         assert isinstance(schema, Schema)
         
-        # Print Fields
+        # Print Properties
         print("\n" + "="*80)
-        print("FIELDS (Nodes)")
+        print("PROPERTIES (Nodes)")
         print("="*80)
         
-        for field in schema.nodes:
-            assert isinstance(field, Field)
-            print(f"\nField ID: {field.id}")
-            print(f"  Description: {field.info.description or 'N/A'}")
-            print(f"  Constraints ({len(field.constraints)}):")
+        for property_obj in schema.nodes:
+            assert isinstance(property_obj, Property)
+            print(f"\nProperty ID: {property_obj.id}")
+            print(f"  Description: {property_obj.info.description or 'N/A'}")
+            print(f"  Constraints ({len(property_obj.constraints)}):")
             
-            for i, constraint in enumerate(field.constraints, 1):
-                print(f"    [{i}] Target: {constraint.target_field_id}")
-                if constraint.field_type:
-                    print(f"        - FieldType: allowed={constraint.field_type.allowed}, "
-                          f"disallowed={constraint.field_type.disallowed}")
+            for i, constraint in enumerate(property_obj.constraints, 1):
+                print(f"    [{i}] Target: {constraint.target_property_id}")
+                if constraint.property_type:
+                    print(f"        - PropertyType: allowed={constraint.property_type.allowed}, "
+                          f"disallowed={constraint.property_type.disallowed}")
                 if constraint.enumeration:
                     print(f"        - Enumeration: values={constraint.enumeration.values}")
                 if constraint.regex:
@@ -61,11 +61,11 @@ class TestYAMLReaders:
             print(f"\nEdge: {edge.source} --> {edge.target}")
             constraint = edge.payload
             assert isinstance(constraint, Constraint)
-            print(f"  Constraint Target: {constraint.target_field_id}")
+            print(f"  Constraint Target: {constraint.target_property_id}")
             
-            if constraint.field_type:
-                print(f"    - FieldType: allowed={constraint.field_type.allowed}, "
-                      f"disallowed={constraint.field_type.disallowed}")
+            if constraint.property_type:
+                print(f"    - PropertyType: allowed={constraint.property_type.allowed}, "
+                      f"disallowed={constraint.property_type.disallowed}")
             if constraint.enumeration:
                 print(f"    - Enumeration: values={constraint.enumeration.values}")
             if constraint.regex:
@@ -82,12 +82,12 @@ class TestYAMLReaders:
         
         # Basic assertions
         assert len(schema.nodes) > 0, "Schema should have nodes"
-        print(f"\n\nTotal Fields: {len(schema.nodes)}")
+        print(f"\n\nTotal Properties: {len(schema.nodes)}")
         print(f"Total Dependencies: {len(schema.edges)}")
         
         # Verify some expected fields exist
-        field_ids = {field.id for field in schema.nodes}
-        assert "person.id" in field_ids or "registrant.id" in field_ids
+        property_ids = {property_obj.id for property_obj in schema.nodes}
+        assert "person.id" in property_ids or "registrant.id" in property_ids
         
     def test_load_state_from_registration_yaml(self, registration_yaml_path):
         """Test loading State from registration.yaml."""
@@ -107,18 +107,18 @@ class TestYAMLReaders:
         # Verify it's a State (DirectedAcyclicGraph)
         assert isinstance(state, State)
         
-        # Print Field Instances
+        # Print Property Instances
         print("\n" + "="*80)
-        print("FIELD INSTANCES (State Nodes)")
+        print("PROPERTY INSTANCES (State Nodes)")
         print("="*80)
         
-        for field_instance in state.nodes:
-            assert isinstance(field_instance, FieldInstance)
-            print(f"\nFieldInstance ID: {field_instance.id}")
-            print(f"  Field: {field_instance.field.id}")
-            print(f"  Snapshots ({len(field_instance.snapshots)}):")
+        for property_instance in state.nodes:
+            assert isinstance(property_instance, PropertyInstance)
+            print(f"\nPropertyInstance ID: {property_instance.id}")
+            print(f"  Property: {property_instance.property.id}")
+            print(f"  Snapshots ({len(property_instance.snapshots)}):")
             
-            for snapshot in field_instance.snapshots:
+            for snapshot in property_instance.snapshots:
                 print(f"    - Snapshot ID: {snapshot.id}")
                 print(f"      Status: {snapshot.status}")
                 print(f"      Timestamp: {snapshot.timestamp}")
@@ -139,7 +139,7 @@ class TestYAMLReaders:
             print(f"  Constraints ({len(dep_instance.dependencies)}):")
             
             for i, constraint in enumerate(dep_instance.dependencies, 1):
-                print(f"    [{i}] Target: {constraint.target_field_id}")
+                print(f"    [{i}] Target: {constraint.target_property_id}")
                 if constraint.prompt:
                     print(f"        - Prompt: {constraint.prompt.prompt}")
                 if constraint.enumeration:
@@ -147,7 +147,7 @@ class TestYAMLReaders:
         
         # Basic assertions
         assert len(state.nodes) > 0, "State should have nodes"
-        print(f"\n\nTotal Field Instances: {len(state.nodes)}")
+        print(f"\n\nTotal Property Instances: {len(state.nodes)}")
         print(f"Total Dependency Instances: {len(state.edges)}")
         
         # Verify initial values were set
@@ -166,18 +166,18 @@ class TestYAMLReaders:
         state = load_state_from_openapi_yaml(registration_yaml_path)
         
         # Every field in schema should have a corresponding instance in state
-        schema_field_ids = {field.id for field in schema.nodes}
-        state_field_ids = {fi.id for fi in state.nodes}
+        schema_property_ids = {property_obj.id for property_obj in schema.nodes}
+        state_property_ids = {fi.id for fi in state.nodes}
         
-        assert schema_field_ids == state_field_ids, \
-            "Schema and State should have the same field IDs"
+        assert schema_property_ids == state_property_ids, \
+            "Schema and State should have the same property IDs"
         
         # Number of edges should match
         assert len(schema.edges) == len(state.edges), \
             "Schema and State should have the same number of edges"
         
         print(f"\n✓ Schema and State are consistent!")
-        print(f"  - Fields: {len(schema_field_ids)}")
+        print(f"  - Properties: {len(schema_property_ids)}")
         print(f"  - Dependencies: {len(schema.edges)}")
 
 

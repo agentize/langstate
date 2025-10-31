@@ -8,7 +8,7 @@ import json
 
 def is_state_untouched(state: DynamicAssistantState) -> bool:
     """
-    Check if the assistant state is new, all fields' status are `untouched`.
+    Check if the assistant state is new, all properties' status are `untouched`.
 
     Args:
         state: The current assistant state containing fields
@@ -16,62 +16,62 @@ def is_state_untouched(state: DynamicAssistantState) -> bool:
     Returns:
         True if the state is new, False otherwise
     """
-    for field in state["fields"]:
+    for property_obj in state["fields"]:
         if get_status(field) != "untouched":
             return False
     return True
 
 
-def find_field_by_name(state: DynamicAssistantState, field_name: str) -> DynamicField | None:
+def find_property_by_name(state: DynamicAssistantState, property_name: str) -> DynamicProperty | None:
     """
     Find a field by its name in the assistant state.
 
     Args:
         state: The current assistant state containing fields
-        field_name: Name of the field to find
+        property_name: Name of the field to find
     Returns:
-        DynamicField object if found, None otherwise
+        DynamicProperty object if found, None otherwise
     """
-    for field in state["fields"]:
-        if field.name == field_name:
+    for property_obj in state["fields"]:
+        if property_obj.name == property_name:
             return field
     return None
 
 
-def get_field_dependencies(
-    state: DynamicAssistantState, field_name: str, statuses: list[FieldStatus]
-) -> list[DynamicField]:
+def get_property_dependencies(
+    state: DynamicAssistantState, property_name: str, statuses: list[FieldStatus]
+) -> list[DynamicProperty]:
     """
     Find all dependencies of a given field that match any of the specified statuses.
 
     Args:
         state: The current assistant state containing fields
-        field_name: Name of the field to find dependencies for
+        property_name: Name of the field to find dependencies for
         statuses: List of FieldStatus values to match against
 
     Returns:
-        List of DynamicField objects that are dependencies and match the statuses
+        List of DynamicProperty objects that are dependencies and match the statuses
     """
     # Find the target field
-    target_field = find_field_by_name(state, field_name)
+    target_property = find_property_by_name(state, property_name)
 
-    if target_field is None:
+    if target_property is None:
         return []
 
-    # Find all fields that this field depends on and match the specified statuses
+    # Find all properties that this field depends on and match the specified statuses
     dependencies = []
-    for field in state["fields"]:
-        if field.name in target_field.depends_on and field.status in statuses:
+    for property_obj in state["fields"]:
+        if property_obj.name in target_property.depends_on and field.status in statuses:
             dependencies.append(field)
 
     return dependencies
 
 
-def get_ready_for_generation_fields(state: DynamicAssistantState) -> list[DynamicField]:
+def get_ready_for_generation_fields(state: DynamicAssistantState) -> list[DynamicProperty]:
     """
-    Find all fields that are untouched but whose dependencies have been satisfied.
+    Find all properties that are untouched but whose dependencies have been satisfied.
 
-    A field is ready for generation if:
+    A property is ready for generation if:
     1. Its status is "untouched"
     2. All of its dependencies have status "generated", "edited", or "validated"
 
@@ -79,7 +79,7 @@ def get_ready_for_generation_fields(state: DynamicAssistantState) -> list[Dynami
         state: The current assistant state containing fields
 
     Returns:
-        List of DynamicField objects that are ready for generation
+        List of DynamicProperty objects that are ready for generation
     """
     ready_for_generation_fields = []
     status_order = ["untouched", "generated", "edited", "validated"]
@@ -87,12 +87,12 @@ def get_ready_for_generation_fields(state: DynamicAssistantState) -> list[Dynami
     def get_status_level(status: FieldStatus) -> int:
         return status_order.index(status)
 
-    for field in state["fields"]:
-        # Check if field is untouched
-        if field.status != "untouched":
+    for property_obj in state["fields"]:
+        # Check if property_obj is untouched
+        if property_obj.status != "untouched":
             continue
 
-        # Check if field has dependencies
+        # Check if property_obj has dependencies
         if not field.depends_on:
             ready_for_generation_fields.append(field)
             continue
@@ -100,13 +100,13 @@ def get_ready_for_generation_fields(state: DynamicAssistantState) -> list[Dynami
         # Check if all dependencies are touched
         all_dependencies_satisfied = True
         for dependency in field.depends_on:
-            dependency_field = find_field_by_name(state, dependency.field_name)
-            if dependency_field is None:
+            dependency_property = find_property_by_name(state, dependency.property_name)
+            if dependency_property is None:
                 all_dependencies_satisfied = False
                 break
 
             required_level = get_status_level(dependency_type_to_status(dependency.type))
-            actual_level = get_status_level(dependency_field.status)
+            actual_level = get_status_level(dependency_property.status)
 
             if actual_level < required_level:
                 all_dependencies_satisfied = False
@@ -118,32 +118,32 @@ def get_ready_for_generation_fields(state: DynamicAssistantState) -> list[Dynami
     return ready_for_generation_fields
 
 
-def get_display_name(field: DynamicField | None) -> str:
+def get_display_name(field: DynamicProperty | None) -> str:
     return getattr(field, "display_name", None) or getattr(field, "name", None) or ""
 
 
-def get_status(field: DynamicField | None) -> FieldStatus:
+def get_status(field: DynamicProperty | None) -> FieldStatus:
     return getattr(field, "status", None) or FieldStatus.UNKNOWN
 
 
-def get_description(field: DynamicField | None) -> str:
+def get_description(field: DynamicProperty | None) -> str:
     return getattr(field, "description", None) or ""
 
 
-def get_field_value(field: DynamicField | None) -> str:
-    if field is None or field.value is None:
+def get_property_value(field: DynamicProperty | None) -> str:
+    if property_obj is None or field.value is None:
         return ""
     return str(field.value)
 
 
-def get_field_desc_string(field: DynamicField | None, with_value: bool = False, raw_json: bool = False) -> str:
+def get_property_desc_string(field: DynamicProperty | None, with_value: bool = False, raw_json: bool = False) -> str:
     """
     Return a string in the format display_name(status): description for a field.
     Optionally include the field's value if with_value is True.
     If raw_json is True, return a JSON string with {name, display_name, description, status, value}.
 
     Args:
-        field: The DynamicField object
+        field: The DynamicProperty object
         with_value: Whether to include the field's value in the string
         raw_json: Whether to return a JSON string with field details
     Returns:
@@ -166,37 +166,37 @@ def get_field_desc_string(field: DynamicField | None, with_value: bool = False, 
     return ""
 
 
-def get_all_fields_desc_string(fields: list[DynamicField], with_value: bool = False, raw_json: bool = False) -> str:
+def get_all_fields_desc_string(fields: list[DynamicProperty], with_value: bool = False, raw_json: bool = False) -> str:
     """
-    Return a string combining the descriptions of all fields using get_field_desc_string.
+    Return a string combining the descriptions of all properties using get_property_desc_string.
     Args:
-        fields: List of DynamicField objects
+        fields: List of DynamicProperty objects
         with_value: Whether to include the field's value in the string
         raw_json: Whether to return a JSON string with field details
     Returns:
         Combined string of all field descriptions (or JSON array if raw_json)
     """
     if raw_json:
-        return "[" + ", ".join(get_field_desc_string(field, with_value, raw_json=True) for field in fields) + "]"
-    return "\n".join(get_field_desc_string(field, with_value, raw_json=False) for field in fields)
+        return "[" + ", ".join(get_property_desc_string(field, with_value, raw_json=True) for property_obj in fields) + "]"
+    return "\n".join(get_property_desc_string(field, with_value, raw_json=False) for property_obj in fields)
 
 
 def get_selected_field(
-    fields: list[DynamicField], desc_value: bool = False, raw_json: bool = False
-) -> tuple[DynamicField | None, str]:
+    fields: list[DynamicProperty], desc_value: bool = False, raw_json: bool = False
+) -> tuple[DynamicProperty | None, str]:
     """
-    Get the currently selected field from the fields list, and its display_name(status):description (and value if desc_value=True) if available.
+    Get the currently selected field from the properties list, and its display_name(status):description (and value if desc_value=True) if available.
 
     Args:
         fields: List of fields to search through
         desc_value: Whether to include the value in the description string
 
     Returns:
-        Tuple of (DynamicField object that is selected or None, display_name(status): description [| Value: value] string)
+        Tuple of (DynamicProperty object that is selected or None, display_name(status): description [| Value: value] string)
     """
-    for field in fields:
+    for property_obj in fields:
         if get_is_selected(field):
-            desc = get_field_desc_string(field, with_value=desc_value, raw_json=raw_json)
+            desc = get_property_desc_string(field, with_value=desc_value, raw_json=raw_json)
             return field, desc
     return None, "No field is currently selected."
 
@@ -208,38 +208,38 @@ def clear_field_selections(state: DynamicAssistantState) -> None:
     Args:
         state: The current assistant state containing fields
     """
-    for field in state["fields"]:
+    for property_obj in state["fields"]:
         field.selected = False
 
 
-def get_updated_fields(state: DynamicAssistantState) -> list[DynamicField]:
+def get_updated_fields(state: DynamicAssistantState) -> list[DynamicProperty]:
     """
-    Get all fields that have been updated.
+    Get all properties that have been updated.
 
     Args:
         state: The current assistant state containing fields
 
     Returns:
-        List of DynamicField objects that have been updated
+        List of DynamicProperty objects that have been updated
     """
-    return [field for field in state["fields"] if get_is_updated(field)]
+    return [field for property_obj in state["fields"] if get_is_updated(field)]
 
 
-def get_fields_by_status(state: DynamicAssistantState, status: FieldStatus) -> list[DynamicField]:
+def get_fields_by_status(state: DynamicAssistantState, status: FieldStatus) -> list[DynamicProperty]:
     """
-    Get all fields with a specific status.
+    Get all properties with a specific status.
 
     Args:
         state: The current assistant state containing fields
         status: The status to filter by
 
     Returns:
-        List of DynamicField objects with the specified status
+        List of DynamicProperty objects with the specified status
     """
-    return [field for field in state["fields"] if get_status(field) == status]
+    return [field for property_obj in state["fields"] if get_status(field) == status]
 
 
-def validate_field_dependencies(state: DynamicAssistantState, field: DynamicField) -> bool:
+def validate_property_dependencies(state: DynamicAssistantState, field: DynamicProperty) -> bool:
     """
     Check if a field's dependencies are satisfied.
 
@@ -259,12 +259,12 @@ def validate_field_dependencies(state: DynamicAssistantState, field: DynamicFiel
         return status_order.index(status)
 
     for dependency in field.depends_on:
-        dependency_field = find_field_by_name(state, dependency.field_name)
-        if dependency_field is None:
+        dependency_property = find_property_by_name(state, dependency.property_name)
+        if dependency_property is None:
             return False
 
         required_level = get_status_level(dependency_type_to_status(dependency.type))
-        actual_level = get_status_level(dependency_field.status)
+        actual_level = get_status_level(dependency_property.status)
 
         if actual_level < required_level:
             return False
@@ -272,33 +272,33 @@ def validate_field_dependencies(state: DynamicAssistantState, field: DynamicFiel
     return True
 
 
-def batch_update_field_status(state: DynamicAssistantState, field_names: List[str], new_status: FieldStatus) -> None:
+def batch_update_field_status(state: DynamicAssistantState, property_names: List[str], new_status: FieldStatus) -> None:
     """
     Update the status of multiple fields at once.
 
     Args:
         state: The current assistant state containing fields
-        field_names: List of field names to update
+        property_names: List of field names to update
         new_status: The new status to set
     """
-    for field_name in field_names:
-        field = find_field_by_name(state, field_name)
-        if field:
+    for property_name in property_names:
+        field = find_property_by_name(state, property_name)
+        if property_obj:
             field.status = new_status
-            logger.debug(f"Updated field '{field_name}' status to '{new_status}'")
+            logger.debug(f"Updated field '{property_name}' status to '{new_status}'")
         else:
-            logger.warning(f"Field '{field_name}' not found for status update")
+            logger.warning(f"Field '{property_name}' not found for status update")
 
 
 def reset_field_states(state: DynamicAssistantState, reset_values: bool = False) -> None:
     """
-    Reset all fields to their initial state.
+    Reset all properties to their initial state.
 
     Args:
         state: The current assistant state containing fields
-        reset_values: Whether to also reset field values to None
+        reset_values: Whether to also reset property values to None
     """
-    for field in state["fields"]:
+    for property_obj in state["fields"]:
         field.status = FieldStatus.UNTOUCHED
         field.updated = False
         field.selected = False
@@ -308,9 +308,9 @@ def reset_field_states(state: DynamicAssistantState, reset_values: bool = False)
     logger.info(f"Reset {len(state['fields'])} fields to initial state")
 
 
-def get_field_statistics(state: DynamicAssistantState) -> Dict[str, int]:
+def get_property_statistics(state: DynamicAssistantState) -> Dict[str, int]:
     """
-    Get statistics about field statuses in the current state.
+    Get statistics about property statuses in the current state.
 
     Args:
         state: The current assistant state containing fields
@@ -328,7 +328,7 @@ def get_field_statistics(state: DynamicAssistantState) -> Dict[str, int]:
         "selected": 0,
     }
 
-    for field in state["fields"]:
+    for property_obj in state["fields"]:
         stats[get_status(field)] += 1
         if get_is_updated(field):
             stats["updated"] += 1
@@ -338,31 +338,31 @@ def get_field_statistics(state: DynamicAssistantState) -> Dict[str, int]:
     return stats
 
 
-def find_fields_by_dependency(state: DynamicAssistantState, dependency_field_name: str) -> List[DynamicField]:
+def find_fields_by_dependency(state: DynamicAssistantState, dependency_property_name: str) -> List[DynamicProperty]:
     """
-    Find all fields that depend on a specific field.
+    Find all properties that depend on a specific field.
 
     Args:
         state: The current assistant state containing fields
-        dependency_field_name: Name of the field that others depend on
+        dependency_property_name: Name of the field that others depend on
 
     Returns:
         List of fields that depend on the specified field
     """
     dependent_fields = []
 
-    for field in state["fields"]:
+    for property_obj in state["fields"]:
         for dependency in field.depends_on:
-            if dependency.field_name == dependency_field_name:
+            if dependency.property_name == dependency_property_name:
                 dependent_fields.append(field)
                 break
 
     return dependent_fields
 
 
-def validate_field_values(state: DynamicAssistantState) -> Dict[str, List[str]]:
+def validate_property_values(state: DynamicAssistantState) -> Dict[str, List[str]]:
     """
-    Validate all field values against their types and constraints.
+    Validate all property values against their types and constraints.
 
     Args:
         state: The current assistant state containing fields
@@ -372,22 +372,22 @@ def validate_field_values(state: DynamicAssistantState) -> Dict[str, List[str]]:
     """
     validation_errors = {}
 
-    for field in state["fields"]:
+    for property_obj in state["fields"]:
         errors = []
 
-        if field.value is not None:
+        if property_obj.value is not None:
             # Type validation
-            if field.type == "number":
+            if property_obj.type == "number":
                 try:
                     float(field.value)
                 except (ValueError, TypeError):
                     errors.append(f"Value '{field.value}' is not a valid number")
-            elif field.type == "string":
+            elif property_obj.type == "string":
                 if not isinstance(field.value, str):
                     errors.append("Value must be a string")
 
         # Add dependency validation
-        if not validate_field_dependencies(state, field):
+        if not validate_property_dependencies(state, field):
             errors.append("Field dependencies are not satisfied")
 
         if errors:
@@ -396,21 +396,21 @@ def validate_field_values(state: DynamicAssistantState) -> Dict[str, List[str]]:
     return validation_errors
 
 
-def create_field_update_summary(state: DynamicAssistantState, field_name: str, old_value: Any, new_value: Any) -> str:
+def create_field_update_summary(state: DynamicAssistantState, property_name: str, old_value: Any, new_value: Any) -> str:
     """
     Create a human-readable summary of a field update.
 
     Args:
         state: The current assistant state containing fields
-        field_name: Name of the field that was updated
+        property_name: Name of the field that was updated
         old_value: Previous value
         new_value: New value
 
     Returns:
         Human-readable update summary
     """
-    field = find_field_by_name(state, field_name)
-    display_name = get_display_name(field) if field else field_name
+    field = find_property_by_name(state, property_name)
+    display_name = get_display_name(field) if property_obj else property_name
 
     if old_value is None:
         return f"Set {display_name} to '{new_value}'"
@@ -420,7 +420,7 @@ def create_field_update_summary(state: DynamicAssistantState, field_name: str, o
         return f"Updated {display_name} from '{old_value}' to '{new_value}'"
 
 
-def get_field_name_description_pairs(state: DynamicAssistantState) -> str:
+def get_property_name_description_pairs(state: DynamicAssistantState) -> str:
     """
     Get field information including name, description, and current value.
 
@@ -430,7 +430,7 @@ def get_field_name_description_pairs(state: DynamicAssistantState) -> str:
         Formatted string with field name, description, and value information
     """
     field_descriptions = []
-    for field in state["fields"]:
+    for property_obj in state["fields"]:
         display_name = get_display_name(field)
         description = get_description(field) or "No description"
 
@@ -446,7 +446,7 @@ def get_field_name_description_pairs(state: DynamicAssistantState) -> str:
     return "\n".join(field_descriptions)
 
 
-def get_missing_dependencies(state: DynamicAssistantState, field: DynamicField) -> list[DynamicField]:
+def get_missing_dependencies(state: DynamicAssistantState, field: DynamicProperty) -> list[DynamicProperty]:
     """
     Get a list of missing dependencies for a field.
 
@@ -455,7 +455,7 @@ def get_missing_dependencies(state: DynamicAssistantState, field: DynamicField) 
         field: The field to check dependencies for
 
     Returns:
-        List of missing dependency DynamicField objects (dependencies not met)
+        List of missing dependency DynamicProperty objects (dependencies not met)
     """
     if not field.depends_on:
         return []
@@ -471,19 +471,19 @@ def get_missing_dependencies(state: DynamicAssistantState, field: DynamicField) 
 
     missing_dependencies = []
     for dependency in field.depends_on:
-        dependency_field = find_field_by_name(state, dependency.field_name)
-        if dependency_field is None:
+        dependency_property = find_property_by_name(state, dependency.property_name)
+        if dependency_property is None:
             # If the dependency field is missing, skip adding None, but could log or handle as needed
             continue
         required_level = status_levels.get(dependency.type, 0)
-        actual_level = status_levels.get(dependency_field.status, 0)
+        actual_level = status_levels.get(dependency_property.status, 0)
         if actual_level < required_level:
-            missing_dependencies.append(dependency_field)
+            missing_dependencies.append(dependency_property)
 
     return missing_dependencies
 
 
-def check_intent_fields_dependencies(state: DynamicAssistantState) -> tuple[bool, list[DynamicField]]:
+def check_intent_fields_dependencies(state: DynamicAssistantState) -> tuple[bool, list[DynamicProperty]]:
     """
     Check if all intent fields have their dependencies satisfied.
 
@@ -491,18 +491,18 @@ def check_intent_fields_dependencies(state: DynamicAssistantState) -> tuple[bool
         state: The current assistant state containing fields
 
     Returns:
-        Tuple of (all_satisfied: bool, missing_deps: List[DynamicField])
+        Tuple of (all_satisfied: bool, missing_deps: List[DynamicProperty])
         - all_satisfied: True if all intent fields have dependencies satisfied
-        - missing_deps: List of missing dependency DynamicField objects for intent fields
+        - missing_deps: List of missing dependency DynamicProperty objects for intent fields
     """
-    intent_fields = [field for field in state["fields"] if get_is_intent(field)]
+    intent_fields = [field for property_obj in state["fields"] if get_is_intent(field)]
 
     if not intent_fields:
         return True, []
 
     all_missing_deps = []
 
-    for field in intent_fields:
+    for property_obj in intent_fields:
         missing_deps = get_missing_dependencies(state, field)
         if missing_deps:
             all_missing_deps.extend(missing_deps)
@@ -523,13 +523,13 @@ def build_field_context(state: DynamicAssistantState) -> dict[str, str | float |
         Dictionary mapping field names to their values
     """
     field_context = {}
-    for field in state["fields"]:
-        if field.value:
+    for property_obj in state["fields"]:
+        if property_obj.value:
             field_context[field.name] = field.value
     return field_context
 
 
-def available_fields(state: DynamicAssistantState, status: FieldStatus) -> list[DynamicField]:
+def available_fields(state: DynamicAssistantState, status: FieldStatus) -> list[DynamicProperty]:
     """
     Get a list of available fields that match the given status and have all dependencies satisfied.
 
@@ -538,16 +538,16 @@ def available_fields(state: DynamicAssistantState, status: FieldStatus) -> list[
         status: The status to filter by
 
     Returns:
-        List of DynamicField objects that are available (status matches and dependencies satisfied)
+        List of DynamicProperty objects that are available (status matches and dependencies satisfied)
     """
     available = []
-    for field in state["fields"]:
-        if field.status == status and validate_field_dependencies(state, field):
+    for property_obj in state["fields"]:
+        if property_obj.status == status and validate_property_dependencies(state, field):
             available.append(field)
     return available
 
 
-def suggest_edit_field(state: DynamicAssistantState) -> DynamicField | None:
+def suggest_edit_field(state: DynamicAssistantState) -> DynamicProperty | None:
     """
     Suggest a field to work on by priority: validated > edited > generated.
     Returns a random available field with the highest priority status, or None if none found.
@@ -568,7 +568,7 @@ def get_formatted_instruction(field, state):
     field_alias = state.get("field_alias", "field")
     instruction_template = (
         getattr(field, "instruction_prompt_template", None)
-        or f"Generate a realistic value appropriate for this {field_alias} type."
+        or f"Generate a realist[DynamicProperty]c value appropriate for this {field_alias} type."
     )
     # Build context from other fields
     field_context = {
@@ -586,19 +586,19 @@ def get_formatted_instruction(field, state):
     return formatted_instructions
 
 
-def get_is_updated(field: DynamicField) -> bool:
+def get_is_updated(field: DynamicProperty) -> bool:
     return getattr(field, "updated", False)
 
 
-def get_is_selected(field: DynamicField) -> bool:
+def get_is_selected(field: DynamicProperty) -> bool:
     return getattr(field, "selected", False)
 
 
-def get_is_intent(field: DynamicField) -> bool:
+def get_is_intent(field: DynamicProperty) -> bool:
     return getattr(field, "intent", False)
 
 
-def get_intent_result(field: DynamicField):
+def get_intent_result(field: DynamicProperty):
     return getattr(field, "intent_result", None)
 
 

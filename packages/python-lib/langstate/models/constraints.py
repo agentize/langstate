@@ -5,7 +5,7 @@ try:
 except ImportError:
     from typing_extensions import TypeAlias
 from datetime import datetime, timezone
-from .basic import FieldStatus, ValueType
+from .basic import PropertyStatus, ValueType
 
 T = TypeVar("T")
 
@@ -67,9 +67,9 @@ class ValueSimilarityCondition(BaseModel):
     reference: str
     threshold: float = PydField(ge=0.0, le=1.0)  # Similarity threshold (0-1.0)
 
-class FieldStatusCondition(AllowDisallowCondition[FieldStatus]):
+class PropertyStatusCondition(AllowDisallowCondition[PropertyStatus]):
     """
-    Condition to gate by field status using allow/disallow lists.
+    Condition to gate by property status using allow/disallow lists.
 
     Accepts values as either strings (matching the pattern) or Enum values; coerces to strings.
     """
@@ -88,9 +88,9 @@ class FieldStatusCondition(AllowDisallowCondition[FieldStatus]):
                 result.append(item)
         return result
 
-class FieldTypeCondition(AllowDisallowCondition[ValueType]):
+class PropertyTypeCondition(AllowDisallowCondition[ValueType]):
     """
-    Condition to gate by field value types using allow/disallow lists.
+    Condition to gate by property value types using allow/disallow lists.
     """
     pass
 
@@ -103,22 +103,22 @@ class PromptCondition(BaseModel):
     prompt: str  # The prompt to be used for this condition
 
 class Constraint(BaseModel):
-    """A constraint applied to a field based on various conditions.
+    """A constraint applied to a property based on various conditions.
     
-    When used as a DAG edge payload, the field_id MUST match the source node's ID.
-    This ensures constraints are properly bound to the upstream field they evaluate.
+    When used as a DAG edge payload, the property_id MUST match the source node's ID.
+    This ensures constraints are properly bound to the upstream property they evaluate.
 
     If multiple conditions are assigned, the relationship between them will be OR.
     """
     model_config = ConfigDict(extra='allow', frozen=True)
     
-    target_field_id: str
+    target_property_id: str
     
-    field_type: Optional[FieldTypeCondition] = None
+    property_type: Optional[PropertyTypeCondition] = None
     regex: Optional[RegexCondition] = None
     enumeration: Optional[EnumerationCondition] = None
     value_range: Optional[ValueRangeCondition] = None
     value_similarity: Optional[ValueSimilarityCondition] = None
-    status: Optional[FieldStatusCondition] = None
+    status: Optional[PropertyStatusCondition] = None
     prompt: Optional[PromptCondition] = None
     

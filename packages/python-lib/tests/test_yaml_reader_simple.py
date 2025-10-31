@@ -22,24 +22,24 @@ def main():
     print(f"\n✓ Schema loaded successfully!")
     print(f"  Type: {type(schema).__name__}")
     
-    # Print Fields
+    # Print Properties
     print("\n" + "="*80)
     # Count only nodes with actual Field values (not placeholder nodes)
-    fields_with_values = [(fid, node) for fid, node in schema.nodes.items() if node.value is not None]
-    print(f"FIELDS ({len(fields_with_values)} total)")
+    properties_with_values = [(fid, node) for fid, node in schema.nodes.items() if node.value is not None]
+    print(f"PROPERTIES ({len(properties_with_values)} total)")
     print("="*80)
     
-    for i, (field_id, field_node) in enumerate(fields_with_values, 1):
-        field = field_node.value
-        print(f"\n[{i}] Field ID: {field.id}")
-        if field.info.description:
-            print(f"    Description: {field.info.description}")
-        print(f"    Constraints: {len(field.constraints)}")
+    for i, (property_id, property_node) in enumerate(properties_with_values, 1):
+        field = property_node.value
+        print(f"\n[{i}] Property ID: {property_obj.id}")
+        if property_obj.info.description:
+            print(f"    Description: {property_obj.info.description}")
+        print(f"    Constraints: {len(property_obj.constraints)}")
         
-        for j, constraint in enumerate(field.constraints, 1):
-            print(f"      [{j}] Target: {constraint.target_field_id}")
+        for j, constraint in enumerate(property_obj.constraints, 1):
+            print(f"      [{j}] Target: {constraint.target_property_id}")
             if constraint.field_type:
-                print(f"          FieldType: allowed={[str(v.value) for v in constraint.field_type.allowed]}")
+                print(f"          PropertyType: allowed={[str(v.value) for v in constraint.field_type.allowed]}")
             if constraint.enumeration:
                 print(f"          Enumeration: {constraint.enumeration.values}")
             if constraint.regex:
@@ -59,10 +59,10 @@ def main():
     
     for i, (prereq_id, dep_id, constraint) in enumerate(schema.iter_edges(), 1):
         print(f"\n[{i}] {prereq_id} --> {dep_id}")
-        print(f"    Constraint Target: {constraint.target_field_id}")
+        print(f"    Constraint Target: {constraint.target_property_id}")
         
         if constraint.field_type:
-            print(f"      FieldType: allowed={[str(v.value) for v in constraint.field_type.allowed]}")
+            print(f"      PropertyType: allowed={[str(v.value) for v in constraint.field_type.allowed]}")
         if constraint.enumeration:
             print(f"      Enumeration: {constraint.enumeration.values}")
         if constraint.prompt:
@@ -93,7 +93,7 @@ def main():
     print(f"\nShowing {len(instances_with_values)} instances with initial values:")
     
     for fi in instances_with_values:
-        print(f"\n  Field: {fi.id}")
+        print(f"\n  Property: {fi.id}")
         for snapshot in fi.snapshots:
             print(f"    Status: {snapshot.status}")
             for vc in snapshot.value_confidences:
