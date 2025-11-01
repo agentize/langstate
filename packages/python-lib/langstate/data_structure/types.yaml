@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: Common Types Library
+  version: 1.0.0
+
+components:
+  schemas:
+    Id:
+      type: string
+      description: "Canonical identifier."
+      pattern: "^[A-Za-z0-9._:-]{1,64}$"
+
+    Username:
+      type: string
+      description: "Account handle."
+      pattern: "^[a-zA-Z0-9._-]{3,32}$"
+
+    Email:
+      type: string
+      format: email
+      description: "Conservative RFC5322-ish email."
+      pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+
+    AgeGroup:
+      type: string
+      enum: [child, adult, senior]
+
+    NameString:
+      type: string
+      description: "Simple personal name heuristic."
+      pattern: "^[A-Za-z][A-Za-z .,'-]{0,98}[A-Za-z]$"
+
+    ShortString120:
+      type: string
+      description: "1..120 chars."
+      pattern: "^.{1,120}$"
+
+    MarkdownString:
+      type: string
+      description: "Markdown content."
+
+    DateTime:
+      type: string
+      format: date-time
+      description: "RFC 3339 / ISO 8601 date-time."
+
+    DateTimeArray:
+      type: array
+      description: "List of ISO 8601 date-times."
+      items:
+        $ref: '#/components/schemas/DateTime'
+      minItems: 1
+
+    StringArray:
+      type: array
+      items: { type: string }
+
+    CurrencyCode:
+      type: string
+      enum: [USD, CAD, EUR, GBP]
+
+    CouponCode:
+      type: string
+      description: "Alphanumeric coupon code."
+      pattern: "^[A-Z0-9]{3,12}$"
+
+    UnitPrice:
+      type: number
+      description: "Per-person or unit price."
+      minimum: 0
+      maximum: 10000
+
+    MoneyTotal:
+      type: number
+      description: "Summed monetary amount."
+      minimum: 0
+      maximum: 1000000

@@ -61,36 +61,25 @@ class PropertyInstance(BaseModel):
     property: Property
     snapshots: List[PropertySnapshot] = PydField(default_factory=list)
 
-class PropertyDependencyInstance(BaseModel):
+class ConstraintInstance(BaseModel):
     """
-    PropertyDependencyInstance represents a dependency instance with an associated confidence level.
+    ConstraintInstance represents a dependency instance with an associated confidence level.
 
     Attributes:
         id (str): A unique identifier for the dependency instance.
-        dependency (Constraint): The constraint or condition that this dependency represents.
-        match_confidence (float): A value between 0.0 and 1.0 indicating the confidence level 
+        constraint (Constraint): The constraint or condition that this dependency represents.
+        confidence (float): A value between 0.0 and 1.0 indicating the confidence level
             that the dependency is fulfilled. Higher values indicate greater confidence.
     """
     id: str
-    dependencies: List[Constraint] = PydField(default_factory=list)
-    match_confidence: float = PydField(..., ge=0.0, le=1.0)
+    constraints: List[Constraint] = PydField(default_factory=list)
+    confidence: float = PydField(..., ge=0.0, le=1.0)
 
 
-
-class Schema(DirectedAcyclicGraph[Property, Constraint]):
-    """
-    Defines the dependency relationship between properties.
-
-    The Constraint from PropertyA to PropertyB means:
-    Only when this Constraint is matched on PropertyA, can PropertyB be "talked" or interacted with.
-    """
-    pass
-
-
-class State(DirectedAcyclicGraph[PropertyInstance, PropertyDependencyInstance]):
+class State(DirectedAcyclicGraph[PropertyInstance, ConstraintInstance]):
     """
     Defines the state of the system, including all property instances and their dependencies.
-    Each node represents a PropertyInstance, and each edge represents a PropertyDependencyInstance.
+    Each node represents a PropertyInstance, and each edge represents a ConstraintInstance.
     """
     pass
 

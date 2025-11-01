@@ -112,13 +112,11 @@ class Constraint(BaseModel):
     """
     model_config = ConfigDict(extra='allow', frozen=True)
     
-    target_property_id: str
-    
     property_type: Optional[PropertyTypeCondition] = None
+    status: Optional[PropertyStatusCondition] = None
     regex: Optional[RegexCondition] = None
     enumeration: Optional[EnumerationCondition] = None
     value_range: Optional[ValueRangeCondition] = None
     value_similarity: Optional[ValueSimilarityCondition] = None
-    status: Optional[PropertyStatusCondition] = None
     prompt: Optional[PromptCondition] = None
     
