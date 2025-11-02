@@ -195,14 +195,19 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
 def _get_properties_recursively(
     entity_name: str,
     schema: Dict[str, Any] | Any,
+    api: 'OpenAPI',
     prefix: str = "",
     visited: Optional[Set[str]] = None
 ) -> Dict[str, Tuple[Dict[str, Any], str]]:
     """
-    Recursively collect all properties from a schema.
+    Recursively collect all properties from a schema, resolving $refs via API.
     
-    With aiopenapi3, all $refs are already resolved, so we just need to traverse
-    the nested structure directly without manual $ref resolution.
+    Args:
+        entity_name: Name of the current entity being processed
+        schema: Schema dict or object to process
+        api: OpenAPI instance for resolving $refs
+        prefix: Current property path prefix
+        visited: Set of visited schema names to prevent cycles
     
     Returns:
         Dict mapping field_id -> (property_schema, entity_name)
@@ -210,7 +215,7 @@ def _get_properties_recursively(
     if visited is None:
         visited = set()
     
-    # Prevent infinite recursion
+    # Prevent infinite recursion on entity level
     visit_key = f"{prefix}.{entity_name}"
     if visit_key in visited:
         return {}
@@ -221,8 +226,18 @@ def _get_properties_recursively(
     # Convert schema to dict if needed
     schema_dict = _schema_to_dict(schema) if not isinstance(schema, dict) else schema
     
-    # Get properties from this schema
-    properties = schema_dict.get("properties", {})
+    # Handle allOf at schema level (merge properties from all schemas)
+    properties = {}
+    if hasattr(schema, 'allOf') and schema.allOf:
+        # Schema object with allOf - merge properties from all sub-schemas
+        for sub_schema in schema.allOf:
+            if hasattr(sub_schema, 'properties') and sub_schema.properties:
+                # Add properties from this sub-schema
+                for prop_name, prop_obj in sub_schema.properties.items():
+                    properties[prop_name] = prop_obj
+    else:
+        # Get properties from schema dict
+        properties = schema_dict.get("properties", {})
     
     for prop_name, prop_schema_raw in properties.items():
         # Convert prop_schema to dict if needed
@@ -234,6 +249,32 @@ def _get_properties_recursively(
         else:
             field_id = f"{entity_name}.{prop_name}"
         
+        # Resolve $ref if present
+        if "ref" in prop_schema and prop_schema["ref"]:
+            ref_path = prop_schema["ref"]
+            if ref_path.startswith("#/components/schemas/"):
+                schema_name = ref_path.split("/")[-1]
+                if schema_name in api.components.schemas:
+                    # Get the referenced schema
+                    ref_schema_obj = api.components.schemas[schema_name]
+                    ref_schema_dict = _schema_to_dict(ref_schema_obj)
+                    
+                    # Merge the resolved schema with current prop_schema (keeping x-sup if present)
+                    # prop_schema might have x-sup, ref_schema_dict has the actual properties
+                    merged_schema = {**ref_schema_dict, **prop_schema}
+                    prop_schema = merged_schema
+                    
+                    # Recursively process referenced schema's properties
+                    if "properties" in ref_schema_dict:
+                        nested_props = _get_properties_recursively(
+                            schema_name,
+                            ref_schema_dict,
+                            api,
+                            prefix=field_id,
+                            visited=visited
+                        )
+                        result.update(nested_props)
+        
         # Add this property
         result[field_id] = (prop_schema, entity_name)
         
@@ -243,6 +284,7 @@ def _get_properties_recursively(
             nested_props = _get_properties_recursively(
                 nested_entity,
                 prop_schema,
+                api,
                 prefix=field_id,
                 visited=visited
             )
@@ -251,11 +293,37 @@ def _get_properties_recursively(
         # Handle arrays of objects
         if prop_schema.get("type") == "array":
             items = prop_schema.get("items", {})
-            if items and items.get("type") == "object":
+            
+            # Handle allOf in items (common pattern in OpenAPI) 
+            # Look at the raw allOf array to find the $ref
+            if isinstance(items, dict) and "allOf" in items:
+                allof_list = items.get("allOf", [])
+                if isinstance(allof_list, list):
+                    for sub_schema in allof_list:
+                        sub_dict = _schema_to_dict(sub_schema) if not isinstance(sub_schema, dict) else sub_schema
+                        if "ref" in sub_dict and sub_dict["ref"]:
+                            ref_path = sub_dict["ref"]
+                            if ref_path.startswith("#/components/schemas/"):
+                                schema_name = ref_path.split("/")[-1]
+                                if schema_name in api.components.schemas:
+                                    # Use the referenced schema directly
+                                    ref_schema_obj = api.components.schemas[schema_name]
+                                    items = ref_schema_obj  # Use object, not dict
+                                    break
+            
+            # Check if items has properties (recursively process Guest schema)
+            items_has_props = False
+            if hasattr(items, 'properties'):
+                items_has_props = bool(items.properties)
+            elif isinstance(items, dict):
+                items_has_props = bool(items.get("properties"))
+            
+            if items and (items.get("type") == "object" if isinstance(items, dict) else True) or items_has_props:
                 nested_entity = f"{prop_name}_item".capitalize()
                 nested_props = _get_properties_recursively(
                     nested_entity,
                     items,
+                    api,
                     prefix=f"{field_id}[*]",
                     visited=visited
                 )
@@ -308,8 +376,8 @@ def load_state_from_openapi_yaml_v2(
     # Keep raw schemas dict for x-sup extension access
     raw_schemas = raw_doc.get("components", {}).get("schemas", {})
     
-    # 3) Collect all properties recursively (no manual $ref resolution needed!)
-    all_properties = _get_properties_recursively(root_entity_name, root_schema)
+    # 3) Collect all properties recursively with proper $ref resolution
+    all_properties = _get_properties_recursively(root_entity_name, root_schema, api)
     
     # 4) Create Property objects for each field
     properties: Dict[str, Property] = {}
@@ -335,19 +403,24 @@ def load_state_from_openapi_yaml_v2(
             tags=[]
         )
     
-    # 5) Create PropertyInstance nodes with initial snapshots
+    # 5) Create PropertyInstance nodes with initial snapshots and UUID IDs
+    import uuid
     fv = initial_values or {}
     instance_nodes: List[DirectedAcyclicGraphNode[PropertyInstance, ConstraintInstance]] = []
-    instances: Dict[str, PropertyInstance] = {}
+    instances: Dict[str, PropertyInstance] = {}  # Map Property.id → PropertyInstance
+    property_id_to_instance_id: Dict[str, str] = {}  # Map Property.id → PropertyInstance.id (UUID)
     
     for field_id, property_obj in properties.items():
         # Get value from initial_values or use default
         value = fv.get(field_id, property_obj.default_value)
         
+        # Generate UUID for PropertyInstance
+        instance_id = str(uuid.uuid4())
+        
         # Create initial snapshot
         snapshots: List[PropertySnapshot] = [
             PropertySnapshot(
-                id=f"{field_id}@t0",
+                id=f"{instance_id}@t0",
                 status=PropertyStatusEnum.UNTOUCHED,
                 value_confidences=[ValueConfidence(value=value, score=1.0)] if value is not None else [],
                 updater=None,
@@ -356,14 +429,15 @@ def load_state_from_openapi_yaml_v2(
         ]
         
         property_instance = PropertyInstance(
-            id=field_id,
+            id=instance_id,  # UUID, not Property.id
             property=property_obj,
             snapshots=snapshots
         )
-        instances[field_id] = property_instance
+        instances[field_id] = property_instance  # Still keyed by Property.id for lookup
+        property_id_to_instance_id[field_id] = instance_id
         instance_nodes.append(
             DirectedAcyclicGraphNode[PropertyInstance, ConstraintInstance](
-                id=property_instance.id,
+                id=instance_id,  # Use UUID as node ID
                 value=property_instance
             )
         )
@@ -371,55 +445,132 @@ def load_state_from_openapi_yaml_v2(
     # 6) Create State DAG
     state = State(nodes=instance_nodes)
     
+    # 6.5) Create automatic structural edges (parent object → child properties with status:generated)
+    for field_id in all_properties.keys():
+        parts = field_id.split(".")
+        
+        # Skip root-level properties (no parent)
+        if len(parts) <= 2:  # e.g., "Registration.id" has no parent property
+            continue
+        
+        # Handle array notation [*]
+        if "[*]" in field_id:
+            # e.g., "Registration.guests[*].name" → parent is "Registration.guests[*]"
+            parent_parts = []
+            for part in parts[:-1]:
+                parent_parts.append(part)
+            parent_id = ".".join(parent_parts)
+        else:
+            # e.g., "Registration.event.name" → parent is "Registration.event"
+            parent_id = ".".join(parts[:-1])
+        
+        # Create edge if parent exists
+        if parent_id in instances and field_id in instances:
+            parent_instance_id = property_id_to_instance_id[parent_id]
+            child_instance_id = property_id_to_instance_id[field_id]
+            
+            # Create structural constraint (property is generated when parent is generated)
+            structural_constraint = Constraint(
+                status=PropertyStatusCondition(
+                    allowed=[PropertyStatusEnum.GENERATED]
+                )
+            )
+            
+            constraint_inst = ConstraintInstance(
+                id=f"structural:{parent_instance_id}→{child_instance_id}",
+                constraints=[structural_constraint],
+                confidence=1.0  # Structural edges have full confidence
+            )
+            
+            state.add_edge(
+                prereq_id=parent_instance_id,
+                dep_id=child_instance_id,
+                metadata=constraint_inst
+            )
+    
     # 7) Parse x-sup constraints and create edges
-    for field_id, (prop_schema, entity_name) in all_properties.items():
+    # Collect all field_ids to check for x-sup (including array items like guests[*])
+    field_ids_to_check = set(all_properties.keys())
+    
+    # Also check for array item x-sup (e.g., Registration.guests[*])
+    for field_id in list(all_properties.keys()):
+        if "[*]" in field_id:
+            # Extract array path: "Registration.guests[*].id" → "Registration.guests[*]"
+            parts = field_id.split(".")
+            array_parts = []
+            for part in parts:
+                array_parts.append(part)
+                if "[*]" in part:
+                    break
+            array_item_path = ".".join(array_parts)
+            field_ids_to_check.add(array_item_path)
+    
+    for field_id in field_ids_to_check:
         # Get x-sup from raw schemas to preserve extensions
         x_sup_field = _get_raw_property_xsup(field_id, root_entity_name, raw_schemas)
         constraints_list = x_sup_field.get("constraints", [])
         
         for constraint_def in constraints_list:
             # Check if this references another property
-            on_field = constraint_def.get("on")
+            # Note: YAML parses "on:" as boolean True, so check both keys
+            on_field = constraint_def.get("on") or constraint_def.get(True)
             if on_field:
-                # Resolve relative references
+                # Resolve relative references (Property IDs)
                 if "." not in on_field:
                     parent_path = ".".join(field_id.split(".")[:-1])
-                    prereq_id = f"{parent_path}.{on_field}" if parent_path else f"{root_entity_name}.{on_field}"
+                    prereq_property_id = f"{parent_path}.{on_field}" if parent_path else f"{root_entity_name}.{on_field}"
                 else:
-                    prereq_id = on_field
+                    prereq_property_id = on_field
                 
-                # Create constraint edge if prerequisite exists
-                if prereq_id in instances:
-                    # Parse status condition if present
-                    status_def = constraint_def.get("status", {})
-                    status_constraint = None
-                    if status_def:
-                        status_constraint = Constraint(
-                            status=PropertyStatusCondition(
-                                allowed=status_def.get("allowed", []),
-                                disallowed=status_def.get("disallowed", [])
+                # Create constraint edge if prerequisite exists (using PropertyInstance UUIDs)
+                # Handle array items: if field_id ends with [*], apply constraint to all child properties
+                target_fields = []
+                if field_id.endswith("[*]"):
+                    # Apply to all properties under this array item
+                    for prop_id in all_properties.keys():
+                        if prop_id.startswith(field_id + "."):
+                            target_fields.append(prop_id)
+                    # Also include the array itself if it exists
+                    if field_id in instances:
+                        target_fields.append(field_id)
+                else:
+                    target_fields = [field_id]
+                
+                for target_field in target_fields:
+                    if prereq_property_id in instances and target_field in instances:
+                        prereq_instance_id = property_id_to_instance_id[prereq_property_id]
+                        dep_instance_id = property_id_to_instance_id[target_field]
+                        
+                        # Parse status condition if present
+                        status_def = constraint_def.get("status", {})
+                        status_constraint = None
+                        if status_def:
+                            status_constraint = Constraint(
+                                status=PropertyStatusCondition(
+                                    allowed=status_def.get("allowed", []),
+                                    disallowed=status_def.get("disallowed", [])
+                                )
                             )
-                        )
-                    
-                    # Parse prompt if present
-                    prompt_text = constraint_def.get("prompt")
-                    if prompt_text and status_constraint:
-                        status_constraint = Constraint(
-                            status=status_constraint.status,
-                            prompt=PromptCondition(prompt=prompt_text)
-                        )
-                    
-                    if status_constraint:
-                        constraint_inst = ConstraintInstance(
-                            id=f"{prereq_id}=>{field_id}",
-                            constraints=[status_constraint],
-                            confidence=default_confidence
-                        )
-                        state.add_edge(
-                            prereq_id=prereq_id,
-                            dep_id=field_id,
-                            metadata=constraint_inst
-                        )
+                        
+                        # Parse prompt if present
+                        prompt_text = constraint_def.get("prompt")
+                        if prompt_text and status_constraint:
+                            status_constraint = Constraint(
+                                status=status_constraint.status,
+                                prompt=PromptCondition(prompt=prompt_text)
+                            )
+                        
+                        if status_constraint:
+                            constraint_inst = ConstraintInstance(
+                                id=f"xsup:{prereq_instance_id}→{dep_instance_id}",
+                                constraints=[status_constraint],
+                                confidence=default_confidence
+                            )
+                            state.add_edge(
+                                prereq_id=prereq_instance_id,  # Use UUID
+                                dep_id=dep_instance_id,  # Use UUID
+                                metadata=constraint_inst
+                            )
     
     return state
 
