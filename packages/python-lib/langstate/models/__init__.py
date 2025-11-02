@@ -31,6 +31,7 @@ from .field import (
     PropertySnapshot,
     PropertyInstance,
     ConstraintInstance,
+    Schema,
     State,
 )
 
@@ -63,5 +64,6 @@ __all__ = [
     "PropertySnapshot",
     "PropertyInstance",
     "ConstraintInstance",
+    "Schema",
     "State",
 ]

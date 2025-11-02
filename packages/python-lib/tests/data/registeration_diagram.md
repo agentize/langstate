@@ -12,57 +12,57 @@ Generated from: `registeration.yaml`
 
 ```mermaid
 graph TD
-    084acdf2_9836_4fbc_a28f_fdeeec2e8f56["Registration.id"]
-    2eccbe83_29a1_4d23_aa88_a4b6fa1250d2["Registration.registrant.id"]
-    efbb6666_cf05_4547_904c_4b6fcdf4149e["Registration.registrant.name"]
-    73fe2717_e921_4313_b8fc_9195be45bcf8["Registration.registrant.email"]
-    057e28f9_dcb7_4741_9a6b_8240bacda056["Registration.registrant"]
-    f426ed19_c228_4f30_84c3_21b9c0a2b286["Registration.event.id"]
-    0648f100_a7ad_4e74_80f5_657339a1effb["Registration.event.name"]
-    d95571b5_5997_42d9_8178_52b9c86df398["Registration.event.description"]
-    fea047d9_4b6a_4e7e_9987_9ed284b2ec05["Registration.event.schedule"]
-    6ccbb56a_fdc4_41e3_86a8_26c91d914800["Registration.event.capacity"]
-    3b58048d_73cb_4d93_a83f_f4a6e099f508["Registration.event.remaining"]
-    8ccb8f0a_05c3_40ab_9cae_9b0b38864e50["Registration.event.pricing"]
-    8abe24db_6dcd_497e_8146_bebd243032a8["Registration.event"]
-    c59ebd7d_28e3_4c4c_bf77_7391d3c00dab["Registration.guests"]
-    2367bfd0_488e_40e0_8760_750cd98da8dc["Registration.guests[*].id"]
-    ec0f63dd_8e79_4001_bd9d_567523b799a5["Registration.guests[*].name"]
-    86f8ae0e_daac_4388_b2e1_6ff6046e8025["Registration.guests[*].email"]
-    c1436954_89cb_4b2d_b4b4_c9ff6ecf6f56["Registration.guests[*].invitation.subject"]
-    8a0df173_44f7_459f_bbaf_0dd9b88ecb63["Registration.guests[*].invitation.body"]
-    39011dee_ba0d_4430_97b7_cbd9e4a40115["Registration.guests[*].invitation.send_at"]
-    a3195508_45c7_4040_bfd1_5017c7c6b127["Registration.guests[*].invitation"]
-    237abff2_3c36_4d8c_82da_5460c0eacc1d["Registration.total_price"]
-    d7b3a487_bab7_4e27_b920_88cab723eaa1["Registration.status"]
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|structural| 2eccbe83_29a1_4d23_aa88_a4b6fa1250d2
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|structural| efbb6666_cf05_4547_904c_4b6fcdf4149e
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|structural| 73fe2717_e921_4313_b8fc_9195be45bcf8
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|structural| f426ed19_c228_4f30_84c3_21b9c0a2b286
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|structural| 0648f100_a7ad_4e74_80f5_657339a1effb
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|structural| d95571b5_5997_42d9_8178_52b9c86df398
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|structural| fea047d9_4b6a_4e7e_9987_9ed284b2ec05
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|structural| 6ccbb56a_fdc4_41e3_86a8_26c91d914800
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|structural| 3b58048d_73cb_4d93_a83f_f4a6e099f508
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|structural| 8ccb8f0a_05c3_40ab_9cae_9b0b38864e50
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| 8abe24db_6dcd_497e_8146_bebd243032a8
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|xsup:edited| 2367bfd0_488e_40e0_8760_750cd98da8dc
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| 2367bfd0_488e_40e0_8760_750cd98da8dc
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|xsup:edited| ec0f63dd_8e79_4001_bd9d_567523b799a5
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| ec0f63dd_8e79_4001_bd9d_567523b799a5
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|xsup:edited| 86f8ae0e_daac_4388_b2e1_6ff6046e8025
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| 86f8ae0e_daac_4388_b2e1_6ff6046e8025
-    a3195508_45c7_4040_bfd1_5017c7c6b127 -->|structural| c1436954_89cb_4b2d_b4b4_c9ff6ecf6f56
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|xsup:edited| c1436954_89cb_4b2d_b4b4_c9ff6ecf6f56
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| c1436954_89cb_4b2d_b4b4_c9ff6ecf6f56
-    a3195508_45c7_4040_bfd1_5017c7c6b127 -->|structural| 8a0df173_44f7_459f_bbaf_0dd9b88ecb63
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|xsup:edited| 8a0df173_44f7_459f_bbaf_0dd9b88ecb63
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| 8a0df173_44f7_459f_bbaf_0dd9b88ecb63
-    a3195508_45c7_4040_bfd1_5017c7c6b127 -->|structural| 39011dee_ba0d_4430_97b7_cbd9e4a40115
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|xsup:edited| 39011dee_ba0d_4430_97b7_cbd9e4a40115
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| 39011dee_ba0d_4430_97b7_cbd9e4a40115
-    8abe24db_6dcd_497e_8146_bebd243032a8 -->|xsup:edited| a3195508_45c7_4040_bfd1_5017c7c6b127
-    057e28f9_dcb7_4741_9a6b_8240bacda056 -->|xsup:validated| a3195508_45c7_4040_bfd1_5017c7c6b127
+    126901cc_cffe_401f_9476_e7c62d708146["Registration.id"]
+    a297b345_aa56_4de6_bf7a_83fcc817d4d5["Registration.registrant.id"]
+    12507c3f_3445_4f10_ab94_a9cb8dc50845["Registration.registrant.name"]
+    ef5e18fe_1a00_4adc_abf5_4b477a229219["Registration.registrant.email"]
+    d2943aee_7cc1_4969_bf97_8e448fe2e084["Registration.registrant"]
+    e349543b_5b66_45ab_b7d4_366473b594cc["Registration.event.id"]
+    abf73f09_1cdd_43c3_ae44_5409c058d36d["Registration.event.name"]
+    9cac9e13_ca61_4846_947e_ccf16704f58f["Registration.event.description"]
+    474604e4_60a9_484a_a5f3_937e2ec07f34["Registration.event.schedule"]
+    23484081_674c_4b7e_920e_de962fd4f61a["Registration.event.capacity"]
+    9c4c6d6b_f4e4_4836_bf68_003b33ae8022["Registration.event.remaining"]
+    57d94e41_c499_4968_9a82_94af783e8b43["Registration.event.pricing"]
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6["Registration.event"]
+    e61eb9aa_30b8_44c0_9a18_c786b545f0fc["Registration.guests"]
+    2859ecc9_8c20_4170_ab3c_aa9aa0b793e5["Registration.guests[*].id"]
+    a57b7bc8_3299_4481_93e8_785226326444["Registration.guests[*].name"]
+    c36ab647_7b2c_4de5_a10b_f5d614b2ddf0["Registration.guests[*].email"]
+    b3f98787_abe7_4e34_8382_debff985f52a["Registration.guests[*].invitation.subject"]
+    bff42841_62a0_41f3_8879_28078e3f0cbb["Registration.guests[*].invitation.body"]
+    8ca75cb7_07bb_4868_91a3_f8a587ec064f["Registration.guests[*].invitation.send_at"]
+    490f7f61_301e_4880_870a_19361f47d1dc["Registration.guests[*].invitation"]
+    743bdb90_28bc_4c04_92b6_6a6bd0390d4b["Registration.total_price"]
+    b696f0ea_abea_4e34_88d6_eced7f7e7d13["Registration.status"]
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|structural| a297b345_aa56_4de6_bf7a_83fcc817d4d5
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|structural| 12507c3f_3445_4f10_ab94_a9cb8dc50845
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|structural| ef5e18fe_1a00_4adc_abf5_4b477a229219
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|structural| e349543b_5b66_45ab_b7d4_366473b594cc
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|structural| abf73f09_1cdd_43c3_ae44_5409c058d36d
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|structural| 9cac9e13_ca61_4846_947e_ccf16704f58f
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|structural| 474604e4_60a9_484a_a5f3_937e2ec07f34
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|structural| 23484081_674c_4b7e_920e_de962fd4f61a
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|structural| 9c4c6d6b_f4e4_4836_bf68_003b33ae8022
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|structural| 57d94e41_c499_4968_9a82_94af783e8b43
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| 1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|xsup:edited| 2859ecc9_8c20_4170_ab3c_aa9aa0b793e5
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| 2859ecc9_8c20_4170_ab3c_aa9aa0b793e5
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|xsup:edited| a57b7bc8_3299_4481_93e8_785226326444
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| a57b7bc8_3299_4481_93e8_785226326444
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|xsup:edited| c36ab647_7b2c_4de5_a10b_f5d614b2ddf0
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| c36ab647_7b2c_4de5_a10b_f5d614b2ddf0
+    490f7f61_301e_4880_870a_19361f47d1dc -->|structural| b3f98787_abe7_4e34_8382_debff985f52a
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|xsup:edited| b3f98787_abe7_4e34_8382_debff985f52a
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| b3f98787_abe7_4e34_8382_debff985f52a
+    490f7f61_301e_4880_870a_19361f47d1dc -->|structural| bff42841_62a0_41f3_8879_28078e3f0cbb
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|xsup:edited| bff42841_62a0_41f3_8879_28078e3f0cbb
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| bff42841_62a0_41f3_8879_28078e3f0cbb
+    490f7f61_301e_4880_870a_19361f47d1dc -->|structural| 8ca75cb7_07bb_4868_91a3_f8a587ec064f
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|xsup:edited| 8ca75cb7_07bb_4868_91a3_f8a587ec064f
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| 8ca75cb7_07bb_4868_91a3_f8a587ec064f
+    1cdbe1b3_e612_461d_b0d9_3f5f2b3415a6 -->|xsup:edited| 490f7f61_301e_4880_870a_19361f47d1dc
+    d2943aee_7cc1_4969_bf97_8e448fe2e084 -->|xsup:validated| 490f7f61_301e_4880_870a_19361f47d1dc
 ```
 
 ## Legend

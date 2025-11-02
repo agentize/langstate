@@ -127,6 +127,7 @@ filterwarnings = [
     "ignore::UserWarning",
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
+    "ignore::pydantic.warnings.GenericBeforeBaseModelWarning",
 ]
 
 [tool.coverage.run]

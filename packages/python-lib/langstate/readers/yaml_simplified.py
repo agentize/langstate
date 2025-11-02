@@ -249,7 +249,7 @@ def _get_properties_recursively(
         else:
             field_id = f"{entity_name}.{prop_name}"
         
-        # Resolve $ref if present
+        # Resolve $ref if present (aiopenapi3 uses "ref" without $ in serialized dicts)
         if "ref" in prop_schema and prop_schema["ref"]:
             ref_path = prop_schema["ref"]
             if ref_path.startswith("#/components/schemas/"):
@@ -295,7 +295,7 @@ def _get_properties_recursively(
             items = prop_schema.get("items", {})
             
             # Handle allOf in items (common pattern in OpenAPI) 
-            # Look at the raw allOf array to find the $ref
+            # Look at the raw allOf array to find the $ref (aiopenapi3 uses "ref" without $)
             if isinstance(items, dict) and "allOf" in items:
                 allof_list = items.get("allOf", [])
                 if isinstance(allof_list, list):

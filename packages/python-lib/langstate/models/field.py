@@ -76,6 +76,12 @@ class ConstraintInstance(BaseModel):
     constraints: List[Constraint] = PydField(default_factory=list)
     confidence: float = PydField(..., ge=0.0, le=1.0)
 
+class Schema(DirectedAcyclicGraph[Property, Constraint]):
+    """
+    Defines a schema as a directed acyclic graph (DAG) of properties and their constraints.
+    Each node represents a Property, and each edge represents a Constraint.
+    """
+    pass
 
 class State(DirectedAcyclicGraph[PropertyInstance, ConstraintInstance]):
     """
