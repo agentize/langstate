@@ -21,6 +21,10 @@ from langstate.readers.yaml_to_schema import load_schema_from_openapi_yaml
 from pathlib import Path
 
 # Load schema from OpenAPI YAML
+# This automatically prints:
+# - Summary statistics (properties count, edges count)
+# - ASCII tree visualization with property types
+# - Saves Mermaid diagram to {filename}_schema_diagram.md
 schema = load_schema_from_openapi_yaml('path/to/openapi.yaml')
 
 # Access properties
@@ -33,6 +37,34 @@ for node in schema.nodes.values():
 for prop_id in schema.topological_order():
     print(prop_id)
 ```
+
+### Automatic Visualization
+
+When you load a schema, you'll see:
+
+```
+================================================================================
+Schema loaded from: registeration.yaml
+Root entity: Registration
+Properties: 23
+Edges: 13
+================================================================================
+
+Schema Structure (Tree View):
+├── Registration.id [string]
+├── Registration.registrant [reference]
+│   ├── Registration.registrant.email [string]
+│   ├── Registration.registrant.id [string]
+│   └── Registration.registrant.name [string]
+├── Registration.event [reference]
+│   ├── Registration.event.capacity [integer]
+│   └── ... (more properties)
+└── Registration.status [string]
+
+Mermaid diagram saved to: registeration_schema_diagram.md
+```
+
+The Mermaid diagram can be viewed in GitHub, VS Code, or any Markdown viewer that supports Mermaid.
 
 ## Validation Features
 

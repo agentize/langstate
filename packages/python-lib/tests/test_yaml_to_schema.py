@@ -20,16 +20,16 @@ class TestYamlToSchema:
     def test_file_not_found(self):
         """Should raise FileNotFoundError for non-existent files."""
         with pytest.raises(FileNotFoundError):
-            load_schema_from_openapi_yaml("nonexistent.yaml")
+            load_schema_from_openapi_yaml("nonexistent.yaml", visualize=False)
 
     def test_invalid_root_entity(self, yaml_file):
         """Should raise ValueError for invalid root entity."""
         with pytest.raises(ValueError, match="Root entity 'NonExistent' not found"):
-            load_schema_from_openapi_yaml(yaml_file, root_entity="NonExistent")
+            load_schema_from_openapi_yaml(yaml_file, root_entity="NonExistent", visualize=False)
 
     def test_successful_load(self, yaml_file):
         """Should successfully load schema from valid YAML."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # Verify it's a Schema
         assert isinstance(schema, Schema)
@@ -44,7 +44,7 @@ class TestYamlToSchema:
 
     def test_property_structure(self, yaml_file):
         """Should create proper Property objects with constraints."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # Get a sample property
         first_prop = list(schema.nodes.values())[0].value
@@ -58,7 +58,7 @@ class TestYamlToSchema:
 
     def test_structural_edges(self, yaml_file):
         """Should create structural edges for parent-child relationships."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # Count all edges (structural only in Schema)
         total_edges = sum(len(node.depends_on) for node in schema.nodes.values())
@@ -68,7 +68,7 @@ class TestYamlToSchema:
 
     def test_dag_functionality(self, yaml_file):
         """Should function as a proper DAG."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # Should be able to get topological order
         topo_order = schema.topological_order()
@@ -80,7 +80,7 @@ class TestYamlToSchema:
 
     def test_type_constraints(self, yaml_file):
         """Should properly extract type constraints from properties."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # Find properties with known types
         reg_id = None
@@ -103,7 +103,7 @@ class TestYamlToSchema:
 
     def test_reference_resolution(self, yaml_file):
         """Should properly resolve $ref references."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # registeration.yaml uses $refs extensively
         # All 23 properties should be resolved
@@ -117,7 +117,7 @@ class TestYamlToSchema:
 
     def test_nested_object_handling(self, yaml_file):
         """Should handle nested object properties correctly."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # Registration has nested objects (registrant, event, guests)
         # Should create separate Property nodes for each
@@ -129,7 +129,7 @@ class TestYamlToSchema:
 
     def test_array_handling(self, yaml_file):
         """Should handle array properties correctly."""
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # guests is an array - should create nodes for array and items
         property_ids = {node.value.id for node in schema.nodes.values()}
@@ -142,7 +142,7 @@ class TestYamlToSchema:
         """Should perform validation during load."""
         # This test verifies validation happens by checking logs/behavior
         # Actual validation is tested by error cases above
-        schema = load_schema_from_openapi_yaml(yaml_file)
+        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
         
         # If validation failed, we wouldn't get here
         assert schema is not None
