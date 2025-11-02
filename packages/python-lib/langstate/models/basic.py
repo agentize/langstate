@@ -57,11 +57,12 @@ class PropertyStatusEnum(str, Enum):
     GENERATED = "generated"
     EDITED = "edited"
     VALIDATED = "validated"
+    STALE = "stale"
     UNKNOWN = "unknown"
     CUSTOM = "custom"
 
 # Allow custom status strings while keeping a safe pattern and supporting enum values via validators elsewhere
-PropertyStatus = Annotated[str, Field(pattern="^[a-z_]+$")]
+PropertyStatus = Union[PropertyStatusEnum, Annotated[str, Field(pattern="^[a-z_]+$")]]
 
 PropertyValue = Union[ bool, int, float, str ]
 

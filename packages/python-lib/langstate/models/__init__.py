@@ -16,7 +16,7 @@ from .basic import (
 from .constraints import (
     AllowDisallowCondition,
     EnumerationCondition,
-    ValueRangeCondition,
+    RangeCondition,
     ValueSimilarityCondition,
     PropertyStatusCondition,
     PropertyTypeCondition,
@@ -30,8 +30,7 @@ from .field import (
     ValueConfidence,
     PropertySnapshot,
     PropertyInstance,
-    PropertyDependencyInstance,
-    Schema,
+    ConstraintInstance,
     State,
 )
 
@@ -51,7 +50,7 @@ __all__ = [
     # constraints
     "AllowDisallowCondition",
     "EnumerationCondition",
-    "ValueRangeCondition",
+    "RangeCondition",
     "ValueSimilarityCondition",
     "PropertyStatusCondition",
     "PropertyTypeCondition",
@@ -63,7 +62,6 @@ __all__ = [
     "ValueConfidence",
     "PropertySnapshot",
     "PropertyInstance",
-    "PropertyDependencyInstance",
-    "Schema",
+    "ConstraintInstance",
     "State",
 ]

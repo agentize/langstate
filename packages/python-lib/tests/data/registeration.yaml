@@ -1,98 +1,89 @@
 openapi: 3.1.0
 info:
   title: Event Registration Schema
-  version: 1.2.3
+  version: 1.1.7
 
 x-sup:
   version: 1
   root_entity: Registration
-  types: ../langstate/data_structure/types.yaml#components/schemas
 
 components:
   schemas:
+
+    # -----------------------------------------------------------------------
+    # Reusable scalar & utility types
+    # -----------------------------------------------------------------------
+    Id:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{4,64}$"
+      description: "Globally unique identifier for any entity."
+
+    NameString:
+      type: string
+      maxLength: 100
+      description: "Human-readable name."
+
+    Email:
+      type: string
+      format: email
+      description: "Valid email address."
+
+    Price:
+      type: number
+      minimum: 0
+      maximum: 10000
+      description: "Per-person or unit price."
+
+    ShortString120:
+      type: string
+      maxLength: 120
+      description: "Short string up to 120 characters."
+
+    MarkdownString:
+      type: string
+      description: "Text field supporting Markdown syntax."
+
+    DateTime:
+      type: string
+      format: date-time
+      description: "ISO 8601 date-time string."
+
+    # -----------------------------------------------------------------------
+    # Domain models
+    # -----------------------------------------------------------------------
 
     Invitation:
       type: object
       description: "Email content and optional scheduled send time."
       properties:
-        subject:
-          $ref: "${x-sup.types}/ShortString120"
-        body:
-          $ref: "${x-sup.types}/MarkdownString"
-        send_at:
-          $ref: "${x-sup.types}/DateTime"
-      required: [subject, body]
-
-    Pricing:
-      type: object
-      description: "Computed pricing (system-managed)."
-      properties:
-        currency:
-          $ref: "${x-sup.types}/CurrencyCode"
-        adult_price:
-          $ref: "${x-sup.types}/UnitPrice"
-        child_price:
-          $ref: "${x-sup.types}/UnitPrice"
-        senior_price:
-          $ref: "${x-sup.types}/UnitPrice"
-        coupon_code:
-          $ref: "${x-sup.types}/CouponCode"
-        total:
-          $ref: "${x-sup.types}/MoneyTotal"
-      required: [currency]
-      x-sup:
-        dependencies:
-          - from: Registration.event
-            to: Pricing.total
-            dependency:
-              prompt: { prompt: "Compute total only after an event is selected." }
-          - from: Registrant.age_group
-            to: Pricing.total
-            dependency:
-              enumeration: { values: ["child","adult","senior"] }
+        subject: { $ref: "#/components/schemas/ShortString120" }
+        body:    { $ref: "#/components/schemas/MarkdownString" }
+        send_at: { $ref: "#/components/schemas/DateTime" }
 
     Person:
       type: object
       description: "Base participant profile."
       properties:
-        id:         { $ref: "${x-sup.types}/Id" }
-        username:   { $ref: "${x-sup.types}/Username" }
-        name:       { $ref: "${x-sup.types}/NameString" }
-        email:      { $ref: "${x-sup.types}/Email" }
-        age_group:  { $ref: "${x-sup.types}/AgeGroup" }
-        description:
-          type: string
-          description: "Free-form bio or notes about the person."
-        interests:
-          $ref: "${x-sup.types}/StringArray"
-      required: [id, name, email, age_group]
+        id:    { $ref: "#/components/schemas/Id" }
+        name:  { $ref: "#/components/schemas/NameString" }
+        email: { $ref: "#/components/schemas/Email" }
 
-    Registrant:
+    Guest:
       allOf:
-        - $ref: '#/components/schemas/Person'
-      type: object
-      description: "Primary registrant for a registration."
-      properties:
-        registration_ids:
-          type: array
-          description: "IDs of registrations owned by this registrant."
-          items:
-            $ref: "${x-sup.types}/Id"
-      x-sup:
-        dependencies:
-          - from: Registrant.email
-            to: Registration.event
-            dependency:
-              prompt: { prompt: "Proceed to event selection only after registrant email is valid." }
+        - $ref: "#/components/schemas/Person"
+        - type: object
+          properties:
+            invitation: { $ref: "#/components/schemas/Invitation" }
+          description: "Optional invitation payload; if present, Invitation's required fields apply."
 
     Event:
       type: object
       description: "Bookable event with schedule and pricing."
       properties:
-        id:          { $ref: "${x-sup.types}/Id" }
-        name:        { $ref: "${x-sup.types}/ShortString120" }
-        description: { $ref: "${x-sup.types}/MarkdownString" }
-        schedule:    { $ref: "${x-sup.types}/DateTimeArray" }
+        id:          { $ref: "#/components/schemas/Id" }
+        name:        { $ref: "#/components/schemas/ShortString120" }
+        description: { $ref: "#/components/schemas/MarkdownString" }
+        schedule:    { $ref: "#/components/schemas/DateTime" }
         capacity:
           type: integer
           minimum: 1
@@ -101,51 +92,46 @@ components:
           type: integer
           minimum: 0
           maximum: 500
-        pricing:
-          $ref: '#/components/schemas/Pricing'
-      required: [id, name, schedule]
+        pricing: { $ref: "#/components/schemas/Price" }
 
     Registration:
       type: object
-      description: "Registration ties registrant, event, and guests (with optional per-guest invitation)."
+      description: "Registration ties registrant, event, and guests."
       properties:
-        id:         { $ref: "${x-sup.types}/Id" }
-        registrant: { $ref: '#/components/schemas/Registrant' }
-        event:      { $ref: '#/components/schemas/Event' }
+        id:         { $ref: "#/components/schemas/Id" }
+
+        registrant:
+          $ref: "#/components/schemas/Person"
+
+        event:
+          $ref: "#/components/schemas/Event"
+          x-sup:
+            constraints:
+              - on: "registrant"
+                status:
+                  allowed: ["validated"]
 
         guests:
           type: array
-          description: "Guests accompanying the registrant; may include invitation fields."
-          items:
-            allOf:
-              - $ref: '#/components/schemas/Person'
-              - $ref: '#/components/schemas/Invitation'
+          description: "Guests accompanying the registrant; each may include an optional invitation."
           minItems: 0
           maxItems: 49
-          x-sup:
-            field-dependencies:
-              - from: Registration.event
-                dependency:
-                  prompt: { prompt: "Add/edit guests only after selecting a valid event." }
-              - from: Registrant.id
-                dependency:
-                  prompt: { prompt: "Guests require an identified registrant." }
+          items:
+            allOf:
+              - $ref: "#/components/schemas/Guest"
+              - type: object
+                x-sup:
+                  constraints:
+                    - on: "event"
+                      status:
+                        allowed: ["edited"]
+                      prompt: "Guests can only be added when the event is confirmed."
+                    - on: "registrant"
+                      status:
+                        allowed: ["validated"]
+
+        total_price: { $ref: "#/components/schemas/Price" }
 
         status:
           type: string
           enum: [draft, confirmed, cancelled]
-      required: [id, registrant, event]
-      x-sup:
-        dependencies:
-          - from: Registrant.id
-            to: Registration.event
-            dependency:
-              prompt: { prompt: "Select an event only after registrant is provided." }
-          - from: Registrant.id
-            to: Registration.guests
-            dependency:
-              prompt: { prompt: "Guests require an identified registrant." }
-          - from: Registration.event
-            to: Registration.guests
-            dependency:
-              prompt: { prompt: "Guest list becomes available after selecting an event." }

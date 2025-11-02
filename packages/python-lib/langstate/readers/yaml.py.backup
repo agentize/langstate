@@ -1,11 +1,11 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Optional, Set
+from typing import Any, Dict, List, Tuple, Optional
 import yaml
 
 # --- import your models ---
 # Adjust import paths to your project layout
-from langstate.models import Info, ValueType, Property, PropertyInstance, PropertySnapshot, ValueConfidence, Constraint, PropertyTypeCondition, EnumerationCondition, RegexCondition, ValueRangeCondition, PropertyStatusCondition, PromptCondition, ConstraintInstance, State, PropertyStatusEnum
+from langstate.models import Info, ValueType, Property, PropertyInstance, PropertySnapshot, ValueConfidence, Constraint, PropertyTypeCondition, EnumerationCondition, RegexCondition, ValueRangeCondition, PropertyStatusCondition, PromptCondition, PropertyDependencyInstance
 from langstate.data_structure.dag import DirectedAcyclicGraph, DirectedAcyclicGraphEdge, DirectedAcyclicGraphNode
 
 # ---------------------------

@@ -33,6 +33,8 @@ dependencies = [
     "pydantic>=2.0.0,<3.0.0",
     "python-multipart>=0.0.6,<1.0.0",
     "langchain-core>=0.0.1,<1.0.0",
+    "aiopenapi3>=0.7.0,<1.0.0",
+    "pyyaml>=6.0,<7.0",
 ]
 
 [project.optional-dependencies]

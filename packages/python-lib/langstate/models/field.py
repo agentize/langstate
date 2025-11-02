@@ -29,6 +29,7 @@ class Property(BaseModel):
     info: Info
     constraints: List[Constraint] = PydField(default_factory=list)
     default_value: Optional[PropertyValue] = None
+    top_n: int
     default_updaters: List[Updater] = PydField(default_factory=list)
     tags: List[str] = PydField(default_factory=list)
 
@@ -36,7 +37,7 @@ class Property(BaseModel):
     model_config = ConfigDict(extra='allow', frozen=True)
 
 class ValueConfidence(BaseModel):
-    confidence: float = PydField(..., ge=-1.0, le=1.0)  # Confidence score [-1.0, 1.0]
+    score: float = PydField(..., ge=-1.0, le=1.0)  # Confidence score [-1.0, 1.0]
     value: PropertyValue
 
 class PropertySnapshot(BaseModel):

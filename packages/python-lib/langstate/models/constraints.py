@@ -47,7 +47,7 @@ class EnumerationCondition(BaseModel):
     """Condition that specifies allowed values through enumeration."""
     values: List[Any]
 
-class ValueRangeCondition(BaseModel):
+class RangeCondition(BaseModel):
     """Condition that specifies allowed values through a numeric range."""
     min: float
     max: float
@@ -116,7 +116,7 @@ class Constraint(BaseModel):
     status: Optional[PropertyStatusCondition] = None
     regex: Optional[RegexCondition] = None
     enumeration: Optional[EnumerationCondition] = None
-    value_range: Optional[ValueRangeCondition] = None
+    range: Optional[RangeCondition] = None
     value_similarity: Optional[ValueSimilarityCondition] = None
     prompt: Optional[PromptCondition] = None
     
