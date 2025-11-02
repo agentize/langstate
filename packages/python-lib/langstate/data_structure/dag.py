@@ -20,7 +20,7 @@ Design notes
 
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter, CycleError
-from typing import Dict, Generic, Iterable, Iterator, List, Optional, Set, Tuple, TypeVar
+from typing import Any, Dict, Generic, Iterable, Iterator, List, Optional, Set, Tuple, TypeVar
 import weakref
 
 V = TypeVar("V")  # Node value
@@ -252,7 +252,179 @@ class DirectedAcyclicGraph(Generic[V, E]):
         for src, dst, _ in self.iter_edges():
             lines.append(f'  "{src}" -> "{dst}";')
         lines.append("}")
-        return "".join(lines)
+        return "\n".join(lines)
+    
+    def to_ascii_tree(self, root_nodes=None, node_label_fn=None, max_depth: int = 10) -> str:
+        """Generate ASCII tree representation of the DAG.
+        
+        Args:
+            root_nodes: List of root node IDs to start from (nodes with no prerequisites)
+            node_label_fn: Optional function to extract label from node value
+            max_depth: Maximum depth to traverse
+        
+        Returns:
+            ASCII tree string
+        """
+        if root_nodes is None:
+            # Find nodes with no prerequisites
+            root_nodes = [nid for nid, node in self.nodes.items() if not node.prerequisites()]
+        
+        lines = []
+        visited = set()
+        
+        def render_node(node_id: str, prefix: str = "", is_last: bool = True, depth: int = 0):
+            if depth > max_depth or node_id in visited:
+                return
+            visited.add(node_id)
+            
+            node = self.nodes.get(node_id)
+            if not node:
+                return
+            
+            # Get label
+            if node_label_fn and node.value is not None:
+                label = node_label_fn(node.value)
+            else:
+                label = node_id
+            
+            # Truncate if too long
+            if len(label) > 60:
+                label = label[:57] + "..."
+            
+            # Draw the current node
+            connector = "└── " if is_last else "├── "
+            lines.append(f"{prefix}{connector}{label}")
+            
+            # Prepare prefix for children
+            child_prefix = prefix + ("    " if is_last else "│   ")
+            
+            # Get dependents (children)
+            dependents = list(node.dependents())
+            for i, dep_node in enumerate(dependents):
+                is_last_child = (i == len(dependents) - 1)
+                render_node(dep_node.id, child_prefix, is_last_child, depth + 1)
+        
+        # Render each root
+        for i, root_id in enumerate(root_nodes):
+            is_last_root = (i == len(root_nodes) - 1)
+            render_node(root_id, "", is_last_root, 0)
+        
+        return "\n".join(lines)
+    
+    def to_mermaid(self, node_label_fn=None, edge_label_fn=None, max_label_length: int = 30) -> str:
+        """Export graph to Mermaid diagram format.
+        
+        Args:
+            node_label_fn: Optional function to extract label from node value
+            edge_label_fn: Optional function to extract label from edge metadata
+            max_label_length: Maximum length for labels (truncated with ...)
+        
+        Returns:
+            Mermaid diagram string that can be embedded in Markdown
+        """
+        lines = ["graph TD"]
+        
+        # Add nodes with labels
+        for node_id, node in self.nodes.items():
+            # Sanitize node ID for Mermaid (alphanumeric + underscore)
+            safe_id = node_id.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
+            
+            # Get label
+            if node_label_fn and node.value is not None:
+                label = node_label_fn(node.value)
+            else:
+                label = node_id
+            
+            # Truncate if too long
+            if len(label) > max_label_length:
+                label = label[:max_label_length-3] + "..."
+            
+            # Escape special characters in label
+            label = label.replace('"', "'")
+            
+            lines.append(f'    {safe_id}["{label}"]')
+        
+        # Add edges
+        for prereq_id, dep_id, metadata in self.iter_edges():
+            safe_prereq = prereq_id.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
+            safe_dep = dep_id.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
+            
+            # Get edge label
+            edge_label = ""
+            if edge_label_fn and metadata is not None:
+                label = edge_label_fn(metadata)
+                if label and len(label) > max_label_length:
+                    label = label[:max_label_length-3] + "..."
+                if label:
+                    label = label.replace('"', "'")
+                    edge_label = f"|{label}|"
+            
+            lines.append(f'    {safe_prereq} -->{edge_label} {safe_dep}')
+        
+        return "\n".join(lines)
+
+    def to_json_dict(self) -> Dict[str, Any]:
+        """Export graph structure to JSON-serializable dict with node and edge info.
+        
+        Returns:
+            Dict with 'nodes' and 'edges' keys containing full graph structure
+        """
+        nodes_data = []
+        for node_id, node in self.nodes.items():
+            node_info = {
+                "id": node_id,
+                "value": None,  # Will be set if serializable
+            }
+            
+            # Try to serialize the value if it has useful attributes
+            if node.value is not None:
+                if hasattr(node.value, 'model_dump'):
+                    # Pydantic model
+                    try:
+                        node_info["value"] = node.value.model_dump()
+                    except Exception:
+                        node_info["value"] = str(node.value)
+                elif hasattr(node.value, '__dict__'):
+                    try:
+                        node_info["value"] = vars(node.value)
+                    except Exception:
+                        node_info["value"] = str(node.value)
+                else:
+                    node_info["value"] = str(node.value)
+            
+            nodes_data.append(node_info)
+        
+        edges_data = []
+        for prereq_id, dep_id, metadata in self.iter_edges():
+            edge_info = {
+                "from": prereq_id,
+                "to": dep_id,
+                "metadata": None,
+            }
+            
+            # Try to serialize metadata
+            if metadata is not None:
+                if hasattr(metadata, 'model_dump'):
+                    try:
+                        edge_info["metadata"] = metadata.model_dump()
+                    except Exception:
+                        edge_info["metadata"] = str(metadata)
+                elif hasattr(metadata, '__dict__'):
+                    try:
+                        edge_info["metadata"] = vars(metadata)
+                    except Exception:
+                        edge_info["metadata"] = str(metadata)
+                else:
+                    edge_info["metadata"] = str(metadata)
+            
+            edges_data.append(edge_info)
+        
+        return {
+            "nodes": nodes_data,
+            "edges": edges_data,
+            "node_count": len(nodes_data),
+            "edge_count": len(edges_data),
+        }
 
     # ---- Internal helpers ---------------------------------------------------
     def _would_create_cycle(self, prereq_id: str, dep_id: str) -> bool:

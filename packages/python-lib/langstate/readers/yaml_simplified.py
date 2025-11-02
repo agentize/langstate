@@ -572,6 +572,133 @@ def load_state_from_openapi_yaml_v2(
                                 metadata=constraint_inst
                             )
     
+    # 8) Print JSON representation of the state graph
+    import json
+    json_dict = state.to_json_dict()
+    
+    # Create a mapping of instance UUID to property ID for readable edges
+    uuid_to_property = {}
+    for n in json_dict["nodes"]:
+        if n["value"] and isinstance(n["value"], dict) and "property" in n["value"]:
+            uuid_to_property[n["id"]] = n["value"]["property"]["id"]
+    
+    # Create a simplified version for console output (without full value objects)
+    simplified = {
+        "node_count": json_dict["node_count"],
+        "edge_count": json_dict["edge_count"],
+        "nodes": [
+            {
+                "id": n["id"],
+                "property_id": n["value"]["property"]["id"] if n["value"] and isinstance(n["value"], dict) and "property" in n["value"] else None
+            }
+            for n in json_dict["nodes"]
+        ],
+        "edges": [
+            {
+                "from": e["from"],
+                "from_property": uuid_to_property.get(e["from"]),
+                "to": e["to"],
+                "to_property": uuid_to_property.get(e["to"]),
+                "constraint_id": e["metadata"]["id"] if e["metadata"] and isinstance(e["metadata"], dict) and "id" in e["metadata"] else None,
+                "type": "structural" if (e["metadata"] and isinstance(e["metadata"], dict) and e["metadata"].get("id", "").startswith("structural:")) else "xsup"
+            }
+            for e in json_dict["edges"]
+        ]
+    }
+    
+    print("\n" + "="*80)
+    print("STATE GRAPH LOADED - JSON")
+    print("="*80)
+    print(json.dumps(simplified, indent=2))
+    print("="*80 + "\n")
+    
+    # Print ASCII tree view
+    def node_label_ascii(prop_instance):
+        """Extract property ID as node label for ASCII tree."""
+        if hasattr(prop_instance, 'property') and hasattr(prop_instance.property, 'id'):
+            return prop_instance.property.id
+        return str(prop_instance)
+    
+    # Find all root nodes (nodes with no prerequisites)
+    root_node_ids = []
+    for node_id, node in state.nodes.items():
+        if not node.prerequisites():
+            root_node_ids.append(node_id)
+    
+    print("="*80)
+    print(f"STATE GRAPH LOADED - ASCII TREE ({len(root_node_ids)} root nodes)")
+    print("="*80)
+    if root_node_ids:
+        ascii_tree = state.to_ascii_tree(root_nodes=root_node_ids, node_label_fn=node_label_ascii, max_depth=4)
+        print(ascii_tree)
+    else:
+        print("(No root nodes found - possible cycle)")
+    print("="*80 + "\n")
+    
+    # 9) Generate Mermaid diagram and save to Markdown
+    def node_label(prop_instance):
+        """Extract property ID as node label."""
+        if hasattr(prop_instance, 'property') and hasattr(prop_instance.property, 'id'):
+            return prop_instance.property.id
+        return str(prop_instance)
+    
+    def edge_label(constraint_inst):
+        """Extract constraint type as edge label."""
+        if hasattr(constraint_inst, 'id'):
+            if constraint_inst.id.startswith('structural:'):
+                return 'structural'
+            elif constraint_inst.id.startswith('xsup:'):
+                # Try to extract status info
+                if hasattr(constraint_inst, 'constraints') and constraint_inst.constraints:
+                    first_constraint = constraint_inst.constraints[0]
+                    if hasattr(first_constraint, 'status') and first_constraint.status:
+                        status = first_constraint.status.allowed[0] if first_constraint.status.allowed else 'xsup'
+                        return f'xsup:{status}'
+                return 'xsup'
+        return ''
+    
+    mermaid_diagram = state.to_mermaid(node_label_fn=node_label, edge_label_fn=edge_label, max_label_length=50)
+    
+    # Save to markdown file
+    doc_path = Path(doc) if isinstance(doc, str) else doc
+    output_path = doc_path.parent / f"{doc_path.stem}_diagram.md"
+    
+    markdown_content = f"""# State Graph Diagram: {root_entity_name}
+
+Generated from: `{doc_path.name}`
+
+## Statistics
+- **Nodes**: {len(state.nodes)} PropertyInstances
+- **Edges**: {sum(len(n.depends_on) for n in state.nodes.values())} ConstraintInstances
+  - Structural edges: {sum(1 for n in state.nodes.values() for e in n.depends_on.values() if e.metadata and e.metadata.id.startswith('structural:'))}
+  - X-sup edges: {sum(1 for n in state.nodes.values() for e in n.depends_on.values() if e.metadata and e.metadata.id.startswith('xsup:'))}
+
+## Diagram
+
+```mermaid
+{mermaid_diagram}
+```
+
+## Legend
+
+- **Structural edges**: Parent → Child property relationships (auto-generated)
+- **X-sup edges**: Explicit constraint dependencies from x-sup extensions
+- **Node labels**: Property IDs (e.g., `Registration.event.name`)
+
+## Notes
+
+This diagram shows the dependency graph where:
+- Each node is a PropertyInstance with a unique UUID
+- Edges represent ConstraintInstances (dependencies)
+- Arrow direction: prerequisite → dependent
+"""
+    
+    with open(output_path, 'w') as f:
+        f.write(markdown_content)
+    
+    print(f"📊 Mermaid diagram saved to: {output_path}")
+    print(f"   Open in VS Code or GitHub to view the rendered diagram\n")
+    
     return state
 
 
