@@ -426,6 +426,27 @@ class DirectedAcyclicGraph(Generic[V, E]):
             "edge_count": len(edges_data),
         }
 
+    def to_json(self, pretty: bool = True, indent: int = 2) -> str:
+        """Export graph structure to a JSON string.
+
+        This formats the JSON inside the DAG class so callers/tests can simply
+        print the returned string with their own delimiters. The underlying
+        structure is based on `to_json_dict()`.
+
+        Args:
+            pretty: If True, pretty-print with indentation.
+            indent: Number of spaces to use for indentation when pretty=True.
+
+        Returns:
+            JSON string representing the graph structure.
+        """
+        import json
+
+        payload = self.to_json_dict()
+        if pretty:
+            return json.dumps(payload, indent=indent)
+        return json.dumps(payload, separators=(",", ":"))
+
     # ---- Internal helpers ---------------------------------------------------
     def _would_create_cycle(self, prereq_id: str, dep_id: str) -> bool:
         """True if adding `prereq_id -> dep_id` closes a cycle.

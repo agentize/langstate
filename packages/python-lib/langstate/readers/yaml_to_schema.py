@@ -298,8 +298,7 @@ def _get_properties_recursively(
 
 def load_schema_from_openapi_yaml(
     doc: str | Path,
-    root_entity: Optional[str] = None,
-    visualize: bool = True
+    root_entity: Optional[str] = None
 ) -> Schema:
     """
     Build Schema (DAG of Properties and Constraints) from OpenAPI YAML.
@@ -314,9 +313,6 @@ def load_schema_from_openapi_yaml(
         Path to the OpenAPI YAML file
     root_entity : Optional[str]
         Root entity name from x-sup.root_entity. If not provided, will look for it in x-sup
-    visualize : bool, default=True
-        Whether to print visualization (tree view) and save Mermaid diagram.
-        Set to False to suppress output.
     
     Returns
     -------
@@ -334,6 +330,9 @@ def load_schema_from_openapi_yaml(
     >>> # Access a specific property
     >>> registration_id = schema.nodes['Registration.id']
     >>> print(registration_id.value.info.description)
+    >>> # Visualize the schema
+    >>> print(schema.to_ascii_tree())
+    >>> print(schema.to_mermaid())
     """
     # 0) Convert doc to Path for later use
     doc_path = Path(doc) if isinstance(doc, str) else doc
@@ -433,50 +432,6 @@ def load_schema_from_openapi_yaml(
                 metadata=None,  # Schema edges don't need constraint metadata
                 check_cycle=True
             )
-    
-    # 9) Print visualization (if enabled)
-    if visualize:
-        print(f"\n{'='*80}")
-        print(f"Schema loaded from: {doc_path.name}")
-        print(f"Root entity: {root_entity}")
-        print(f"Properties: {len(properties)}")
-        print(f"Edges: {sum(len(node.depends_on) for node in schema.nodes.values())}")
-        print(f"{'='*80}\n")
-        
-        # Print ASCII tree visualization
-        def node_label_fn(prop: Property) -> str:
-            """Format property for visualization."""
-            # Get the property type if available
-            type_str = ""
-            if prop.constraints:
-                for constraint in prop.constraints:
-                    if constraint.property_type and constraint.property_type.allowed:
-                        types = [t.value for t in constraint.property_type.allowed]
-                        type_str = f" [{', '.join(types)}]"
-                        break
-            return f"{prop.id}{type_str}"
-        
-        try:
-            ascii_tree = schema.to_ascii_tree(node_label_fn=node_label_fn)
-            print("Schema Structure (Tree View):")
-            print(ascii_tree)
-            print()
-        except Exception as e:
-            print(f"Note: Could not generate tree view: {e}\n")
-        
-        # Save Mermaid diagram to file
-        try:
-            mermaid_diagram = schema.to_mermaid(node_label_fn=lambda p: p.id, max_label_length=50)
-            mermaid_path = doc_path.parent / f"{doc_path.stem}_schema_diagram.md"
-            with open(mermaid_path, 'w') as f:
-                f.write("# Schema Diagram\n\n")
-                f.write(f"Generated from: `{doc_path.name}`\n\n")
-                f.write("```mermaid\n")
-                f.write(mermaid_diagram)
-                f.write("\n```\n")
-            print(f"Mermaid diagram saved to: {mermaid_path.name}\n")
-        except Exception as e:
-            print(f"Note: Could not save Mermaid diagram: {e}\n")
     
     return schema
 

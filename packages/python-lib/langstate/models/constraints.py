@@ -120,3 +120,31 @@ class Constraint(BaseModel):
     value_similarity: Optional[ValueSimilarityCondition] = None
     prompt: Optional[PromptCondition] = None
     
+    def to_dag_edge_name(self) -> str:
+        """Return a string representation of this Constraint for DAG visualization.
+        
+        Returns:
+            String label describing the constraint for DAG edge visualizations
+        """
+        # Build a descriptive label from active conditions
+        labels = []
+        if self.property_type:
+            if self.property_type.allowed:
+                types = [t.value for t in self.property_type.allowed]
+                labels.append(f"type:{','.join(types)}")
+        if self.enumeration:
+            labels.append(f"enum:{len(self.enumeration.values)} values")
+        if self.regex:
+            labels.append(f"regex:{self.regex.pattern[:20]}")
+        if self.range:
+            labels.append(f"range:[{self.range.min},{self.range.max}]")
+        if self.status:
+            if self.status.allowed:
+                labels.append(f"status:{','.join(self.status.allowed)}")
+        if self.value_similarity:
+            labels.append(f"similarity>{self.value_similarity.threshold}")
+        if self.prompt:
+            labels.append(f"prompt")
+        
+        return " | ".join(labels) if labels else "constraint"
+    

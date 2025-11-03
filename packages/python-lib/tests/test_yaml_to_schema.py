@@ -20,16 +20,16 @@ class TestYamlToSchema:
     def test_file_not_found(self):
         """Should raise FileNotFoundError for non-existent files."""
         with pytest.raises(FileNotFoundError):
-            load_schema_from_openapi_yaml("nonexistent.yaml", visualize=False)
+            load_schema_from_openapi_yaml("nonexistent.yaml")
 
     def test_invalid_root_entity(self, yaml_file):
         """Should raise ValueError for invalid root entity."""
         with pytest.raises(ValueError, match="Root entity 'NonExistent' not found"):
-            load_schema_from_openapi_yaml(yaml_file, root_entity="NonExistent", visualize=False)
+            load_schema_from_openapi_yaml(yaml_file, root_entity="NonExistent")
 
     def test_successful_load(self, yaml_file):
         """Should successfully load schema from valid YAML."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # Verify it's a Schema
         assert isinstance(schema, Schema)
@@ -44,7 +44,7 @@ class TestYamlToSchema:
 
     def test_property_structure(self, yaml_file):
         """Should create proper Property objects with constraints."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # Get a sample property
         first_prop = list(schema.nodes.values())[0].value
@@ -58,7 +58,7 @@ class TestYamlToSchema:
 
     def test_structural_edges(self, yaml_file):
         """Should create structural edges for parent-child relationships."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # Count all edges (structural only in Schema)
         total_edges = sum(len(node.depends_on) for node in schema.nodes.values())
@@ -68,7 +68,7 @@ class TestYamlToSchema:
 
     def test_dag_functionality(self, yaml_file):
         """Should function as a proper DAG."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # Should be able to get topological order
         topo_order = schema.topological_order()
@@ -80,7 +80,7 @@ class TestYamlToSchema:
 
     def test_type_constraints(self, yaml_file):
         """Should properly extract type constraints from properties."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # Find properties with known types
         reg_id = None
@@ -103,7 +103,7 @@ class TestYamlToSchema:
 
     def test_reference_resolution(self, yaml_file):
         """Should properly resolve $ref references."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # registeration.yaml uses $refs extensively
         # All 23 properties should be resolved
@@ -117,7 +117,7 @@ class TestYamlToSchema:
 
     def test_nested_object_handling(self, yaml_file):
         """Should handle nested object properties correctly."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # Registration has nested objects (registrant, event, guests)
         # Should create separate Property nodes for each
@@ -129,7 +129,7 @@ class TestYamlToSchema:
 
     def test_array_handling(self, yaml_file):
         """Should handle array properties correctly."""
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # guests is an array - should create nodes for array and items
         property_ids = {node.value.id for node in schema.nodes.values()}
@@ -142,8 +142,118 @@ class TestYamlToSchema:
         """Should perform validation during load."""
         # This test verifies validation happens by checking logs/behavior
         # Actual validation is tested by error cases above
-        schema = load_schema_from_openapi_yaml(yaml_file, visualize=False)
+        schema = load_schema_from_openapi_yaml(yaml_file)
         
         # If validation failed, we wouldn't get here
         assert schema is not None
         assert len(schema.nodes) > 0
+
+    def test_ascii_tree_visualization(self, yaml_file):
+        """Should generate ASCII tree visualization and print to console."""
+        # Load schema first (no visualization during load)
+        schema = load_schema_from_openapi_yaml(yaml_file)
+        
+        # Verify schema is loaded correctly
+        assert isinstance(schema, Schema)
+        assert len(schema.nodes) == 23
+        
+        # Test to_ascii_tree method and print to console (string returned by DAG)
+        tree_output = schema.to_ascii_tree(
+            node_label_fn=lambda p: p.to_dag_node_name()
+        )
+        assert tree_output is not None
+        assert len(tree_output) > 0
+        assert "Registration" in tree_output
+        
+        # Print the tree to console for visual verification (delimiters only)
+        print("\n" + "="*80)
+        print("ASCII Tree Visualization (Nodes):")
+        print("="*80)
+        print(tree_output)
+        print("="*80 + "\n")
+
+    def test_mermaid_visualization(self, yaml_file):
+        """Should generate Mermaid diagram (string) and print to console."""
+        # Load schema first (no visualization during load)
+        schema = load_schema_from_openapi_yaml(yaml_file)
+        
+        # Verify schema is loaded correctly
+        assert isinstance(schema, Schema)
+        assert len(schema.nodes) == 23
+        
+        # Test to_mermaid method (string returned by DAG)
+        mermaid_output = schema.to_mermaid(
+            node_label_fn=lambda p: p.to_dag_node_name(),
+            edge_label_fn=lambda c: c.to_dag_edge_name() if c else None
+        )
+        assert mermaid_output is not None
+        assert len(mermaid_output) > 0
+        assert "graph TD" in mermaid_output
+
+        # Print the Mermaid diagram to console (delimiters only)
+        print("\n" + "="*80)
+        print("Mermaid Diagram:")
+        print("="*80)
+        print(mermaid_output)
+        print("="*80 + "\n")
+
+    def test_dot_visualization(self, yaml_file):
+        """Should generate Graphviz DOT (string) and print to console."""
+        # Load schema first (no visualization during load)
+        schema = load_schema_from_openapi_yaml(yaml_file)
+
+        # Verify schema is loaded correctly
+        assert isinstance(schema, Schema)
+        assert len(schema.nodes) == 23
+
+        # Test to_dot method (string returned by DAG)
+        dot_output = schema.to_dot()
+        assert isinstance(dot_output, str)
+        assert len(dot_output) > 0
+        assert "digraph DAG" in dot_output
+
+        # Print DOT to console (delimiters only)
+        print("\n" + "="*80)
+        print("Graphviz DOT:")
+        print("="*80)
+        print(dot_output)
+        print("="*80 + "\n")
+
+    def test_json_dict_export(self, yaml_file):
+        """Should export schema to JSON string (formatted in DAG) and validate."""
+        # Load schema first (no visualization during load)
+        schema = load_schema_from_openapi_yaml(yaml_file)
+        
+        # Verify schema is loaded correctly
+        assert isinstance(schema, Schema)
+        assert len(schema.nodes) == 23
+        
+        # Test to_json string method (formatting handled by DAG)
+        json_str = schema.to_json(pretty=True, indent=2)
+        assert isinstance(json_str, str)
+        assert len(json_str) > 0
+
+        # Print JSON to console for visual verification (delimiters only)
+        print("\n" + "="*80)
+        print("JSON Dictionary Export:")
+        print("="*80)
+        print(json_str)
+        print("="*80 + "\n")
+
+        # Parse back to validate structure
+        import json
+        json_dict = json.loads(json_str)
+        assert json_dict is not None
+        assert "nodes" in json_dict
+        assert "edges" in json_dict
+        assert json_dict["node_count"] == 23
+        assert json_dict["edge_count"] == 13
+
+        # Verify node structure
+        assert len(json_dict["nodes"]) == 23
+        assert len(json_dict["edges"]) == 13
+
+        # Check that nodes have expected structure
+        for node in json_dict["nodes"]:
+            assert "id" in node
+            assert "value" in node

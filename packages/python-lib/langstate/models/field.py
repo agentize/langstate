@@ -35,6 +35,14 @@ class Property(BaseModel):
 
     # Pydantic v2 style config: allow extra metadata and freeze instances by default
     model_config = ConfigDict(extra='allow', frozen=True)
+    
+    def to_dag_node_name(self) -> str:
+        """Return a string representation of this Property for DAG visualization.
+        
+        Returns:
+            String label for this property node in DAG visualizations
+        """
+        return self.id
 
 class ValueConfidence(BaseModel):
     score: float = PydField(..., ge=-1.0, le=1.0)  # Confidence score [-1.0, 1.0]
