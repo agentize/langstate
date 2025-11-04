@@ -5,7 +5,7 @@ try:
 except ImportError:
     from typing_extensions import TypeAlias
 from datetime import datetime, timezone
-from .basic import PropertyStatus, ValueType
+from .basic import FieldStatus, ValueType
 
 T = TypeVar("T")
 
@@ -67,7 +67,7 @@ class ValueSimilarityCondition(BaseModel):
     reference: str
     threshold: float = PydField(ge=0.0, le=1.0)  # Similarity threshold (0-1.0)
 
-class PropertyStatusCondition(AllowDisallowCondition[PropertyStatus]):
+class FieldStatusCondition(AllowDisallowCondition[FieldStatus]):
     """
     Condition to gate by property status using allow/disallow lists.
 
@@ -88,7 +88,7 @@ class PropertyStatusCondition(AllowDisallowCondition[PropertyStatus]):
                 result.append(item)
         return result
 
-class PropertyTypeCondition(AllowDisallowCondition[ValueType]):
+class FieldTypeCondition(AllowDisallowCondition[ValueType]):
     """
     Condition to gate by property value types using allow/disallow lists.
     """
@@ -110,10 +110,11 @@ class Constraint(BaseModel):
 
     If multiple conditions are assigned, the relationship between them will be OR.
     """
-    model_config = ConfigDict(extra='allow', frozen=True)
+    model_config = ConfigDict(extra='allow', frozen=True, populate_by_name=True)
     
-    property_type: Optional[PropertyTypeCondition] = None
-    status: Optional[PropertyStatusCondition] = None
+    # Accept legacy alias 'property_type' for backward compatibility
+    field_type: Optional[FieldTypeCondition] = PydField(default=None, alias="property_type")
+    status: Optional[FieldStatusCondition] = None
     regex: Optional[RegexCondition] = None
     enumeration: Optional[EnumerationCondition] = None
     range: Optional[RangeCondition] = None
@@ -128,9 +129,9 @@ class Constraint(BaseModel):
         """
         # Build a descriptive label from active conditions
         labels = []
-        if self.property_type:
-            if self.property_type.allowed:
-                types = [t.value for t in self.property_type.allowed]
+        if self.field_type:
+            if self.field_type.allowed:
+                types = [t.value for t in self.field_type.allowed]
                 labels.append(f"type:{','.join(types)}")
         if self.enumeration:
             labels.append(f"enum:{len(self.enumeration.values)} values")

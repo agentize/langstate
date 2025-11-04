@@ -15,10 +15,11 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import yaml
 from aiopenapi3 import OpenAPI, FileSystemLoader
 from langstate.models import (
-    Info, ValueType, Property, Constraint, PropertyTypeCondition, 
+    Info, ValueType, Field, Constraint, FieldTypeCondition,
     EnumerationCondition, RegexCondition, RangeCondition, Schema
 )
 from langstate.data_structure.dag import DirectedAcyclicGraphNode
+from copy import deepcopy
 
 
 def _load_and_validate_openapi(doc: str | Path) -> Tuple[OpenAPI, Dict[str, Any]]:
@@ -111,13 +112,13 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     """Translate JSON Schema facets into self constraints."""
     out: List[Constraint] = []
 
-    # type -> PropertyTypeCondition
+    # type -> FieldTypeCondition
     types = prop_schema.get("type")
     vt = _value_type_from_jsonschema(types)
     if vt:
         out.append(
             Constraint(
-                property_type=PropertyTypeCondition(allowed=vt)
+                field_type=FieldTypeCondition(allowed=vt)
             )
         )
 
@@ -283,12 +284,15 @@ def _get_properties_recursively(
                 items_has_props = bool(items.get("properties"))
             
             if items and (items.get("type") == "object" if isinstance(items, dict) else True) or items_has_props:
+                # For arrays, process nested items directly with the array field as prefix
+                # e.g., "Registration.guests.email", "Registration.guests.name"
+                # (the [*] notation is only used in visualization to indicate array items)
                 nested_entity = f"{prop_name}_item".capitalize()
                 nested_props = _get_properties_recursively(
                     nested_entity,
                     items,
                     api,
-                    prefix=f"{field_id}[*]",
+                    prefix=field_id,
                     visited=visited
                 )
                 result.update(nested_props)
@@ -365,7 +369,7 @@ def load_schema_from_openapi_yaml(
         raise ValueError(f"No properties found in root entity '{root_entity}'")
     
     # 5) Create Property objects for each field
-    properties: Dict[str, Property] = {}
+    properties: Dict[str, Field] = {}
     for field_id, (prop_schema, entity_name) in all_properties.items():
         info = Info(
             name=field_id,
@@ -378,7 +382,7 @@ def load_schema_from_openapi_yaml(
         # Get default value
         default_value = prop_schema.get("default")
         
-        properties[field_id] = Property(
+        properties[field_id] = Field(
             id=field_id,
             info=info,
             constraints=constraints,
@@ -389,10 +393,10 @@ def load_schema_from_openapi_yaml(
         )
     
     # 6) Create Property nodes (using Property.id as node ID)
-    property_nodes: List[DirectedAcyclicGraphNode[Property, Constraint]] = []
+    property_nodes: List[DirectedAcyclicGraphNode[Field, Constraint]] = []
     for field_id, property_obj in properties.items():
         property_nodes.append(
-            DirectedAcyclicGraphNode[Property, Constraint](
+            DirectedAcyclicGraphNode[Field, Constraint](
                 id=field_id,  # Use Property.id as node ID (not UUID)
                 value=property_obj
             )
@@ -433,6 +437,143 @@ def load_schema_from_openapi_yaml(
                 check_cycle=True
             )
     
+    # 9) Process x-sup.constraints to add extra constraint edges
+    #    Constraints can be defined at:
+    #    - property level: schema for a property has x-sup.constraints
+    #    - array item level: items.x-sup.constraints or items.allOf[].x-sup.constraints
+    #    - top-level: raw_doc.x-sup.constraints (optional)
+
+    # Helper: collect constraints declared on a property schema
+    def _extract_constraints_for_property(prop_schema: Dict[str, Any]) -> List[Dict[str, Any]]:
+        constraints_list: List[Dict[str, Any]] = []
+
+        # Direct x-sup on the property
+        x_sup_local = prop_schema.get("x-sup", {}) if isinstance(prop_schema, dict) else {}
+        if isinstance(x_sup_local, dict):
+            items = x_sup_local.get("constraints", [])
+            if isinstance(items, list):
+                constraints_list.extend([c for c in items if isinstance(c, dict)])
+
+        # Arrays: inspect items & allOf for x-sup
+        if isinstance(prop_schema, dict) and prop_schema.get("type") == "array":
+            items = prop_schema.get("items")
+            if isinstance(items, dict):
+                x_sup_items = items.get("x-sup")
+                if isinstance(x_sup_items, dict):
+                    items_list = x_sup_items.get("constraints", [])
+                    if isinstance(items_list, list):
+                        constraints_list.extend([c for c in items_list if isinstance(c, dict)])
+
+                # allOf pattern for items
+                if "allOf" in items and isinstance(items["allOf"], list):
+                    for sub in items["allOf"]:
+                        sub_dict = _schema_to_dict(sub) if not isinstance(sub, dict) else sub
+                        x_sup_sub = sub_dict.get("x-sup") if isinstance(sub_dict, dict) else None
+                        if isinstance(x_sup_sub, dict):
+                            sub_list = x_sup_sub.get("constraints", [])
+                            if isinstance(sub_list, list):
+                                constraints_list.extend([c for c in sub_list if isinstance(c, dict)])
+
+        return constraints_list
+
+    # Helper: normalize a constraint item into (prereq_id, dep_id, Constraint)
+    def _normalize_constraint_item(dep_field_id: str, item: Dict[str, Any]) -> Optional[Tuple[str, str, Constraint]]:
+        # Determine prereq/source key
+        prereq_rel = (
+            item.get("on")
+            or item.get("from")
+            or item.get("source")
+            or item.get("prereq")
+            or item.get("prereq_id")
+            or item.get("src")
+        )
+        if not prereq_rel or not isinstance(prereq_rel, str):
+            return None
+
+        # Absolute vs relative id
+        prereq_rel = prereq_rel.strip()
+        if prereq_rel.startswith(f"{root_entity}."):
+            prereq_id = prereq_rel
+        elif "." in prereq_rel:
+            prereq_id = f"{root_entity}.{prereq_rel}"
+        else:
+            prereq_id = f"{root_entity}.{prereq_rel}"
+
+        # Build metadata payload: support either a nested 'constraint' object or
+        # top-level condition keys
+        known_keys = {"property_type", "status", "regex", "enumeration", "range", "value_similarity", "prompt"}
+        payload: Dict[str, Any] = {}
+        if isinstance(item.get("constraint"), dict):
+            payload = deepcopy(item["constraint"])  # type: ignore[index]
+        else:
+            for k in known_keys:
+                if k in item:
+                    payload[k] = item[k]
+
+        # Coerce simple forms
+        # - prompt can be a string, coerce to PromptCondition shape
+        if isinstance(payload.get("prompt"), str):
+            payload["prompt"] = {"prompt": payload["prompt"]}
+
+        try:
+            constraint_meta = Constraint(**payload) if payload else Constraint()
+        except Exception:
+            # Skip invalid constraint payloads gracefully
+            return None
+
+        return prereq_id, dep_field_id, constraint_meta
+
+    # Collect constraints from each property schema and add edges
+    for field_id, (prop_schema, _entity_name) in all_properties.items():
+        c_items = _extract_constraints_for_property(prop_schema)
+        if not c_items:
+            continue
+        for c in c_items:
+            normalized = _normalize_constraint_item(field_id, c)
+            if not normalized:
+                continue
+            prereq_id, dep_id, meta = normalized
+
+            # Only add if both nodes exist in the schema
+            if prereq_id in properties and dep_id in properties:
+                schema.add_edge(
+                    prereq_id=prereq_id,
+                    dep_id=dep_id,
+                    metadata=meta,
+                    check_cycle=True,
+                )
+            # If prereq node not present (e.g., typo), skip silently
+
+    # Also support optional top-level x-sup.constraints
+    x_sup_root = raw_doc.get("x-sup", {}) if isinstance(raw_doc, dict) else {}
+    root_constraints = []
+    if isinstance(x_sup_root, dict):
+        rc = x_sup_root.get("constraints", [])
+        if isinstance(rc, list):
+            root_constraints = [c for c in rc if isinstance(c, dict)]
+
+    for c in root_constraints:
+        # For top-level constraints, require explicit 'from'/'to' (or synonyms)
+        dep_rel = (
+            c.get("to")
+            or c.get("target")
+            or c.get("dep")
+            or c.get("dep_id")
+            or c.get("dst")
+        )
+        if not dep_rel or not isinstance(dep_rel, str):
+            continue
+
+        normalized = _normalize_constraint_item(dep_rel if dep_rel.startswith(f"{root_entity}.") else f"{root_entity}.{dep_rel}", c)
+        if not normalized:
+            continue
+        prereq_id, dep_id, meta = normalized
+        # Ensure absolute dep_id
+        if not dep_id.startswith(f"{root_entity}."):
+            dep_id = f"{root_entity}.{dep_id}"
+        if prereq_id in properties and dep_id in properties:
+            schema.add_edge(prereq_id=prereq_id, dep_id=dep_id, metadata=meta, check_cycle=True)
+
     return schema
 
 

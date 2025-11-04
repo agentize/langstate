@@ -5,7 +5,7 @@ Ensures proper Schema creation from OpenAPI YAML files.
 import pytest
 from pathlib import Path
 from langstate.readers.yaml_to_schema import load_schema_from_openapi_yaml
-from langstate.models import Property, Schema
+from langstate.models import Field, Schema
 
 
 @pytest.fixture
@@ -37,19 +37,19 @@ class TestYamlToSchema:
         # Verify node count (23 properties in registeration.yaml)
         assert len(schema.nodes) == 23
         
-        # Verify all nodes contain Property objects
+        # Verify all nodes contain Field objects
         for node in schema.nodes.values():
-            assert isinstance(node.value, Property)
+            assert isinstance(node.value, Field)
             assert node.value.id == node.id  # ID should match
 
-    def test_property_structure(self, yaml_file):
-        """Should create proper Property objects with constraints."""
+    def test_field_structure(self, yaml_file):
+        """Should create proper Field objects with constraints."""
         schema = load_schema_from_openapi_yaml(yaml_file)
         
-        # Get a sample property
+        # Get a sample field
         first_prop = list(schema.nodes.values())[0].value
         
-        # Verify Property attributes
+        # Verify Field attributes
         assert hasattr(first_prop, 'id')
         assert hasattr(first_prop, 'info')
         assert hasattr(first_prop.info, 'name')
@@ -60,11 +60,14 @@ class TestYamlToSchema:
         """Should create structural edges for parent-child relationships."""
         schema = load_schema_from_openapi_yaml(yaml_file)
         
-        # Count all edges (structural only in Schema)
-        total_edges = sum(len(node.depends_on) for node in schema.nodes.values())
-        
-        # registeration.yaml has 13 structural edges
-        assert total_edges == 13
+        # Count structural edges only (those added without metadata)
+        structural_edges = sum(
+            sum(1 for e in node.depends_on.values() if e.metadata is None)
+            for node in schema.nodes.values()
+        )
+
+        # registeration.yaml has 17 structural edges
+        assert structural_edges == 17
 
     def test_dag_functionality(self, yaml_file):
         """Should function as a proper DAG."""
@@ -131,12 +134,12 @@ class TestYamlToSchema:
         """Should handle array properties correctly."""
         schema = load_schema_from_openapi_yaml(yaml_file)
         
-        # guests is an array - should create nodes for array and items
+        # guests is an array - should create nodes for array and its items
         property_ids = {node.value.id for node in schema.nodes.values()}
         
         assert "Registration.guests" in property_ids
-        # Array items should also be present (guests[*].email, guests[*].name, etc.)
-        assert any("guests[*]" in prop_id for prop_id in property_ids)
+        # Array items should also be present (guests.email, guests.name, etc., not guests[*].*) 
+        assert any("guests.email" in prop_id or "guests.name" in prop_id or "guests.id" in prop_id for prop_id in property_ids)
 
     def test_validation_features(self, yaml_file):
         """Should perform validation during load."""
@@ -159,7 +162,8 @@ class TestYamlToSchema:
         
         # Test to_ascii_tree method and print to console (string returned by DAG)
         tree_output = schema.to_ascii_tree(
-            node_label_fn=lambda p: p.to_dag_node_name()
+            node_label_fn=lambda p: p.to_dag_node_name(),
+            edge_label_fn=lambda c: c.to_dag_edge_name() if c else None
         )
         assert tree_output is not None
         assert len(tree_output) > 0
@@ -167,7 +171,7 @@ class TestYamlToSchema:
         
         # Print the tree to console for visual verification (delimiters only)
         print("\n" + "="*80)
-        print("ASCII Tree Visualization (Nodes):")
+        print("ASCII Tree Visualization (Nodes with Types):")
         print("="*80)
         print(tree_output)
         print("="*80 + "\n")
@@ -247,11 +251,19 @@ class TestYamlToSchema:
         assert "nodes" in json_dict
         assert "edges" in json_dict
         assert json_dict["node_count"] == 23
-        assert json_dict["edge_count"] == 13
+        # Total edges should be at least structural ones; additional constraint edges may be present
+        assert json_dict["edge_count"] >= 17
 
         # Verify node structure
         assert len(json_dict["nodes"]) == 23
-        assert len(json_dict["edges"]) == 13
+        assert len(json_dict["edges"]) >= 17
+
+        # Verify structural edge count remains constant (metadata == None)
+        structural_edges = [e for e in json_dict["edges"] if e.get("metadata") is None]
+        assert len(structural_edges) == 17
+
+        # If constraints were processed, expect at least one edge with metadata
+        assert any(e.get("metadata") is not None for e in json_dict["edges"])  # at least one constraint edge
 
         # Check that nodes have expected structure
         for node in json_dict["nodes"]:

@@ -254,36 +254,31 @@ class DirectedAcyclicGraph(Generic[V, E]):
         lines.append("}")
         return "\n".join(lines)
     
-    def to_ascii_tree(self, root_nodes=None, node_label_fn=None, max_depth: int = 10) -> str:
-        """Generate ASCII tree representation of the DAG.
+    def to_ascii_tree(self, root_nodes=None, node_label_fn=None, edge_label_fn=None, max_depth: int = 10) -> str:
+        """Generate ASCII tree representation of the DAG with nodes and edges.
         
         Args:
             root_nodes: List of root node IDs to start from (nodes with no prerequisites)
             node_label_fn: Optional function to extract label from node value
+            edge_label_fn: Optional function to extract label from edge metadata
             max_depth: Maximum depth to traverse
         
         Returns:
-            ASCII tree string
+            ASCII tree string showing Schema -> [RootNode, Edges] structure
         """
         if root_nodes is None:
             # Find nodes with no prerequisites
             root_nodes = [nid for nid, node in self.nodes.items() if not node.prerequisites()]
         
         lines = []
-        visited = set()
         
         def render_node(node_id: str, prefix: str = "", is_last: bool = True, depth: int = 0):
-            if depth > max_depth or node_id in visited:
-                return
-            visited.add(node_id)
-            
-            node = self.nodes.get(node_id)
-            if not node:
+            if depth > max_depth:
                 return
             
             # Get label
-            if node_label_fn and node.value is not None:
-                label = node_label_fn(node.value)
+            if node_label_fn and self.nodes.get(node_id) and self.nodes[node_id].value is not None:
+                label = node_label_fn(self.nodes[node_id].value)
             else:
                 label = node_id
             
@@ -299,68 +294,170 @@ class DirectedAcyclicGraph(Generic[V, E]):
             child_prefix = prefix + ("    " if is_last else "│   ")
             
             # Get dependents (children)
-            dependents = list(node.dependents())
-            for i, dep_node in enumerate(dependents):
-                is_last_child = (i == len(dependents) - 1)
-                render_node(dep_node.id, child_prefix, is_last_child, depth + 1)
+            if self.nodes.get(node_id):
+                dependents = list(self.nodes[node_id].dependents())
+                for i, dep_node in enumerate(dependents):
+                    is_last_child = (i == len(dependents) - 1)
+                    render_node(dep_node.id, child_prefix, is_last_child, depth + 1)
         
-        # Render each root
+        # Top level: Schema
+        lines.append("Schema")
+        
+        # Schema has two children: RootNode and Edges
+        schema_prefix = ""
+        
+        # RootNode child - extract root entity name from root nodes
+        if root_nodes:
+            # Extract root entity name (e.g., "Registration" from "Registration.id")
+            root_entity = root_nodes[0].split('.')[0]
+        else:
+            root_entity = "RootNode"
+        lines.append(f"{schema_prefix}├── {root_entity}")
+        root_node_prefix = f"{schema_prefix}│   "
+        
+        # Render root nodes under RootNode
         for i, root_id in enumerate(root_nodes):
             is_last_root = (i == len(root_nodes) - 1)
-            render_node(root_id, "", is_last_root, 0)
+            render_node(root_id, root_node_prefix, is_last_root, 0)
+        
+        # Edges child
+        lines.append(f"{schema_prefix}└── Edges")
+        edges_prefix = f"{schema_prefix}    "
+        
+        # Render all edges under Edges
+        edge_list = list(self.iter_edges())
+        for i, (from_id, to_id, metadata) in enumerate(edge_list):
+            is_last_edge = (i == len(edge_list) - 1)
+            connector = "└── " if is_last_edge else "├── "
+            
+            # Get edge label using edge_label_fn if provided
+            if edge_label_fn and metadata is not None:
+                edge_label = edge_label_fn(metadata)
+            else:
+                # Default: show constraint info from target property
+                edge_label = ""
+                if self.nodes.get(to_id) and self.nodes[to_id].value:
+                    target_prop = self.nodes[to_id].value
+                    if hasattr(target_prop, 'constraints') and target_prop.constraints:
+                        # Get the first constraint's description, or combine if multiple
+                        constraint_labels = []
+                        for constraint in target_prop.constraints:
+                            if hasattr(constraint, 'to_dag_edge_name'):
+                                constraint_labels.append(constraint.to_dag_edge_name())
+                        if constraint_labels:
+                            edge_label = f": {constraint_labels[0]}"  # Show first constraint
+                            if len(constraint_labels) > 1:
+                                edge_label += f" (+{len(constraint_labels)-1} more)"
+            
+            edge_display = f"({from_id} -> {to_id}){edge_label}"
+            lines.append(f"{edges_prefix}{connector}{edge_display}")
         
         return "\n".join(lines)
     
-    def to_mermaid(self, node_label_fn=None, edge_label_fn=None, max_label_length: int = 30) -> str:
+    def to_mermaid(self, node_label_fn=None, edge_label_fn=None, max_label_length: int = 30, root_nodes=None) -> str:
         """Export graph to Mermaid diagram format.
         
+        Structure:
+        - Adds a synthesized root entity node (e.g., "Registration") and connects it to all
+          graph roots (nodes with no prerequisites).
+        - Renders edges directly between related nodes (no extra edge nodes).
+        - If `edge_label_fn` isn't provided or edge metadata is None, falls back to creating
+          an edge label from the target node's constraints (first constraint + "+n more").
+        
         Args:
-            node_label_fn: Optional function to extract label from node value
-            edge_label_fn: Optional function to extract label from edge metadata
-            max_label_length: Maximum length for labels (truncated with ...)
-        
-        Returns:
-            Mermaid diagram string that can be embedded in Markdown
+            node_label_fn: Optional function to extract a node label from node.value
+            edge_label_fn: Optional function to extract an edge label from metadata
+            max_label_length: Maximum label length before truncation with "..."
+            root_nodes: Optional list of root node IDs; defaults to nodes with no prerequisites
         """
+        if root_nodes is None:
+            # Find nodes with no prerequisites (graph roots)
+            root_nodes = [nid for nid, node in self.nodes.items() if not node.prerequisites()]
+
+        # Determine a root entity name (e.g., "Registration" from "Registration.id")
+        if root_nodes:
+            root_entity = root_nodes[0].split('.')[0]
+        else:
+            root_entity = "Root"
+
+        def _safe(s: str) -> str:
+            return s.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
+
+        def _fmt_label(txt: str) -> str:
+            # Truncate
+            if len(txt) > max_label_length:
+                txt = txt[: max_label_length - 3] + "..."
+            # Replace double quotes
+            txt = txt.replace('"', "'")
+            # Mermaid is picky with some punctuation in labels (inside |...|).
+            # Remove/normalize characters that commonly break parsing.
+            forbidden = "(){}[]|"
+            for ch in forbidden:
+                txt = txt.replace(ch, "")
+            # Normalize plus to 'plus'
+            txt = txt.replace("+", " plus ")
+            # Collapse multiple spaces
+            txt = " ".join(txt.split())
+            return txt
+
         lines = ["graph TD"]
-        
-        # Add nodes with labels
+
+        # Add the synthesized root entity node
+        safe_root_entity = _safe(root_entity)
+        lines.append(f'    {safe_root_entity}["{_fmt_label(root_entity)}"]')
+
+        # Add all nodes with labels
         for node_id, node in self.nodes.items():
-            # Sanitize node ID for Mermaid (alphanumeric + underscore)
-            safe_id = node_id.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
-            
-            # Get label
+            safe_id = _safe(node_id)
+
+            # Compute label
             if node_label_fn and node.value is not None:
                 label = node_label_fn(node.value)
             else:
                 label = node_id
-            
-            # Truncate if too long
-            if len(label) > max_label_length:
-                label = label[:max_label_length-3] + "..."
-            
-            # Escape special characters in label
-            label = label.replace('"', "'")
-            
-            lines.append(f'    {safe_id}["{label}"]')
-        
-        # Add edges
+            lines.append(f'    {safe_id}["{_fmt_label(label)}"]')
+
+        # Connect root entity to graph roots
+        for nid in root_nodes:
+            lines.append(f'    {safe_root_entity} --> {_safe(nid)}')
+
+        # Add edges between nodes with labels
         for prereq_id, dep_id, metadata in self.iter_edges():
-            safe_prereq = prereq_id.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
-            safe_dep = dep_id.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
-            
-            # Get edge label
+            safe_prereq = _safe(prereq_id)
+            safe_dep = _safe(dep_id)
+
+            # Determine edge label
             edge_label = ""
+            label_txt: Optional[str] = None
             if edge_label_fn and metadata is not None:
-                label = edge_label_fn(metadata)
-                if label and len(label) > max_label_length:
-                    label = label[:max_label_length-3] + "..."
-                if label:
-                    label = label.replace('"', "'")
-                    edge_label = f"|{label}|"
-            
+                try:
+                    label_txt = edge_label_fn(metadata)
+                except Exception:
+                    label_txt = None
+            if not label_txt:
+                # Fallback: synthesize from target node constraints
+                to_node = self.nodes.get(dep_id)
+                if to_node and to_node.value is not None:
+                    try:
+                        constraints = getattr(to_node.value, 'constraints', [])
+                        constraint_labels: List[str] = []
+                        for c in constraints or []:
+                            if hasattr(c, 'to_dag_edge_name'):
+                                constraint_labels.append(c.to_dag_edge_name())
+                        if constraint_labels:
+                            label_txt = constraint_labels[0]
+                            if len(constraint_labels) > 1:
+                                label_txt += f" (+{len(constraint_labels) - 1} more)"
+                    except Exception:
+                        label_txt = None
+
+            if label_txt:
+                safe_txt = _fmt_label(label_txt)
+                if safe_txt:
+                    edge_label = f"|{safe_txt}|"
+
             lines.append(f'    {safe_prereq} -->{edge_label} {safe_dep}')
-        
+
         return "\n".join(lines)
 
     def to_json_dict(self) -> Dict[str, Any]:

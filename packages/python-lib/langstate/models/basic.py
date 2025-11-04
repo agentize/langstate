@@ -41,7 +41,7 @@ class ModelInfo(Info):
     provider: Optional[str] = None
 
 
-class PropertyStatusEnum(str, Enum):
+class FieldStatusEnum(str, Enum):
     """
     Enumeration representing the different status types of a property.
 
@@ -62,9 +62,9 @@ class PropertyStatusEnum(str, Enum):
     CUSTOM = "custom"
 
 # Allow custom status strings while keeping a safe pattern and supporting enum values via validators elsewhere
-PropertyStatus = Union[PropertyStatusEnum, Annotated[str, Field(pattern="^[a-z_]+$")]]
+FieldStatus = Union[FieldStatusEnum, Annotated[str, Field(pattern="^[a-z_]+$")]]
 
-PropertyValue = Union[ bool, int, float, str ]
+FieldValue = Union[ bool, int, float, str ]
 
 class ValueType(str, Enum):
     """
