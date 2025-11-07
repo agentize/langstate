@@ -107,7 +107,7 @@ components:
           $ref: "#/components/schemas/Event"
           x-sup:
             constraints:
-              - on: "registrant"
+              - source: "registrant"
                 status:
                   allowed: ["validated"]
 
@@ -122,11 +122,11 @@ components:
               - type: object
                 x-sup:
                   constraints:
-                    - on: "event"
+                    - source: "event"
                       status:
                         allowed: ["edited"]
                       prompt: "Guests can only be added when the event is confirmed."
-                    - on: "registrant"
+                    - source: "registrant"
                       status:
                         allowed: ["validated"]
 

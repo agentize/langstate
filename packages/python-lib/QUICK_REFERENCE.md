@@ -183,3 +183,17 @@ python -c "import khandhas; print(khandhas.__version__)"
 - [🚀 Complete Release Guide](RELEASE.md)
 - [📋 Changelog](CHANGELOG.md)
 - [📖 Main README](README.md)
+
+## x-sup Constraint Snippet
+
+Use `source` (or `from`) to declare constraint prerequisites in your OpenAPI YAML:
+
+```yaml
+x-sup:
+	constraints:
+		- source: "registrant"
+			status:
+				allowed: ["validated"]
+```
+
+Synonyms supported: `source`, `from`, `on`, `prereq`, `prereq_id`, `src`.

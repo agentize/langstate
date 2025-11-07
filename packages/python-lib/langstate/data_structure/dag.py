@@ -326,6 +326,8 @@ class DirectedAcyclicGraph(Generic[V, E]):
         
         # Render all edges under Edges
         edge_list = list(self.iter_edges())
+        # Show constraint edges first for visibility, then structural edges
+        edge_list = [e for e in edge_list if e[2] is not None] + [e for e in edge_list if e[2] is None]
         for i, (from_id, to_id, metadata) in enumerate(edge_list):
             is_last_edge = (i == len(edge_list) - 1)
             connector = "└── " if is_last_edge else "├── "
@@ -349,7 +351,8 @@ class DirectedAcyclicGraph(Generic[V, E]):
                             if len(constraint_labels) > 1:
                                 edge_label += f" (+{len(constraint_labels)-1} more)"
             
-            edge_display = f"({from_id} -> {to_id}){edge_label}"
+            prefix = "[constraint] " if metadata is not None else ""
+            edge_display = f"{prefix}({from_id} -> {to_id}){edge_label}"
             lines.append(f"{edges_prefix}{connector}{edge_display}")
         
         return "\n".join(lines)

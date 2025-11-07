@@ -43,10 +43,22 @@ def _load_and_validate_openapi(doc: str | Path) -> Tuple[OpenAPI, Dict[str, Any]
     if not doc_path.exists():
         raise FileNotFoundError(f"File not found: {doc_path}")
     
+    # Configure YAML loader to preserve 'on', 'off', 'yes', 'no' as strings
+    # instead of converting them to booleans (YAML 1.1 behavior)
+    # This is critical for x-sup constraint keys like "on: registrant"
+    class PreserveStringLoader(yaml.SafeLoader):
+        pass
+    
+    # Remove boolean implicit resolver to prevent 'on'/'off'/'yes'/'no' conversion
+    PreserveStringLoader.yaml_implicit_resolvers = {
+        k: [r for r in v if r[0] != 'tag:yaml.org,2002:bool']
+        for k, v in PreserveStringLoader.yaml_implicit_resolvers.copy().items()
+    }
+    
     # Load the YAML file (keep raw data to preserve x-sup extensions)
     try:
         with open(doc_path) as f:
-            doc_data = yaml.safe_load(f)
+            doc_data = yaml.load(f, Loader=PreserveStringLoader)
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML file: {e}")
     
@@ -443,40 +455,94 @@ def load_schema_from_openapi_yaml(
     #    - array item level: items.x-sup.constraints or items.allOf[].x-sup.constraints
     #    - top-level: raw_doc.x-sup.constraints (optional)
 
-    # Helper: collect constraints declared on a property schema
-    def _extract_constraints_for_property(prop_schema: Dict[str, Any]) -> List[Dict[str, Any]]:
-        constraints_list: List[Dict[str, Any]] = []
+    # Helper: retrieve x-sup from raw_doc by field path
+    # This is needed because aiopenapi3 strips x-sup extensions when processing
+    def _get_xsup_from_raw(field_id: str, raw_doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Get x-sup extensions from raw_doc for a given field_id.
+        
+        Args:
+            field_id: Field ID like "Registration.event" or "Registration.guests"
+            raw_doc: Raw YAML document with x-sup preserved
+        
+        Returns:
+            x-sup dict if found, None otherwise
+        """
+        # Parse field_id to navigate raw_doc
+        # e.g., "Registration.event" → raw_doc['components']['schemas']['Registration']['properties']['event']
+        parts = field_id.split(".")
+        if not parts or parts[0] not in raw_doc.get("components", {}).get("schemas", {}):
+            return None
+        
+        # Start from the root schema
+        schema_name = parts[0]
+        current = raw_doc["components"]["schemas"][schema_name]
+        
+        # Navigate through the path
+        for i, part in enumerate(parts[1:], start=1):
+            if not isinstance(current, dict):
+                return None
+            
+            # Check if this is the last part - if so, look for x-sup here
+            is_last = (i == len(parts) - 1)
+            
+            # Look in properties
+            if "properties" in current and part in current["properties"]:
+                current = current["properties"][part]
+                if is_last and isinstance(current, dict):
+                    return current.get("x-sup")
+            # Look in items (for arrays)
+            elif "items" in current:
+                items = current["items"]
+                # Check if items has allOf
+                if isinstance(items, dict) and "allOf" in items:
+                    # Search in allOf entries for properties or x-sup
+                    for allof_item in items["allOf"]:
+                        if not isinstance(allof_item, dict):
+                            continue
+                        # Check if this allOf item has the property we're looking for
+                        if "properties" in allof_item and part in allof_item["properties"]:
+                            current = allof_item["properties"][part]
+                            if is_last and isinstance(current, dict):
+                                return current.get("x-sup")
+                            break
+                        # Also check for x-sup on the items level (for array element constraints)
+                        if is_last and "x-sup" in allof_item:
+                            return allof_item.get("x-sup")
+                elif isinstance(items, dict) and "properties" in items and part in items["properties"]:
+                    current = items["properties"][part]
+                    if is_last and isinstance(current, dict):
+                        return current.get("x-sup")
+                else:
+                    return None
+            else:
+                return None
+        
+        return None
 
-        # Direct x-sup on the property
-        x_sup_local = prop_schema.get("x-sup", {}) if isinstance(prop_schema, dict) else {}
-        if isinstance(x_sup_local, dict):
-            items = x_sup_local.get("constraints", [])
+    # Helper: collect constraints declared on a property schema from raw_doc
+    def _extract_constraints_for_property(field_id: str, raw_doc: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract constraints from raw_doc for a given field_id.
+        
+        This looks up x-sup.constraints from the raw YAML document which preserves
+        x-sup extensions (aiopenapi3 strips them during processing).
+        """
+        constraints_list: List[Dict[str, Any]] = []
+        
+        # Get x-sup from raw_doc
+        x_sup = _get_xsup_from_raw(field_id, raw_doc)
+        if x_sup and isinstance(x_sup, dict):
+            items = x_sup.get("constraints", [])
             if isinstance(items, list):
                 constraints_list.extend([c for c in items if isinstance(c, dict)])
-
-        # Arrays: inspect items & allOf for x-sup
-        if isinstance(prop_schema, dict) and prop_schema.get("type") == "array":
-            items = prop_schema.get("items")
-            if isinstance(items, dict):
-                x_sup_items = items.get("x-sup")
-                if isinstance(x_sup_items, dict):
-                    items_list = x_sup_items.get("constraints", [])
-                    if isinstance(items_list, list):
-                        constraints_list.extend([c for c in items_list if isinstance(c, dict)])
-
-                # allOf pattern for items
-                if "allOf" in items and isinstance(items["allOf"], list):
-                    for sub in items["allOf"]:
-                        sub_dict = _schema_to_dict(sub) if not isinstance(sub, dict) else sub
-                        x_sup_sub = sub_dict.get("x-sup") if isinstance(sub_dict, dict) else None
-                        if isinstance(x_sup_sub, dict):
-                            sub_list = x_sup_sub.get("constraints", [])
-                            if isinstance(sub_list, list):
-                                constraints_list.extend([c for c in sub_list if isinstance(c, dict)])
-
+        
         return constraints_list
 
     # Helper: normalize a constraint item into (prereq_id, dep_id, Constraint)
+    # Note on YAML keys:
+    # - We accept multiple synonyms for the prereq/source field: "source", "from", "on",
+    #   "prereq", "prereq_id", "src". To avoid YAML 1.1 boolean coercion (e.g. on/off/yes/no),
+    #   we recommend using "source" (or "from"). The YAML loader is already patched to preserve
+    #   such keys as strings, but using "source" is clearer and more portable.
     def _normalize_constraint_item(dep_field_id: str, item: Dict[str, Any]) -> Optional[Tuple[str, str, Constraint]]:
         # Determine prereq/source key
         prereq_rel = (
@@ -525,7 +591,7 @@ def load_schema_from_openapi_yaml(
 
     # Collect constraints from each property schema and add edges
     for field_id, (prop_schema, _entity_name) in all_properties.items():
-        c_items = _extract_constraints_for_property(prop_schema)
+        c_items = _extract_constraints_for_property(field_id, raw_doc)
         if not c_items:
             continue
         for c in c_items:

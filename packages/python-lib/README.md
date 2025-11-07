@@ -282,6 +282,51 @@ mypy langstate/
 pre-commit run --all-files
 ```
 
+## x-sup constraints in OpenAPI YAML
+
+LangState extends OpenAPI schemas with an `x-sup` section to declare inter-field constraints.
+
+Recommended key for specifying the prerequisite/source field is `source` (or `from`).
+While `on` is also supported for backwards compatibility, some YAML parsers may
+coerce `on/off/yes/no` into booleans under YAML 1.1 rules. This library includes a
+patched loader to preserve such keys as strings, but using `source` is clearer and safer.
+
+Example (excerpt):
+
+```yaml
+components:
+    schemas:
+        Registration:
+            type: object
+            properties:
+                event:
+                    $ref: "#/components/schemas/Event"
+                    x-sup:
+                        constraints:
+                            - source: "registrant"
+                                status:
+                                    allowed: ["validated"]
+
+                guests:
+                    type: array
+                    items:
+                        allOf:
+                            - $ref: "#/components/schemas/Guest"
+                            - type: object
+                                x-sup:
+                                    constraints:
+                                        - source: "event"
+                                            status:
+                                                allowed: ["edited"]
+                                            prompt: "Guests can only be added when the event is confirmed."
+                                        - source: "registrant"
+                                            status:
+                                                allowed: ["validated"]
+```
+
+Accepted synonyms for the prerequisite/source key: `source`, `from`, `on`, `prereq`, `prereq_id`, `src`.
+The loader will normalize these and add corresponding constraint edges in the Schema DAG.
+
 ## Release Process
 
 ### Quick Release Commands
