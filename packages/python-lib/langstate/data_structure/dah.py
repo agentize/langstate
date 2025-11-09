@@ -288,6 +288,21 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             for hid, hedge in tgt_node.in_edges.items():
                 yield (hedge.source_ids(), tgt_id, hedge.metadata, hid)
 
+    # ---- Backwards compatibility (single-source edge API) -----------------
+    def add_edge(
+        self,
+        prereq_id: str,
+        dep_id: str,
+        *,
+        metadata: Optional[E] = None,
+        check_cycle: bool = True,
+    ) -> str:
+        """Backward compatible helper matching old DAG API.
+
+        Creates a 1-source hyperedge. Returns the hyperedge id.
+        """
+        return self.add_hyperedge([prereq_id], dep_id, metadata=metadata, check_cycle=check_cycle)
+
     # ---- Visualization / Export --------------------------------------------
     def to_dot(self) -> str:
         """Graphviz DOT (unstyled) representing hyperedges as multi-source comments.
@@ -382,6 +397,86 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         if pretty:
             return json.dumps(payload, indent=indent)
         return json.dumps(payload, separators=(",", ":"))
+
+    # ---- ASCII tree visualization -----------------------------------------
+    def to_ascii_tree(
+        self,
+        root_nodes: Optional[List[str]] = None,
+        node_label_fn=None,
+        edge_label_fn=None,
+        max_depth: int = 10,
+    ) -> str:
+        """Generate ASCII tree representation similar to former DAG version.
+
+        Hyperedges are displayed under an "HyperEdges" section; multi-source
+        hyperedges list all sources.
+        """
+        if root_nodes is None:
+            root_nodes = [nid for nid, node in self.nodes.items() if not node.prerequisite_ids()]
+        lines: List[str] = []
+
+        def render_node(node_id: str, prefix: str = "", is_last: bool = True, depth: int = 0):
+            if depth > max_depth:
+                return
+            node = self.nodes.get(node_id)
+            if not node:
+                return
+            if node_label_fn and node.value is not None:
+                try:
+                    label = node_label_fn(node.value)
+                except Exception:
+                    label = node_id
+            else:
+                label = node_id
+            if len(label) > 60:
+                label = label[:57] + "..."
+            connector = "└── " if is_last else "├── "
+            lines.append(f"{prefix}{connector}{label}")
+            child_prefix = prefix + ("    " if is_last else "│   ")
+            dependents = list(node.dependents())
+            for i, dep_node in enumerate(dependents):
+                render_node(dep_node.id, child_prefix, i == len(dependents) - 1, depth + 1)
+
+        lines.append("Schema")
+        root_entity = root_nodes[0].split(".")[0] if root_nodes else "RootNode"
+        lines.append(f"├── {root_entity}")
+        root_prefix = "│   "
+        for i, rid in enumerate(root_nodes):
+            render_node(rid, root_prefix, i == len(root_nodes) - 1, 0)
+        lines.append("└── HyperEdges")
+        edges_prefix = "    "
+        hyperedges = list(self.iter_hyperedges())
+        # Show those with metadata first
+        hyperedges = [e for e in hyperedges if e[2] is not None] + [e for e in hyperedges if e[2] is None]
+        for i, (sources, tgt, metadata, eid) in enumerate(hyperedges):
+            is_last = i == len(hyperedges) - 1
+            connector = "└── " if is_last else "├── "
+            if edge_label_fn and metadata is not None:
+                try:
+                    edge_label = edge_label_fn(metadata)
+                except Exception:
+                    edge_label = ""
+            else:
+                edge_label = ""
+                to_node = self.nodes.get(tgt)
+                if to_node and to_node.value is not None:
+                    try:
+                        constraints = getattr(to_node.value, 'constraints', [])
+                        labels: List[str] = []
+                        for c in constraints or []:
+                            if hasattr(c, 'to_dag_edge_name'):
+                                labels.append(c.to_dag_edge_name())
+                        if labels:
+                            edge_label = labels[0]
+                            if len(labels) > 1:
+                                edge_label += f" (+{len(labels) - 1} more)"
+                    except Exception:
+                        pass
+            src_list = ",".join(sorted(sources))
+            meta_prefix = "[constraint] " if metadata is not None else ""
+            label_part = f": {edge_label}" if edge_label else ""
+            lines.append(f"{edges_prefix}{connector}{meta_prefix}({src_list} -> {tgt}){label_part}")
+        return "\n".join(lines)
 
     # ---- Internal helpers ---------------------------------------------------
     def _would_create_cycle(self, source_id: str, target_id: str) -> bool:

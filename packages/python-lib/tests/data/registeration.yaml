@@ -107,7 +107,7 @@ components:
           $ref: "#/components/schemas/Event"
           x-sup:
             constraints:
-              - source: "registrant"
+              - source: ["registrant"]
                 status:
                   allowed: ["validated"]
 

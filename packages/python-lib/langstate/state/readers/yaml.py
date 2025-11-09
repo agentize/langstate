@@ -18,7 +18,7 @@ from langstate.models import (
     Info, ValueType, Field, Constraint, FieldTypeCondition,
     EnumerationCondition, RegexCondition, RangeCondition, Schema
 )
-from langstate.data_structure.dag import DirectedAcyclicGraphNode
+from langstate.data_structure.dah import DirectedAcyclicHypergraphNode
 from copy import deepcopy
 
 
@@ -317,10 +317,10 @@ def load_schema_from_openapi_yaml(
     root_entity: Optional[str] = None
 ) -> Schema:
     """
-    Build Schema (DAG of Properties and Constraints) from OpenAPI YAML.
+    Build Schema (DAH of Properties and Constraints) from OpenAPI YAML.
     
     This function reads an OpenAPI YAML file, validates it, and converts it to a Schema
-    which is a DirectedAcyclicGraph[Property, Constraint]. Unlike the State loader which
+    which is a DirectedAcyclicHypergraph[Property, Constraint]. Unlike the State loader which
     creates PropertyInstances with UUIDs, this creates the Property definitions themselves.
     
     Parameters
@@ -405,10 +405,10 @@ def load_schema_from_openapi_yaml(
         )
     
     # 6) Create Property nodes (using Property.id as node ID)
-    property_nodes: List[DirectedAcyclicGraphNode[Field, Constraint]] = []
+    property_nodes: List[DirectedAcyclicHypergraphNode[Field, Constraint]] = []
     for field_id, property_obj in properties.items():
         property_nodes.append(
-            DirectedAcyclicGraphNode[Field, Constraint](
+            DirectedAcyclicHypergraphNode[Field, Constraint](
                 id=field_id,  # Use Property.id as node ID (not UUID)
                 value=property_obj
             )
@@ -417,7 +417,7 @@ def load_schema_from_openapi_yaml(
     # 7) Create Schema DAG
     schema = Schema(nodes=property_nodes)
     
-    # 8) Create structural edges (parent property → child properties)
+    # 8) Create structural hyperedges (parent property → child properties)
     # These represent the containment/composition relationships in the schema
     for field_id in all_properties.keys():
         parts = field_id.split(".")
@@ -439,14 +439,12 @@ def load_schema_from_openapi_yaml(
         
         # Create edge if parent exists
         if parent_id in properties and field_id in properties:
-            # For Schema, we can add constraint edges if needed
-            # For now, just create structural edges without explicit constraints
-            # The parent-child relationship itself is the constraint
-            schema.add_edge(
-                prereq_id=parent_id,
-                dep_id=field_id,
-                metadata=None,  # Schema edges don't need constraint metadata
-                check_cycle=True
+            # Create a 1-source hyperedge for structural relationship
+            schema.add_hyperedge(
+                sources=[parent_id],
+                target_id=field_id,
+                metadata=None,
+                check_cycle=True,
             )
     
     # 9) Process x-sup.constraints to add extra constraint edges
@@ -543,7 +541,7 @@ def load_schema_from_openapi_yaml(
     #   "prereq", "prereq_id", "src". To avoid YAML 1.1 boolean coercion (e.g. on/off/yes/no),
     #   we recommend using "source" (or "from"). The YAML loader is already patched to preserve
     #   such keys as strings, but using "source" is clearer and more portable.
-    def _normalize_constraint_item(dep_field_id: str, item: Dict[str, Any]) -> Optional[Tuple[str, str, Constraint]]:
+    def _normalize_constraint_item(dep_field_id: str, item: Dict[str, Any]) -> Optional[Tuple[List[str], str, Constraint]]:
         # Determine prereq/source key
         prereq_rel = (
             item.get("on")
@@ -553,17 +551,30 @@ def load_schema_from_openapi_yaml(
             or item.get("prereq_id")
             or item.get("src")
         )
-        if not prereq_rel or not isinstance(prereq_rel, str):
+
+        if prereq_rel is None:
             return None
 
-        # Absolute vs relative id
-        prereq_rel = prereq_rel.strip()
-        if prereq_rel.startswith(f"{root_entity}."):
-            prereq_id = prereq_rel
-        elif "." in prereq_rel:
-            prereq_id = f"{root_entity}.{prereq_rel}"
+        prereq_list: List[str] = []
+        # Accept either a single string or a list of strings for sources
+        if isinstance(prereq_rel, str):
+            raw_sources = [prereq_rel]
+        elif isinstance(prereq_rel, list):
+            raw_sources = [x for x in prereq_rel if isinstance(x, str)]
+            if not raw_sources:
+                return None
         else:
-            prereq_id = f"{root_entity}.{prereq_rel}"
+            return None
+
+        # Normalize absolute vs relative ids
+        for rel in raw_sources:
+            rel = rel.strip()
+            if rel.startswith(f"{root_entity}."):
+                prereq_list.append(rel)
+            elif "." in rel:
+                prereq_list.append(f"{root_entity}.{rel}")
+            else:
+                prereq_list.append(f"{root_entity}.{rel}")
 
         # Build metadata payload: support either a nested 'constraint' object or
         # top-level condition keys
@@ -587,7 +598,7 @@ def load_schema_from_openapi_yaml(
             # Skip invalid constraint payloads gracefully
             return None
 
-        return prereq_id, dep_field_id, constraint_meta
+        return prereq_list, dep_field_id, constraint_meta
 
     # Collect constraints from each property schema and add edges
     for field_id, (prop_schema, _entity_name) in all_properties.items():
@@ -598,13 +609,13 @@ def load_schema_from_openapi_yaml(
             normalized = _normalize_constraint_item(field_id, c)
             if not normalized:
                 continue
-            prereq_id, dep_id, meta = normalized
+            source_ids, dep_id, meta = normalized
 
             # Only add if both nodes exist in the schema
-            if prereq_id in properties and dep_id in properties:
-                schema.add_edge(
-                    prereq_id=prereq_id,
-                    dep_id=dep_id,
+            if dep_id in properties and all(s in properties for s in source_ids):
+                schema.add_hyperedge(
+                    sources=source_ids,
+                    target_id=dep_id,
                     metadata=meta,
                     check_cycle=True,
                 )
@@ -633,12 +644,12 @@ def load_schema_from_openapi_yaml(
         normalized = _normalize_constraint_item(dep_rel if dep_rel.startswith(f"{root_entity}.") else f"{root_entity}.{dep_rel}", c)
         if not normalized:
             continue
-        prereq_id, dep_id, meta = normalized
+        source_ids, dep_id, meta = normalized
         # Ensure absolute dep_id
         if not dep_id.startswith(f"{root_entity}."):
             dep_id = f"{root_entity}.{dep_id}"
-        if prereq_id in properties and dep_id in properties:
-            schema.add_edge(prereq_id=prereq_id, dep_id=dep_id, metadata=meta, check_cycle=True)
+        if dep_id in properties and all(s in properties for s in source_ids):
+            schema.add_hyperedge(sources=source_ids, target_id=dep_id, metadata=meta, check_cycle=True)
 
     return schema
 

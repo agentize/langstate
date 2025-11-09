@@ -10,7 +10,11 @@ from enum import Enum
 from pydantic import BaseModel, Field as PydField, ConfigDict, field_validator
 from .basic import FieldStatus, FieldValue, Info, FieldStatusEnum
 from .updater import Updater
-from ..data_structure.dag import DirectedAcyclicGraphNode, DirectedAcyclicGraphEdge, DirectedAcyclicGraph
+from ..data_structure.dah import (
+    DirectedAcyclicHypergraphNode,
+    DirectedAcyclicHypergraphEdge,
+    DirectedAcyclicHypergraph,
+)
 from .constraints import Constraint, utc_now
 
 class Field(BaseModel):
@@ -116,17 +120,21 @@ class ConstraintInstance(BaseModel):
     constraints: List[Constraint] = PydField(default_factory=list)
     snapshots: List[ConstraintSnapshot] = PydField(default_factory=list)
 
-class Schema(DirectedAcyclicGraph[Field, Constraint]):
-    """
-    Defines a schema as a directed acyclic graph (DAG) of fields and their constraints.
-    Each node represents a Field, and each edge represents a Constraint.
+class Schema(DirectedAcyclicHypergraph[Field, Constraint]):
+    """Schema represented as a directed acyclic hypergraph.
+
+    Nodes are `Field` objects; hyperedges encode one-or-many prerequisite fields
+    collectively constraining a target field. Single prerequisite relationships
+    remain a 1-source hyperedge.
     """
     pass
 
-class State(DirectedAcyclicGraph[FieldInstance, ConstraintInstance]):
-    """
-    Defines the state of the system, including all field instances and their dependencies.
-    Each node represents a FieldInstance, and each edge represents a ConstraintInstance.
+class State(DirectedAcyclicHypergraph[FieldInstance, ConstraintInstance]):
+    """State represented as a directed acyclic hypergraph.
+
+    Nodes are `FieldInstance` objects; hyperedges capture multi-field constraint
+    instances influencing a dependent field instance. Single-source instances
+    degrade to 1-source hyperedges.
     """
     pass
 
