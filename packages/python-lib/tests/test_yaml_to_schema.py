@@ -4,7 +4,7 @@ Ensures proper Schema creation from OpenAPI YAML files.
 """
 import pytest
 from pathlib import Path
-from langstate.readers.yaml_to_schema import load_schema_from_openapi_yaml
+from langstate.state.readers.yaml import load_schema_from_openapi_yaml
 from langstate.models import Field, Schema
 
 

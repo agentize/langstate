@@ -1,4 +1,15 @@
-# Schema Visualization Guide
+# Schema Visualization (Design + Guide)
+
+> Canonical design doc: This file is the single source of truth for the schema visualization design and usage under `langstate/state`. Older temporary/stale docs have been removed.
+
+## TL;DR — Design and Implementation Summary
+
+- Two complementary views when loading a schema:
+   - Property Hierarchy (Tree): logical "contains" relationships with proper array nesting and type badges
+   - Constraint Edges (DAG): actual parent → child dependencies created during schema loading
+- Arrays are rendered intuitively in the tree (e.g., `guests[*].name` appears under `guests [array]`) while edges preserve precise IDs with `[*]`.
+- A Mermaid diagram is auto-saved to `{filename}_schema_diagram.md` for docs and reviews.
+- Visualization can be disabled via `visualize=False` for tests/automation.
 
 ## Overview
 
@@ -314,8 +325,23 @@ Check file permissions and that the directory exists
 
 Verify the property IDs use `[*]` notation correctly
 
-## See Also
+## Technical notes: aiopenapi3 reference handling
 
-- [README_YAML_TO_SCHEMA.md](README_YAML_TO_SCHEMA.md) - Main documentation
-- [VISUALIZATION.md](../VISUALIZATION.md) - DAG visualization API reference
-- [NOTES.md](NOTES.md) - aiopenapi3 reference behavior notes
+aiopenapi3 serializes OpenAPI Schema objects with `"ref"` (no `$`) in the dict form. Keep this in mind when inspecting intermediate structures:
+
+```python
+# aiopenapi3 Schema to dict
+{"ref": "#/components/schemas/Person"}
+
+# Correct check in code that uses aiopenapi3 dicts
+if "ref" in prop_schema and prop_schema["ref"]:
+   ref_path = prop_schema["ref"]
+
+# Exception: when working with the raw YAML dict, use "$ref"
+if "$ref" in raw_yaml_prop and raw_yaml_prop["$ref"]:
+   ref_path = raw_yaml_prop["$ref"]
+```
+
+Where this applies:
+- Resolving property `$ref`s and `allOf` items from aiopenapi3 objects → check `"ref"`
+- Parsing raw YAML for custom fields (e.g., x-sup) → check `"$ref"`

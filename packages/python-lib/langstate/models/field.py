@@ -8,7 +8,7 @@ except ImportError:
 from enum import Enum
 
 from pydantic import BaseModel, Field as PydField, ConfigDict, field_validator
-from .basic import FieldStatus, FieldValue, ValueType, Info, FieldStatusEnum
+from .basic import FieldStatus, FieldValue, Info, FieldStatusEnum
 from .updater import Updater
 from ..data_structure.dag import DirectedAcyclicGraphNode, DirectedAcyclicGraphEdge, DirectedAcyclicGraph
 from .constraints import Constraint, utc_now
@@ -64,7 +64,7 @@ class ValueConfidence(BaseModel):
 class FieldSnapshot(BaseModel):
     id: str
     status: FieldStatus
-    value_confidences: List[ValueConfidence] = PydField(default_factory=list)
+    value_confidence_list: List[ValueConfidence] = PydField(default_factory=list)
     timestamp: datetime.datetime = PydField(default_factory=utc_now)
     updater: Optional[Updater] = None
     meta_data: Dict[str, Any] = PydField(default_factory=dict)
@@ -83,6 +83,25 @@ class FieldInstance(BaseModel):
     property: Field
     snapshots: List[FieldSnapshot] = PydField(default_factory=list)
 
+class ConstraintSnapshot(BaseModel):
+    """
+    Represents a snapshot of a constraint at a specific point in time.
+
+    Attributes:
+        id (str): A unique identifier for the constraint snapshot.
+        constraint (Constraint): The constraint being captured in this snapshot.
+        confidence (float): A value between 0.0 and 1.0 indicating the confidence level
+            that the constraint is satisfied.
+        timestamp (datetime.datetime): The time when the snapshot was taken.
+        meta_data (Dict[str, Any]): Additional metadata associated with the snapshot.
+    """
+    id: str
+    constraint: Constraint
+    confidence: float = PydField(..., ge=0.0, le=1.0)
+    timestamp: datetime.datetime = PydField(default_factory=utc_now)
+    meta_data: Dict[str, Any] = PydField(default_factory=dict)
+
+
 class ConstraintInstance(BaseModel):
     """
     ConstraintInstance represents a dependency instance with an associated confidence level.
@@ -95,7 +114,7 @@ class ConstraintInstance(BaseModel):
     """
     id: str
     constraints: List[Constraint] = PydField(default_factory=list)
-    confidence: float = PydField(..., ge=0.0, le=1.0)
+    snapshots: List[ConstraintSnapshot] = PydField(default_factory=list)
 
 class Schema(DirectedAcyclicGraph[Field, Constraint]):
     """
