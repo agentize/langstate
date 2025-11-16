@@ -107,7 +107,7 @@ components:
           $ref: "#/components/schemas/Event"
           x-sup:
             constraints:
-              - source: ["registrant"]
+              - requires: ["registrant"]
                 status:
                   allowed: ["validated"]
 
@@ -122,11 +122,11 @@ components:
               - type: object
                 x-sup:
                   constraints:
-                    - source: "event"
+                    - requires: ["event"]
                       status:
-                        allowed: ["edited"]
+                        allowed: ["edited"]   # ← Kept as-is; your schema logic still says "edited"
                       prompt: "Guests can only be added when the event is confirmed."
-                    - source: "registrant"
+                    - requires: ["registrant"]
                       status:
                         allowed: ["validated"]
 

@@ -115,6 +115,13 @@ class Constraint(BaseModel):
     This ensures constraints are properly bound to the upstream property they evaluate.
 
     If multiple conditions are assigned, the relationship between them will be OR.
+    
+    Attributes:
+        conditions: List of constraint conditions to evaluate (OR relationship).
+        target_status: Optional StatusCondition that determines when this constraint applies.
+            - If specified: constraint is considered/applied only when the target node's status
+              matches the allowed/disallowed status defined in the StatusCondition.
+            - If None: constraint always applies regardless of target node status.
     """
     model_config = ConfigDict(extra='allow', frozen=True, populate_by_name=True)
     

@@ -22,6 +22,14 @@ from langstate.models import (
 from langstate.data_structure.dah import DirectedAcyclicHypergraphNode
 from copy import deepcopy
 
+# Constants for constraint relationship keys
+# These are synonyms for specifying the source/prerequisite property in x-sup constraints
+# Note: To avoid YAML 1.1 boolean coercion (e.g. on/off/yes/no), prefer using "source" or "from"
+CONSTRAINT_SOURCE_KEYS = ["source", "from", "on", "prereq", "prereq_id", "requires"]
+
+# Constants for constraint target/dependency keys (used in top-level x-sup.constraints)
+CONSTRAINT_TARGET_KEYS = ["to", "target", "dep", "dep_id", "dst"]
+
 
 def _load_and_validate_openapi(doc: str | Path) -> Tuple[OpenAPI, Dict[str, Any]]:
     """Load and validate OpenAPI 3.1 spec using aiopenapi3.
@@ -556,20 +564,17 @@ def load_schema_from_openapi_yaml(
 
     # Helper: normalize a constraint item into (prereq_id, dep_id, Constraint)
     # Note on YAML keys:
-    # - We accept multiple synonyms for the prereq/source field: "source", "from", "on",
-    #   "prereq", "prereq_id", "src". To avoid YAML 1.1 boolean coercion (e.g. on/off/yes/no),
-    #   we recommend using "source" (or "from"). The YAML loader is already patched to preserve
-    #   such keys as strings, but using "source" is clearer and more portable.
+    # - We accept multiple synonyms for the prereq/source field defined in CONSTRAINT_SOURCE_KEYS.
+    #   To avoid YAML 1.1 boolean coercion (e.g. on/off/yes/no), we recommend using "source" or "from".
+    #   The YAML loader is already patched to preserve such keys as strings, but using "source" is
+    #   clearer and more portable.
     def _normalize_constraint_item(dep_field_id: str, item: Dict[str, Any]) -> Optional[Tuple[List[str], str, Constraint]]:
-        # Determine prereq/source key
-        prereq_rel = (
-            item.get("on")
-            or item.get("from")
-            or item.get("source")
-            or item.get("prereq")
-            or item.get("prereq_id")
-            or item.get("src")
-        )
+        # Determine prereq/source key by checking all valid synonyms
+        prereq_rel = None
+        for key in CONSTRAINT_SOURCE_KEYS:
+            if key in item:
+                prereq_rel = item[key]
+                break
 
         if prereq_rel is None:
             return None
@@ -740,14 +745,13 @@ def load_schema_from_openapi_yaml(
             root_constraints = [c for c in rc if isinstance(c, dict)]
 
     for c in root_constraints:
-        # For top-level constraints, require explicit 'from'/'to' (or synonyms)
-        dep_rel = (
-            c.get("to")
-            or c.get("target")
-            or c.get("dep")
-            or c.get("dep_id")
-            or c.get("dst")
-        )
+        # For top-level constraints, require explicit target key (or synonyms)
+        dep_rel = None
+        for key in CONSTRAINT_TARGET_KEYS:
+            if key in c:
+                dep_rel = c[key]
+                break
+        
         if not dep_rel or not isinstance(dep_rel, str):
             continue
 
