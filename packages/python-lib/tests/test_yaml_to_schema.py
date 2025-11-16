@@ -62,7 +62,7 @@ class TestYamlToSchema:
         
         # Count structural edges only (those added without metadata)
         structural_edges = sum(
-            sum(1 for e in node.depends_on.values() if e.metadata is None)
+            len([e for e in node.in_edges.values() if e.metadata is None])
             for node in schema.nodes.values()
         )
 
@@ -214,7 +214,7 @@ class TestYamlToSchema:
         dot_output = schema.to_dot()
         assert isinstance(dot_output, str)
         assert len(dot_output) > 0
-        assert "digraph DAG" in dot_output
+        assert "digraph DAH" in dot_output  # Changed from DAG to DAH
 
         # Print DOT to console (delimiters only)
         print("\n" + "="*80)
@@ -249,21 +249,21 @@ class TestYamlToSchema:
         json_dict = json.loads(json_str)
         assert json_dict is not None
         assert "nodes" in json_dict
-        assert "edges" in json_dict
+        assert "hyperedges" in json_dict  # Changed from "edges" to "hyperedges"
         assert json_dict["node_count"] == 23
         # Total edges should be at least structural ones; additional constraint edges may be present
-        assert json_dict["edge_count"] >= 17
+        assert json_dict["hyperedge_count"] >= 17  # Changed from "edge_count" to "hyperedge_count"
 
         # Verify node structure
         assert len(json_dict["nodes"]) == 23
-        assert len(json_dict["edges"]) >= 17
+        assert len(json_dict["hyperedges"]) >= 17  # Changed from "edges" to "hyperedges"
 
         # Verify structural edge count remains constant (metadata == None)
-        structural_edges = [e for e in json_dict["edges"] if e.get("metadata") is None]
+        structural_edges = [e for e in json_dict["hyperedges"] if e.get("metadata") is None]  # Changed from "edges" to "hyperedges"
         assert len(structural_edges) == 17
 
         # If constraints were processed, expect at least one edge with metadata
-        assert any(e.get("metadata") is not None for e in json_dict["edges"])  # at least one constraint edge
+        assert any(e.get("metadata") is not None for e in json_dict["hyperedges"])  # Changed from "edges" to "hyperedges"
 
         # Check that nodes have expected structure
         for node in json_dict["nodes"]:

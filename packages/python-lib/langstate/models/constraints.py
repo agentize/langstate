@@ -5,7 +5,7 @@ try:
 except ImportError:
     from typing_extensions import TypeAlias
 from datetime import datetime, timezone
-from .basic import FieldStatus, ValueType
+from .basic import FieldStatus, Info, ValueType
 
 T = TypeVar("T")
 
@@ -14,7 +14,11 @@ def utc_now() -> datetime:
     """Return current datetime in UTC timezone."""
     return datetime.now(timezone.utc)
 
-class AllowDisallowCondition(Generic[T], BaseModel):
+class ConstraintCondition(BaseModel):
+    """A generic constraint condition that can encapsulate various types of conditions."""
+    info: Info
+
+class AllowDisallowCondition(Generic[T], ConstraintCondition):
     """
     Generic class for allow/disallow logic.
 
@@ -43,11 +47,11 @@ class AllowDisallowCondition(Generic[T], BaseModel):
             return value in self.allowed
         return value not in self.disallowed
 
-class EnumerationCondition(BaseModel):
+class EnumerationCondition(ConstraintCondition):
     """Condition that specifies allowed values through enumeration."""
     values: List[Any]
 
-class RangeCondition(BaseModel):
+class RangeCondition(ConstraintCondition):
     """Condition that specifies allowed values through a numeric range."""
     min: float
     max: float
@@ -62,12 +66,12 @@ class RangeCondition(BaseModel):
             raise ValueError(f"max ({v}) must be greater than or equal to min ({info.data['min']})")
         return v
 
-class ValueSimilarityCondition(BaseModel):
+class ValueSimilarityCondition(ConstraintCondition):
     """Condition that specifies allowed values based on similarity to a reference."""
     reference: str
     threshold: float = PydField(ge=0.0, le=1.0)  # Similarity threshold (0-1.0)
 
-class FieldStatusCondition(AllowDisallowCondition[FieldStatus]):
+class StatusCondition(AllowDisallowCondition[FieldStatus]):
     """
     Condition to gate by property status using allow/disallow lists.
 
@@ -88,19 +92,21 @@ class FieldStatusCondition(AllowDisallowCondition[FieldStatus]):
                 result.append(item)
         return result
 
-class FieldTypeCondition(AllowDisallowCondition[ValueType]):
+class ValueTypeCondition(AllowDisallowCondition[ValueType]):
     """
     Condition to gate by property value types using allow/disallow lists.
     """
     pass
 
-class RegexCondition(BaseModel):
+class RegexCondition(ConstraintCondition):
     """Condition that specifies allowed values through regex pattern matching."""
     pattern: str  # The regex pattern to match against
 
-class PromptCondition(BaseModel):
+class PromptCondition(ConstraintCondition):
     """Condition that uses a prompt for evaluation."""
     prompt: str  # The prompt to be used for this condition
+
+
 
 class Constraint(BaseModel):
     """A constraint applied to a property based on various conditions.
@@ -112,14 +118,9 @@ class Constraint(BaseModel):
     """
     model_config = ConfigDict(extra='allow', frozen=True, populate_by_name=True)
     
-    # Accept legacy alias 'property_type' for backward compatibility
-    field_type: Optional[FieldTypeCondition] = PydField(default=None, alias="property_type")
-    status: Optional[FieldStatusCondition] = None
-    regex: Optional[RegexCondition] = None
-    enumeration: Optional[EnumerationCondition] = None
-    range: Optional[RangeCondition] = None
-    value_similarity: Optional[ValueSimilarityCondition] = None
-    prompt: Optional[PromptCondition] = None
+    conditions: List[ConstraintCondition]
+
+    target_status: Optional[StatusCondition] = None
     
     def to_dag_edge_name(self) -> str:
         """Return a string representation of this Constraint for DAG visualization.
@@ -129,23 +130,9 @@ class Constraint(BaseModel):
         """
         # Build a descriptive label from active conditions
         labels = []
-        if self.field_type:
-            if self.field_type.allowed:
-                types = [t.value for t in self.field_type.allowed]
-                labels.append(f"type:{','.join(types)}")
-        if self.enumeration:
-            labels.append(f"enum:{len(self.enumeration.values)} values")
-        if self.regex:
-            labels.append(f"regex:{self.regex.pattern[:20]}")
-        if self.range:
-            labels.append(f"range:[{self.range.min},{self.range.max}]")
-        if self.status:
-            if self.status.allowed:
-                labels.append(f"status:{','.join(self.status.allowed)}")
-        if self.value_similarity:
-            labels.append(f"similarity>{self.value_similarity.threshold}")
-        if self.prompt:
-            labels.append(f"prompt")
+        for condition in self.conditions:
+            if hasattr(condition, 'info') and hasattr(condition.info, 'name'):
+                labels.append(condition.info.name)
         
         return " | ".join(labels) if labels else "constraint"
     

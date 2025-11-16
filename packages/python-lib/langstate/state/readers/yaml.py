@@ -15,8 +15,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import yaml
 from aiopenapi3 import OpenAPI, FileSystemLoader
 from langstate.models import (
-    Info, ValueType, Field, Constraint, FieldTypeCondition,
-    EnumerationCondition, RegexCondition, RangeCondition, Schema
+    Info, ValueType, Field, Constraint, ValueTypeCondition,
+    EnumerationCondition, RegexCondition, RangeCondition, Schema,
+    PromptCondition, ValueSimilarityCondition, StatusCondition
 )
 from langstate.data_structure.dah import DirectedAcyclicHypergraphNode
 from copy import deepcopy
@@ -124,13 +125,18 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     """Translate JSON Schema facets into self constraints."""
     out: List[Constraint] = []
 
-    # type -> FieldTypeCondition
+    # type -> ValueTypeCondition
     types = prop_schema.get("type")
     vt = _value_type_from_jsonschema(types)
     if vt:
         out.append(
             Constraint(
-                field_type=FieldTypeCondition(allowed=vt)
+                conditions=[
+                    ValueTypeCondition(
+                        allowed=vt,
+                        info=Info(name="type", description=f"Type constraint for {field_id}")
+                    )
+                ]
             )
         )
 
@@ -138,7 +144,12 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     if "enum" in prop_schema and isinstance(prop_schema["enum"], list) and prop_schema["enum"]:
         out.append(
             Constraint(
-                enumeration=EnumerationCondition(values=prop_schema["enum"])
+                conditions=[
+                    EnumerationCondition(
+                        values=prop_schema["enum"],
+                        info=Info(name="enumeration", description=f"Enumeration constraint for {field_id}")
+                    )
+                ]
             )
         )
 
@@ -147,7 +158,12 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     if pattern:
         out.append(
             Constraint(
-                regex=RegexCondition(pattern=pattern)
+                conditions=[
+                    RegexCondition(
+                        pattern=pattern,
+                        info=Info(name="regex", description=f"Regex constraint for {field_id}")
+                    )
+                ]
             )
         )
 
@@ -157,12 +173,15 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
     if numeric_min is not None or numeric_max is not None:
         out.append(
             Constraint(
-                range=RangeCondition(
-                    min=float(numeric_min if numeric_min is not None else float("-inf")),
-                    max=float(numeric_max if numeric_max is not None else float("+inf")),
-                    inclusive_min=True,
-                    inclusive_max=True,
-                )
+                conditions=[
+                    RangeCondition(
+                        min=float(numeric_min if numeric_min is not None else float("-inf")),
+                        max=float(numeric_max if numeric_max is not None else float("+inf")),
+                        inclusive_min=True,
+                        inclusive_max=True,
+                        info=Info(name="range", description=f"Range constraint for {field_id}")
+                    )
+                ]
             )
         )
 
@@ -587,13 +606,104 @@ def load_schema_from_openapi_yaml(
                 if k in item:
                     payload[k] = item[k]
 
-        # Coerce simple forms
-        # - prompt can be a string, coerce to PromptCondition shape
-        if isinstance(payload.get("prompt"), str):
-            payload["prompt"] = {"prompt": payload["prompt"]}
+        # Build conditions list from payload
+        conditions: List[Any] = []
+        
+        # property_type -> ValueTypeCondition
+        if "property_type" in payload:
+            pt = payload["property_type"]
+            if isinstance(pt, dict):
+                conditions.append(ValueTypeCondition(
+                    info=Info(name="property_type", description="Property type constraint"),
+                    **pt
+                ))
+            elif isinstance(pt, list):
+                conditions.append(ValueTypeCondition(
+                    allowed=pt,
+                    info=Info(name="property_type", description="Property type constraint")
+                ))
+        
+        # status -> StatusCondition
+        if "status" in payload:
+            st = payload["status"]
+            if isinstance(st, dict):
+                conditions.append(StatusCondition(
+                    info=Info(name="status", description="Status constraint"),
+                    **st
+                ))
+            elif isinstance(st, list):
+                conditions.append(StatusCondition(
+                    allowed=st,
+                    info=Info(name="status", description="Status constraint")
+                ))
+        
+        # regex -> RegexCondition
+        if "regex" in payload:
+            rx = payload["regex"]
+            if isinstance(rx, str):
+                conditions.append(RegexCondition(
+                    pattern=rx,
+                    info=Info(name="regex", description="Regex constraint")
+                ))
+            elif isinstance(rx, dict):
+                conditions.append(RegexCondition(
+                    info=Info(name="regex", description="Regex constraint"),
+                    **rx
+                ))
+        
+        # enumeration -> EnumerationCondition
+        if "enumeration" in payload:
+            en = payload["enumeration"]
+            if isinstance(en, list):
+                conditions.append(EnumerationCondition(
+                    values=en,
+                    info=Info(name="enumeration", description="Enumeration constraint")
+                ))
+            elif isinstance(en, dict):
+                conditions.append(EnumerationCondition(
+                    info=Info(name="enumeration", description="Enumeration constraint"),
+                    **en
+                ))
+        
+        # range -> RangeCondition
+        if "range" in payload:
+            rg = payload["range"]
+            if isinstance(rg, dict):
+                conditions.append(RangeCondition(
+                    info=Info(name="range", description="Range constraint"),
+                    **rg
+                ))
+        
+        # value_similarity -> ValueSimilarityCondition
+        if "value_similarity" in payload:
+            vs = payload["value_similarity"]
+            if isinstance(vs, dict):
+                conditions.append(ValueSimilarityCondition(
+                    info=Info(name="value_similarity", description="Value similarity constraint"),
+                    **vs
+                ))
+        
+        # prompt -> PromptCondition
+        if "prompt" in payload:
+            pr = payload["prompt"]
+            if isinstance(pr, str):
+                conditions.append(PromptCondition(
+                    prompt=pr,
+                    info=Info(name="prompt", description="Prompt constraint")
+                ))
+            elif isinstance(pr, dict):
+                conditions.append(PromptCondition(
+                    info=Info(name="prompt", description="Prompt constraint"),
+                    **pr
+                ))
 
+        # Create Constraint with conditions
+        # If no conditions found, return None
+        if not conditions:
+            return None
+        
         try:
-            constraint_meta = Constraint(**payload) if payload else Constraint()
+            constraint_meta = Constraint(conditions=conditions)
         except Exception:
             # Skip invalid constraint payloads gracefully
             return None
