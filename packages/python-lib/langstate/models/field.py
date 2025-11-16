@@ -15,7 +15,16 @@ from ..data_structure.dah import (
     DirectedAcyclicHypergraphEdge,
     DirectedAcyclicHypergraph,
 )
-from .constraints import Constraint, utc_now
+from .constraints import Constraint
+
+
+def utc_now() -> datetime:
+    """Return current datetime in UTC timezone.
+    
+    Returns:
+        datetime: Current datetime with UTC timezone information attached.
+    """
+    return datetime.now(datetime.timezone.utc)
 
 class Field(BaseModel):
     """Represents a field with its metadata, dependencies, and configuration.

@@ -16,7 +16,7 @@ import yaml
 from aiopenapi3 import OpenAPI, FileSystemLoader
 from langstate.models import (
     Info, ValueType, Field, Constraint, ValueTypeCondition,
-    EnumerationCondition, RegexCondition, RangeCondition, Schema,
+    AllowDisallowCondition, RegexCondition, RangeCondition, Schema,
     PromptCondition, ValueSimilarityCondition, StatusCondition
 )
 from langstate.data_structure.dah import DirectedAcyclicHypergraphNode
@@ -25,7 +25,7 @@ from copy import deepcopy
 # Constants for constraint relationship keys
 # These are synonyms for specifying the source/prerequisite property in x-sup constraints
 # Note: To avoid YAML 1.1 boolean coercion (e.g. on/off/yes/no), prefer using "source" or "from"
-CONSTRAINT_SOURCE_KEYS = ["source", "from", "on", "prereq", "prereq_id", "requires"]
+CONSTRAINT_SOURCE_KEYS = ["source", "from", "on", "prereq", "depends_on", "requires"]
 
 # Constants for constraint target/dependency keys (used in top-level x-sup.constraints)
 CONSTRAINT_TARGET_KEYS = ["to", "target", "dep", "dep_id", "dst"]
@@ -148,13 +148,13 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
             )
         )
 
-    # enum -> EnumerationCondition
+    # enum -> AllowDisallowCondition
     if "enum" in prop_schema and isinstance(prop_schema["enum"], list) and prop_schema["enum"]:
         out.append(
             Constraint(
                 conditions=[
-                    EnumerationCondition(
-                        values=prop_schema["enum"],
+                    AllowDisallowCondition(
+                        allowed=prop_schema["enum"],
                         info=Info(name="enumeration", description=f"Enumeration constraint for {field_id}")
                     )
                 ]
@@ -656,16 +656,16 @@ def load_schema_from_openapi_yaml(
                     **rx
                 ))
         
-        # enumeration -> EnumerationCondition
+        # enumeration -> AllowDisallowCondition
         if "enumeration" in payload:
             en = payload["enumeration"]
             if isinstance(en, list):
-                conditions.append(EnumerationCondition(
-                    values=en,
+                conditions.append(AllowDisallowCondition(
+                    allowed=en,
                     info=Info(name="enumeration", description="Enumeration constraint")
                 ))
             elif isinstance(en, dict):
-                conditions.append(EnumerationCondition(
+                conditions.append(AllowDisallowCondition(
                     info=Info(name="enumeration", description="Enumeration constraint"),
                     **en
                 ))

@@ -124,7 +124,7 @@ components:
                   constraints:
                     - requires: ["event"]
                       status:
-                        allowed: ["edited"]   # ← Kept as-is; your schema logic still says "edited"
+                        allowed: ["edited"]
                       prompt: "Guests can only be added when the event is confirmed."
                     - requires: ["registrant"]
                       status:

@@ -15,7 +15,6 @@ from .basic import (
 
 from .constraints import (
     AllowDisallowCondition,
-    EnumerationCondition,
     RangeCondition,
     ValueSimilarityCondition,
     StatusCondition,
@@ -51,7 +50,6 @@ __all__ = [
     "ValueType",
     # constraints
     "AllowDisallowCondition",
-    "EnumerationCondition",
     "RangeCondition",
     "ValueSimilarityCondition",
     "StatusCondition",
