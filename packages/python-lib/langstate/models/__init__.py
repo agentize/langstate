@@ -23,6 +23,10 @@ from .constraints import (
     PromptCondition,
     ConstraintCondition,
     Constraint,
+    Range,
+    Pattern,
+    Similarity,
+    Prompt,
 )
 
 from .field import (

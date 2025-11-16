@@ -1,13 +1,99 @@
 from pydantic import BaseModel, Field as PydField, ConfigDict, field_validator, model_validator
 from typing import Any, Dict, List, Optional, Union, Generic, TypeVar, TYPE_CHECKING
-try:
-    from typing import TypeAlias
-except ImportError:
-    from typing_extensions import TypeAlias
-from datetime import datetime, timezone
 from .basic import FieldStatus, Info, ValueType
 
 T = TypeVar("T")
+NumericType = TypeVar("NumericType", int, float)
+
+class Range(Generic[NumericType], BaseModel):
+    """Generic range type for numeric constraints.
+    
+    Represents a bounded numeric range with configurable inclusive/exclusive boundaries.
+    Type-safe for either int or float types.
+    
+    Type Parameters:
+        NumericType: Either int or float
+    
+    Attributes:
+        min: Minimum boundary value
+        max: Maximum boundary value (must be >= min)
+        inclusive_min: If True, values equal to min are allowed (default: True)
+        inclusive_max: If True, values equal to max are allowed (default: True)
+    
+    Examples:
+        >>> # Integer range: 18 to 65 (inclusive)
+        >>> age_range = Range[int](min=18, max=65)
+        
+        >>> # Float range: 0.0 to 100.0 (exclusive upper bound)
+        >>> percentage_range = Range[float](
+        ...     min=0.0, max=100.0,
+        ...     inclusive_min=True, inclusive_max=False
+        ... )
+    """
+    min: NumericType
+    max: NumericType
+    inclusive_min: bool = True
+    inclusive_max: bool = True
+    
+    @field_validator('max')
+    @classmethod
+    def validate_range(cls, v: NumericType, info) -> NumericType:
+        """Ensure max >= min to maintain valid range invariant.
+        
+        Args:
+            v: The max value being validated
+            info: Validation context containing other field values
+        
+        Returns:
+            NumericType: The validated max value
+        
+        Raises:
+            ValueError: If max < min
+        """
+        if 'min' in info.data and v < info.data['min']:
+            raise ValueError(f"max ({v}) must be greater than or equal to min ({info.data['min']})")
+        return v
+
+class Pattern(BaseModel):
+    """Regular expression pattern wrapper for regex constraints.
+    
+    Encapsulates a regex pattern string with optional flags and metadata.
+    
+    Attributes:
+        pattern: Regular expression pattern string
+    
+    Examples:
+        >>> email_pattern = Pattern(pattern=r'^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$')
+    """
+    pattern: str
+
+class Similarity(BaseModel):
+    """Similarity matching configuration for value similarity constraints.
+    
+    Defines a reference value and similarity threshold for fuzzy matching.
+    
+    Attributes:
+        reference: The reference value to compare against
+        threshold: Similarity threshold (0.0 to 1.0)
+    
+    Examples:
+        >>> sim = Similarity(reference="expected text", threshold=0.8)
+    """
+    reference: str
+    threshold: float = PydField(ge=0.0, le=1.0)
+
+class Prompt(BaseModel):
+    """LLM prompt configuration for prompt-based constraints.
+    
+    Encapsulates a natural language prompt for LLM evaluation.
+    
+    Attributes:
+        prompt: Natural language prompt describing validation criteria
+    
+    Examples:
+        >>> p = Prompt(prompt="Check if the text is professional")
+    """
+    prompt: str
 
 class ConstraintCondition(BaseModel):
     """Base class for all constraint conditions.
@@ -25,7 +111,6 @@ class ConstraintCondition(BaseModel):
     
     See Also:
         - AllowDisallowCondition: Generic allow/disallow list filtering
-        - EnumerationCondition: Exact value enumeration matching
         - RangeCondition: Numeric range validation
         - ValueSimilarityCondition: Similarity-based matching
         - StatusCondition: Field status filtering
@@ -119,105 +204,90 @@ class AllowDisallowCondition(Generic[T], ConstraintCondition):
             return value in self.allowed
         return value not in self.disallowed
 
-class RangeCondition(ConstraintCondition):
-    """Condition that validates numeric values within a specified range.
+class RangeCondition(AllowDisallowCondition[Range]):
+    """Numeric range validation condition using allow/disallow list logic.
     
-    This condition checks if a numeric value falls within defined minimum and maximum
-    bounds, with configurable inclusive/exclusive boundary behavior.
+    This condition validates that numeric values fall within specified ranges.
+    It extends AllowDisallowCondition[Range] to support range-based filtering.
+    
+    The allowed/disallowed lists contain Range objects for complex range logic,
+    while the class itself doesn't define range parameters directly.
     
     Attributes:
-        min: Minimum boundary value for the range
-        max: Maximum boundary value for the range (must be >= min)
-        inclusive_min: If True, values equal to min are allowed (default: True)
-        inclusive_max: If True, values equal to max are allowed (default: True)
+        allowed: List of allowed Range objects (optional)
+        disallowed: List of disallowed Range objects (optional)
         info: Inherited metadata about this condition
     
     Examples:
-        >>> # Age must be between 18 and 65 (inclusive)
+        >>> # Single range: age must be between 18 and 65
         >>> condition = RangeCondition(
-        ...     min=18.0, max=65.0,
-        ...     inclusive_min=True, inclusive_max=True,
+        ...     allowed=[Range(min=18.0, max=65.0)],
         ...     info=Info(name='valid_age_range')
         ... )
         
-        >>> # Temperature between 0 and 100 (exclusive upper bound)
+        >>> # Multiple ranges: valid percentage ranges
         >>> condition = RangeCondition(
-        ...     min=0.0, max=100.0,
-        ...     inclusive_min=True, inclusive_max=False,
-        ...     info=Info(name='temperature_range')
+        ...     allowed=[
+        ...         Range(min=0.0, max=50.0),
+        ...         Range(min=75.0, max=100.0)
+        ...     ],
+        ...     info=Info(name='percentage_ranges')
         ... )
-    
-    Validation:
-        - Automatically validates that max >= min during model construction
-        - Raises ValueError if max < min
     
     Notes:
         - Designed for numeric validation (int, float)
-        - For discrete value sets, use EnumerationCondition instead
+        - Each Range can have different inclusive/exclusive boundary settings
+        - For discrete value sets, use AllowDisallowCondition[str] instead
         - For pattern-based validation, use RegexCondition instead
+    
+    See Also:
+        - AllowDisallowCondition: Parent class defining the evaluation policy
+        - Range: The generic range type
     """
-    min: float
-    max: float
-    inclusive_min: bool = True
-    inclusive_max: bool = True
-    
-    @field_validator('max')
-    @classmethod
-    def validate_range(cls, v: float, info) -> float:
-        """Ensure max >= min to maintain valid range invariant.
-        
-        Args:
-            v: The max value being validated
-            info: Validation context containing other field values
-        
-        Returns:
-            float: The validated max value
-        
-        Raises:
-            ValueError: If max < min
-        """
-        if 'min' in info.data and v < info.data['min']:
-            raise ValueError(f"max ({v}) must be greater than or equal to min ({info.data['min']})")
-        return v
+    pass
 
-class ValueSimilarityCondition(ConstraintCondition):
-    """Condition that validates values based on similarity to a reference value.
+class ValueSimilarityCondition(AllowDisallowCondition[Similarity]):
+    """String similarity validation condition using allow/disallow list logic.
     
-    This condition uses similarity metrics (e.g., semantic similarity, edit distance)
-    to determine if a value is sufficiently similar to a reference value. Useful for
-    fuzzy matching, near-duplicate detection, or semantic validation.
+    This condition validates values based on similarity to reference values using
+    similarity metrics (e.g., semantic similarity, edit distance). Extends
+    AllowDisallowCondition[Similarity] for similarity-based filtering.
+    
+    The allowed/disallowed lists contain Similarity objects that define
+    reference values and thresholds for fuzzy matching.
     
     Attributes:
-        reference: The reference value to compare against
-        threshold: Similarity threshold (0.0 to 1.0) where:
-            - 0.0 = no similarity required (accepts anything)
-            - 1.0 = exact match required
-            - Values in between define acceptable similarity levels
+        allowed: List of allowed Similarity configurations (optional)
+        disallowed: List of disallowed Similarity configurations (optional)
         info: Inherited metadata about this condition
     
     Examples:
         >>> # Value must be at least 80% similar to reference text
         >>> condition = ValueSimilarityCondition(
-        ...     reference="The quick brown fox",
-        ...     threshold=0.8,
+        ...     allowed=[Similarity(reference="The quick brown fox", threshold=0.8)],
         ...     info=Info(name='text_similarity_check')
         ... )
         
-        >>> # Exact match required (100% similarity)
+        >>> # Multiple similarity thresholds
         >>> condition = ValueSimilarityCondition(
-        ...     reference="expected_value",
-        ...     threshold=1.0,
-        ...     info=Info(name='exact_match')
+        ...     allowed=[
+        ...         Similarity(reference="expected value 1", threshold=0.9),
+        ...         Similarity(reference="expected value 2", threshold=0.85)
+        ...     ],
+        ...     info=Info(name='multi_reference_check')
         ... )
     
     Notes:
         - Similarity computation method is implementation-dependent
         - May use cosine similarity, Levenshtein distance, semantic embeddings, etc.
         - Threshold is validated to be in range [0.0, 1.0] via Pydantic constraints
-        - For exact matching, consider using EnumerationCondition instead
+        - For exact matching, consider using AllowDisallowCondition[str] instead
+    
+    See Also:
+        - AllowDisallowCondition: Parent class defining the evaluation policy
+        - Similarity: The similarity configuration type
     """
-    reference: str
-    threshold: float = PydField(ge=0.0, le=1.0)  # Similarity threshold (0-1.0)
+    pass
 
 class StatusCondition(AllowDisallowCondition[FieldStatus]):
     """Field status filtering condition using allow/disallow list logic.
@@ -343,73 +413,77 @@ class ValueTypeCondition(AllowDisallowCondition[ValueType]):
     """
     pass
 
-class RegexCondition(ConstraintCondition):
-    """Condition that validates values using regular expression pattern matching.
+class RegexCondition(AllowDisallowCondition[Pattern]):
+    """Pattern matching validation condition using allow/disallow list logic.
     
-    This condition checks if a value matches a specified regex pattern, enabling
-    flexible string validation based on format, structure, or content patterns.
+    This condition validates values using regular expression pattern matching.
+    Extends AllowDisallowCondition[Pattern] for pattern-based filtering.
+    
+    The allowed/disallowed lists contain Pattern objects that define
+    regex patterns for validation.
     
     Attributes:
-        pattern: Regular expression pattern string to match against property values
+        allowed: List of allowed Pattern objects (optional)
+        disallowed: List of disallowed Pattern objects (optional)
         info: Inherited metadata about this condition
     
     Examples:
         >>> # Email address validation
         >>> condition = RegexCondition(
-        ...     pattern=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+        ...     allowed=[Pattern(pattern=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')],
         ...     info=Info(name='valid_email')
         ... )
         
-        >>> # UUID format validation
+        >>> # Multiple pattern options
         >>> condition = RegexCondition(
-        ...     pattern=r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-        ...     info=Info(name='uuid_format')
-        ... )
-        
-        >>> # Phone number format (US)
-        >>> condition = RegexCondition(
-        ...     pattern=r'^\d{3}-\d{3}-\d{4}$',
-        ...     info=Info(name='us_phone_format')
+        ...     allowed=[
+        ...         Pattern(pattern=r'^\d{3}-\d{3}-\d{4}$'),  # US phone
+        ...         Pattern(pattern=r'^\d{10}$')              # Alternate format
+        ...     ],
+        ...     info=Info(name='phone_format')
         ... )
     
     Notes:
         - Pattern string should be a valid Python regular expression
         - Pattern matching implementation depends on the execution context
-        - For exact value matching, use EnumerationCondition instead
+        - For exact value matching, use AllowDisallowCondition[str] instead
         - For numeric ranges, use RangeCondition instead
         - Consider performance implications for complex patterns on large datasets
-    """
-    pattern: str  # The regex pattern to match against
-
-class PromptCondition(ConstraintCondition):
-    """Condition that uses a natural language prompt for LLM-based evaluation.
     
-    This condition leverages Language Model evaluation to determine if a property
-    value satisfies complex, semantic, or context-dependent criteria that may be
-    difficult to express through rigid rules.
+    See Also:
+        - AllowDisallowCondition: Parent class defining the evaluation policy
+        - Pattern: The pattern configuration type
+    """
+    pass
+
+class PromptCondition(AllowDisallowCondition[Prompt]):
+    """LLM-based validation condition using allow/disallow list logic.
+    
+    This condition uses natural language prompts for LLM-based evaluation.
+    Extends AllowDisallowCondition[Prompt] for prompt-based filtering.
+    
+    The allowed/disallowed lists contain Prompt objects that define
+    natural language validation criteria for LLM evaluation.
     
     Attributes:
-        prompt: Natural language prompt describing the validation criteria.
-            The prompt should clearly specify what constitutes a valid/invalid value.
+        allowed: List of allowed Prompt objects (optional)
+        disallowed: List of disallowed Prompt objects (optional)
         info: Inherited metadata about this condition
     
     Examples:
         >>> # Semantic content validation
         >>> condition = PromptCondition(
-        ...     prompt="Check if the text is professional and appropriate for business communication",
+        ...     allowed=[Prompt(prompt="Check if the text is professional and appropriate for business communication")],
         ...     info=Info(name='business_tone_check')
         ... )
         
-        >>> # Context-aware validation
+        >>> # Multiple prompt criteria
         >>> condition = PromptCondition(
-        ...     prompt="Verify that the description accurately reflects the product category and includes required safety information",
-        ...     info=Info(name='product_description_completeness')
-        ... )
-        
-        >>> # Quality assessment
-        >>> condition = PromptCondition(
-        ...     prompt="Evaluate if the code comment clearly explains the algorithm's purpose and complexity",
-        ...     info=Info(name='comment_quality')
+        ...     allowed=[
+        ...         Prompt(prompt="Verify content is factually accurate"),
+        ...         Prompt(prompt="Ensure tone is appropriate for audience")
+        ...     ],
+        ...     info=Info(name='content_quality')
         ... )
     
     Use Cases:
@@ -425,8 +499,12 @@ class PromptCondition(ConstraintCondition):
         - Consider determinism requirements - LLM outputs may vary
         - For deterministic validation, prefer other condition types when possible
         - Ensure prompts are specific and unambiguous to minimize false positives/negatives
+    
+    See Also:
+        - AllowDisallowCondition: Parent class defining the evaluation policy
+        - Prompt: The prompt configuration type
     """
-    prompt: str  # The prompt to be used for this condition
+    pass
 
 
 
@@ -473,7 +551,7 @@ class Constraint(BaseModel):
         >>> # Simple constraint: value must be in enumeration
         >>> constraint = Constraint(
         ...     conditions=[
-        ...         EnumerationCondition(values=['red', 'green', 'blue'], info=Info(name='colors'))
+        ...         AllowDisallowCondition(allowed=['red', 'green', 'blue'], info=Info(name='colors'))
         ...     ]
         ... )
         
@@ -488,7 +566,7 @@ class Constraint(BaseModel):
         >>> # Conditional constraint: only apply when target is 'edited'
         >>> constraint = Constraint(
         ...     conditions=[
-        ...         EnumerationCondition(values=['active', 'inactive'], info=Info(name='status'))
+        ...         AllowDisallowCondition(allowed=['active', 'inactive'], info=Info(name='status'))
         ...     ],
         ...     target_status=StatusCondition(
         ...         allowed=[FieldStatusEnum.EDITED],
@@ -518,7 +596,7 @@ class Constraint(BaseModel):
         Examples:
             >>> # Constraint with named conditions
             >>> constraint = Constraint(conditions=[
-            ...     EnumerationCondition(values=[1,2,3], info=Info(name='valid_ids')),
+            ...     AllowDisallowCondition(allowed=[1,2,3], info=Info(name='valid_ids')),
             ...     RangeCondition(min=0, max=10, info=Info(name='range_check'))
             ... ])
             >>> constraint.to_dag_edge_name()
@@ -526,7 +604,7 @@ class Constraint(BaseModel):
             
             >>> # Constraint without named conditions
             >>> constraint = Constraint(conditions=[
-            ...     EnumerationCondition(values=[1,2,3], info=Info())
+            ...     AllowDisallowCondition(allowed=[1,2,3], info=Info())
             ... ])
             >>> constraint.to_dag_edge_name()
             'constraint'

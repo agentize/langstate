@@ -17,7 +17,8 @@ from aiopenapi3 import OpenAPI, FileSystemLoader
 from langstate.models import (
     Info, ValueType, Field, Constraint, ValueTypeCondition,
     AllowDisallowCondition, RegexCondition, RangeCondition, Schema,
-    PromptCondition, ValueSimilarityCondition, StatusCondition
+    PromptCondition, ValueSimilarityCondition, StatusCondition,
+    Range, Pattern, Similarity, Prompt
 )
 from langstate.data_structure.dah import DirectedAcyclicHypergraphNode
 from copy import deepcopy
@@ -168,7 +169,7 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
             Constraint(
                 conditions=[
                     RegexCondition(
-                        pattern=pattern,
+                        allowed=[Pattern(pattern=pattern)],
                         info=Info(name="regex", description=f"Regex constraint for {field_id}")
                     )
                 ]
@@ -183,10 +184,12 @@ def _mk_self_constraints(field_id: str, prop_schema: Dict[str, Any]) -> List[Con
             Constraint(
                 conditions=[
                     RangeCondition(
-                        min=float(numeric_min if numeric_min is not None else float("-inf")),
-                        max=float(numeric_max if numeric_max is not None else float("+inf")),
-                        inclusive_min=True,
-                        inclusive_max=True,
+                        allowed=[Range(
+                            min=float(numeric_min if numeric_min is not None else float("-inf")),
+                            max=float(numeric_max if numeric_max is not None else float("+inf")),
+                            inclusive_min=True,
+                            inclusive_max=True
+                        )],
                         info=Info(name="range", description=f"Range constraint for {field_id}")
                     )
                 ]
@@ -647,14 +650,22 @@ def load_schema_from_openapi_yaml(
             rx = payload["regex"]
             if isinstance(rx, str):
                 conditions.append(RegexCondition(
-                    pattern=rx,
+                    allowed=[Pattern(pattern=rx)],
                     info=Info(name="regex", description="Regex constraint")
                 ))
             elif isinstance(rx, dict):
-                conditions.append(RegexCondition(
-                    info=Info(name="regex", description="Regex constraint"),
-                    **rx
-                ))
+                # Expect dict with 'pattern' key or full Pattern structure
+                if 'pattern' in rx:
+                    conditions.append(RegexCondition(
+                        allowed=[Pattern(**rx)],
+                        info=Info(name="regex", description="Regex constraint")
+                    ))
+                else:
+                    # Assume it's allow/disallow structure with Pattern objects
+                    conditions.append(RegexCondition(
+                        info=Info(name="regex", description="Regex constraint"),
+                        **rx
+                    ))
         
         # enumeration -> AllowDisallowCondition
         if "enumeration" in payload:
@@ -674,33 +685,60 @@ def load_schema_from_openapi_yaml(
         if "range" in payload:
             rg = payload["range"]
             if isinstance(rg, dict):
-                conditions.append(RangeCondition(
-                    info=Info(name="range", description="Range constraint"),
-                    **rg
-                ))
+                # Check if it's a single Range definition or allow/disallow structure
+                if 'min' in rg and 'max' in rg:
+                    # Single range definition
+                    conditions.append(RangeCondition(
+                        allowed=[Range(**rg)],
+                        info=Info(name="range", description="Range constraint")
+                    ))
+                else:
+                    # Assume it's allow/disallow structure with Range objects
+                    conditions.append(RangeCondition(
+                        info=Info(name="range", description="Range constraint"),
+                        **rg
+                    ))
         
         # value_similarity -> ValueSimilarityCondition
         if "value_similarity" in payload:
             vs = payload["value_similarity"]
             if isinstance(vs, dict):
-                conditions.append(ValueSimilarityCondition(
-                    info=Info(name="value_similarity", description="Value similarity constraint"),
-                    **vs
-                ))
+                # Check if it's a single Similarity definition or allow/disallow structure
+                if 'reference' in vs and 'threshold' in vs:
+                    # Single similarity definition
+                    conditions.append(ValueSimilarityCondition(
+                        allowed=[Similarity(**vs)],
+                        info=Info(name="value_similarity", description="Value similarity constraint")
+                    ))
+                else:
+                    # Assume it's allow/disallow structure with Similarity objects
+                    conditions.append(ValueSimilarityCondition(
+                        info=Info(name="value_similarity", description="Value similarity constraint"),
+                        **vs
+                    ))
         
         # prompt -> PromptCondition
         if "prompt" in payload:
             pr = payload["prompt"]
             if isinstance(pr, str):
                 conditions.append(PromptCondition(
-                    prompt=pr,
+                    allowed=[Prompt(prompt=pr)],
                     info=Info(name="prompt", description="Prompt constraint")
                 ))
             elif isinstance(pr, dict):
-                conditions.append(PromptCondition(
-                    info=Info(name="prompt", description="Prompt constraint"),
-                    **pr
-                ))
+                # Check if it's a single Prompt definition or allow/disallow structure
+                if 'prompt' in pr and len(pr) == 1:
+                    # Single prompt definition
+                    conditions.append(PromptCondition(
+                        allowed=[Prompt(**pr)],
+                        info=Info(name="prompt", description="Prompt constraint")
+                    ))
+                else:
+                    # Assume it's allow/disallow structure with Prompt objects
+                    conditions.append(PromptCondition(
+                        info=Info(name="prompt", description="Prompt constraint"),
+                        **pr
+                    ))
 
         # Create Constraint with conditions
         # If no conditions found, return None
