@@ -1,10 +1,11 @@
+from datetime import datetime
 from pydantic import BaseModel, Field as PydField, ConfigDict, field_validator, model_validator
 from typing import Any, Dict, List, Optional, Union, Generic, TypeVar, TYPE_CHECKING
 from .basic import FieldStatus, Info, ValueType
 
 T = TypeVar("T")
-NumericType = TypeVar("NumericType", int, float)
-
+NumericType = TypeVar("NumericType", int, float, datetime)
+    
 class Range(Generic[NumericType], BaseModel):
     """Generic range type for numeric constraints.
     
@@ -12,7 +13,7 @@ class Range(Generic[NumericType], BaseModel):
     Type-safe for either int or float types.
     
     Type Parameters:
-        NumericType: Either int or float
+        NumericType: Either int, float, or datetime
     
     Attributes:
         min: Minimum boundary value
