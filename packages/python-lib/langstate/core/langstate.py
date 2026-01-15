@@ -15,7 +15,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field as PydField, ConfigDict
 
-from .states import InterpretiveState, CanonicalState
+from ..models.field import State, FieldInstance, Schema
 from .perceiver import BasePerceiver, PerceptionContext, PerceptionResult
 from .canonicalizer import (
     BaseCanonicalizer,
@@ -54,7 +54,7 @@ class InteractionRequest(BaseModel):
         prompt: Message/prompt for the user
         components: UI components to render
         options: Options for selection-type interactions
-        canonical_state: Current business state
+        state: Current state graph with field instances
         pending_fields: Fields still needing values
         metadata: Additional metadata
     """
@@ -63,7 +63,7 @@ class InteractionRequest(BaseModel):
     prompt: str = ""
     components: List[Any] = PydField(default_factory=list)
     options: Dict[str, List[Any]] = PydField(default_factory=dict)
-    canonical_state: CanonicalState = PydField(default_factory=CanonicalState)
+    state: Optional[State] = None
     pending_fields: List[str] = PydField(default_factory=list)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
 
@@ -74,13 +74,13 @@ class ActionResult(BaseModel):
     """Result returned when the flow is complete and action can be taken.
 
     Attributes:
-        canonical_state: Final business state
+        state: Final state graph with resolved field values
         success: Whether the flow completed successfully
         action_data: Data to be used for the action
         metadata: Additional metadata
     """
 
-    canonical_state: CanonicalState
+    state: State
     success: bool = True
     action_data: Dict[str, Any] = PydField(default_factory=dict)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
@@ -137,25 +137,24 @@ class LangState(ABC):
                 await self.canonicalizer.initialize(self._schema)
                 await self.interpreter.initialize(self._schema)
 
-                # Create initial states
-                self._interpretive_state = InterpretiveState()
-                self._canonical_state = CanonicalState()
+                # Create initial state from schema
+                self._state = schema_to_init_state(schema)
 
                 # Return initial interaction request
                 return await self._create_interaction_request()
 
             async def process_input(self, user_input: str) -> Union[InteractionRequest, ActionResult]:
-                # Run perceiver
+                # Run perceiver to update field snapshots
                 perception = await self.perceiver.perceive(...)
-                self._interpretive_state = perception.updated_state
+                self._state = perception.updated_state
 
-                # Run canonicalizer
+                # Run canonicalizer to resolve values
                 canonicalization = await self.canonicalizer.canonicalize(...)
-                self._canonical_state = canonicalization.updated_state
+                self._state = canonicalization.updated_state
 
-                # Check if complete
-                if self._canonical_state.is_complete:
-                    return ActionResult(canonical_state=self._canonical_state)
+                # Check if complete (all required fields have resolved values)
+                if self._is_state_complete(self._state):
+                    return ActionResult(state=self._state)
 
                 # Generate next interaction
                 return await self._create_interaction_request()
@@ -205,11 +204,11 @@ class LangState(ABC):
         pass
 
     @abstractmethod
-    async def get_current_state(self) -> tuple[InterpretiveState, CanonicalState]:
-        """Get the current interpretive and canonical states.
+    async def get_current_state(self) -> State:
+        """Get the current state graph.
 
         Returns:
-            Tuple of (interpretive_state, canonical_state)
+            Current State with all field instances and their snapshots
         """
         pass
 

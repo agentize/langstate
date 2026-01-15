@@ -3,18 +3,20 @@
 This module contains the core interfaces and abstractions for the LangState system:
 
 - LangState: Main orchestrator class
-- Perceiver: Processes user input and updates interpretive state
-- Canonicalizer: Converts interpretive state to canonical state
+- Perceiver: Processes user input and updates state
+- Canonicalizer: Resolves state values with constraints
 - Interpreter: Generates UI components and LLM completions
 - Action: Executes business logic when state is complete
-- States: Interpretive and Canonical state representations
+- State: Graph-based state representation with Field instances
 - SchemaReader: Reads and parses schema definitions
 """
 
-from .states import (
-    InterpretiveState,
-    CanonicalState,
-    ValueWithConfidence,
+from ..models.field import (
+    State,
+    FieldInstance,
+    FieldSnapshot,
+    ValueConfidence,
+    Schema,
 )
 from .perceiver import BasePerceiver, PerceptionContext, PerceptionResult
 from .canonicalizer import (
@@ -45,10 +47,12 @@ from .langstate import (
 )
 
 __all__ = [
-    # States
-    "InterpretiveState",
-    "CanonicalState",
-    "ValueWithConfidence",
+    # State - Graph-based representation
+    "State",
+    "FieldInstance",
+    "FieldSnapshot",
+    "ValueConfidence",
+    "Schema",
     # Perceiver
     "BasePerceiver",
     "PerceptionContext",

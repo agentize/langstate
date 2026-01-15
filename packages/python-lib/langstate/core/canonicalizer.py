@@ -1,9 +1,9 @@
 """Canonicalizer interface for LangState.
 
 The Canonicalizer is responsible for:
-- Converting interpretive state to canonical state
-- Resolving multiple candidate values to a single final value
+- Resolving field values from multiple snapshots with different confidences
 - Applying business rules and validation
+- Managing constraint satisfaction in the state graph
 - Can be implemented as a conventional function or LLM-based
 """
 
@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field as PydField, ConfigDict
 
 if TYPE_CHECKING:
-    from .states import InterpretiveState, CanonicalState
+    from ..models.field import State
 
 
 class CanonicalizationStrategy(str, Enum):
@@ -40,7 +40,7 @@ class CanonicalizationResult(BaseModel):
     """Result of a canonicalization operation.
 
     Attributes:
-        updated_state: The updated canonical state
+        updated_state: The updated state graph with resolved values
         resolved_fields: Fields that were successfully resolved
         pending_fields: Fields that still need resolution (ambiguous/low confidence)
         validation_errors: Any validation errors encountered
@@ -48,7 +48,7 @@ class CanonicalizationResult(BaseModel):
         metadata: Additional metadata about the canonicalization
     """
 
-    updated_state: Any  # CanonicalState
+    updated_state: Any  # State
     resolved_fields: Dict[str, Any] = PydField(default_factory=dict)
     pending_fields: List[str] = PydField(default_factory=list)
     validation_errors: Dict[str, str] = PydField(default_factory=dict)
@@ -62,16 +62,14 @@ class CanonicalizationContext(BaseModel):
     """Context provided to the canonicalizer for processing.
 
     Attributes:
-        interpretive_state: Current interpretive state to canonicalize
-        current_canonical_state: Current canonical state (for incremental updates)
+        current_state: Current state graph with field snapshots
         schema: The schema definition
         strategy: Resolution strategy to use
         confidence_threshold: Minimum confidence for automatic resolution
         metadata: Additional context metadata
     """
 
-    interpretive_state: Any  # InterpretiveState
-    current_canonical_state: Any  # CanonicalState
+    current_state: Any  # State
     schema: Optional[Any] = None  # Schema
     strategy: CanonicalizationStrategy = CanonicalizationStrategy.HIGHEST_CONFIDENCE
     confidence_threshold: float = 0.7
@@ -83,8 +81,9 @@ class CanonicalizationContext(BaseModel):
 class BaseCanonicalizer(ABC):
     """Abstract base class for Canonicalizer implementations.
 
-    The Canonicalizer converts the interpretive state (with multiple candidate
-    values and confidences) into the canonical state (with single resolved values).
+    The Canonicalizer resolves field values from multiple snapshots with different
+    confidence scores. It selects the most appropriate value for each field based
+    on the strategy and constraints defined in the schema.
 
     This can be implemented as:
     - A conventional function (rule-based, highest confidence, etc.)
@@ -97,21 +96,33 @@ class BaseCanonicalizer(ABC):
                 self,
                 context: CanonicalizationContext
             ) -> CanonicalizationResult:
-                new_state = context.current_canonical_state.copy()
+                new_state = context.current_state.copy()
                 resolved = {}
                 pending = []
 
-                for key, values in context.interpretive_state.fields.items():
-                    if not values:
-                        pending.append(key)
+                # Iterate through all field instances
+                for node_id, node in new_state.nodes.items():
+                    field_instance = node.value
+                    if not field_instance.snapshots:
+                        pending.append(node_id)
                         continue
 
-                    top_value = max(values, key=lambda x: x.confidence)
-                    if top_value.confidence >= context.confidence_threshold:
-                        new_state.set(key, top_value.value)
-                        resolved[key] = top_value.value
+                    # Get the latest snapshot
+                    latest = field_instance.snapshots[-1]
+                    if not latest.value_confidence_list:
+                        pending.append(node_id)
+                        continue
+
+                    # Find value with highest confidence
+                    top_value = max(
+                        latest.value_confidence_list,
+                        key=lambda x: x.score
+                    )
+                    
+                    if top_value.score >= context.confidence_threshold:
+                        resolved[node_id] = top_value.value
                     else:
-                        pending.append(key)
+                        pending.append(node_id)
 
                 return CanonicalizationResult(
                     updated_state=new_state,
@@ -124,16 +135,16 @@ class BaseCanonicalizer(ABC):
     async def canonicalize(
         self, context: CanonicalizationContext
     ) -> CanonicalizationResult:
-        """Convert interpretive state to canonical state.
+        """Resolve field values from snapshots in the state graph.
 
-        This method takes the interpretive state with multiple candidate values
-        and resolves them to single values in the canonical state.
+        This method analyzes field snapshots with multiple candidate values
+        and resolves them based on confidence scores and constraints.
 
         Args:
-            context: CanonicalizationContext containing states and configuration
+            context: CanonicalizationContext containing state and configuration
 
         Returns:
-            CanonicalizationResult with the updated canonical state
+            CanonicalizationResult with the updated state graph
         """
         pass
 

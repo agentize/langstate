@@ -11,15 +11,16 @@ from .utils import get_logger
 
 # Core interfaces
 from .core import (
-    # States
-    InterpretiveState,
-    CanonicalState,
-    ValueWithConfidence,
+    # State - Graph-based representation
+    State,
+    FieldInstance,
+    FieldSnapshot,
+    ValueConfidence,
+    Schema,
     # Core components
     BasePerceiver,
     BaseCanonicalizer,
     BaseInterpreter,
-    BaseSchemaReader,
     BaseAction,
     # Main class
     LangState,
@@ -33,15 +34,18 @@ __all__ = [
     "BaseModel",
     "ResponseModel",
     "get_logger",
-    # Core interfaces
-    "InterpretiveState",
-    "CanonicalState",
-    "ValueWithConfidence",
+    # Core interfaces - State graph
+    "State",
+    "FieldInstance",
+    "FieldSnapshot",
+    "ValueConfidence",
+    "Schema",
+    # Core components
     "BasePerceiver",
     "BaseCanonicalizer",
     "BaseInterpreter",
-    "BaseSchemaReader",
     "BaseAction",
+    # Main class
     "LangState",
     "LangStateConfig",
     "InteractionRequest",

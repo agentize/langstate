@@ -1,6 +1,6 @@
 """Action interface for LangState.
 
-The Action represents the final step when the canonical state is complete.
+The Action represents the final step when the state is complete.
 Actions can be triggered to perform business logic, API calls, etc.
 """
 
@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field as PydField, ConfigDict
 
 if TYPE_CHECKING:
-    from .states import CanonicalState
+    from ..models.field import State
 
 
 class ActionStatus(str, Enum):
@@ -37,13 +37,13 @@ class ActionContext(BaseModel):
     """Context provided to an action for execution.
 
     Attributes:
-        canonical_state: The final canonical state
+        state: The final state graph with resolved field values
         action_type: Type of action to perform
         parameters: Additional parameters for the action
         metadata: Additional context metadata
     """
 
-    canonical_state: Any  # CanonicalState
+    state: Any  # State - using Any to avoid circular import
     action_type: str = "default"
     parameters: Dict[str, Any] = PydField(default_factory=dict)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
@@ -72,22 +72,29 @@ class ActionResult(BaseModel):
 class BaseAction(ABC):
     """Abstract base class for Action implementations.
 
-    Actions are executed when the canonical state is complete and ready.
+    Actions are executed when the state is complete and ready.
     They represent the final business logic that should be performed
     with the collected data.
 
     Example usage:
         class RegistrationAction(BaseAction):
             async def execute(self, context: ActionContext) -> ActionResult:
-                # Perform registration with the canonical state data
-                user_data = context.canonical_state.fields
+                # Extract resolved values from state graph
+                user_data = {}
+                for node_id, node in context.state.nodes.items():
+                    field_instance = node.value
+                    # Get the resolved value from latest snapshot
+                    if field_instance.snapshots:
+                        latest = field_instance.snapshots[-1]
+                        if latest.value_confidence_list:
+                            top_value = max(
+                                latest.value_confidence_list,
+                                key=lambda x: x.score
+                            )
+                            user_data[node_id] = top_value.value
 
                 try:
-                    user_id = await self.user_service.register(
-                        name=user_data["name"],
-                        email=user_data["email"],
-                        age=user_data["age"]
-                    )
+                    user_id = await self.user_service.register(**user_data)
                     return ActionResult(
                         status=ActionStatus.SUCCESS,
                         result_data={"user_id": user_id}

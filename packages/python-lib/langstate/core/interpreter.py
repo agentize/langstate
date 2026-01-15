@@ -1,7 +1,7 @@
 """Interpreter interface for LangState.
 
 The Interpreter is responsible for:
-- Generating UI component mappings
+- Generating UI component mappings based on field schemas
 - Producing LLM completions for the conversation
 - Creating prompts and responses based on current state
 """
@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field as PydField, ConfigDict
 
 if TYPE_CHECKING:
-    from .states import InterpretiveState, CanonicalState
+    from ..models.field import State
 
 
 class UIComponentType(str, Enum):
@@ -105,16 +105,14 @@ class InterpretationContext(BaseModel):
     """Context provided to the interpreter for processing.
 
     Attributes:
-        interpretive_state: Current interpretive state
-        canonical_state: Current canonical state
+        current_state: Current state graph with field instances
         schema: The schema definition
         conversation_history: Conversation history for context
         user_preferences: User preferences for UI generation
         metadata: Additional context metadata
     """
 
-    interpretive_state: Any  # InterpretiveState
-    canonical_state: Any  # CanonicalState
+    current_state: Any  # State
     schema: Optional[Any] = None  # Schema
     conversation_history: List[Dict[str, str]] = PydField(default_factory=list)
     user_preferences: Dict[str, Any] = PydField(default_factory=dict)
@@ -127,11 +125,11 @@ class BaseInterpreter(ABC):
     """Abstract base class for Interpreter implementations.
 
     The Interpreter generates UI components and LLM completions based on
-    the current state. It bridges the gap between the internal state
+    the current state graph. It bridges the gap between the internal state
     representation and what the user sees.
 
     Responsibilities:
-    - Map fields to appropriate UI component types
+    - Map field schemas to appropriate UI component types
     - Generate natural language prompts/responses
     - Suggest values based on context
     - Determine which fields to focus on next
@@ -144,9 +142,12 @@ class BaseInterpreter(ABC):
             ) -> InterpretationResult:
                 # Generate components for unfilled fields
                 components = []
-                for field_key in context.canonical_state.get_empty_fields():
-                    component = self.map_field_to_component(field_key)
-                    components.append(component)
+                for node_id, node in context.current_state.nodes.items():
+                    field_instance = node.value
+                    # Check if field has resolved value
+                    if not self._has_resolved_value(field_instance):
+                        component = self.map_field_to_component(field_instance)
+                        components.append(component)
 
                 # Generate prompt
                 prompt = await self.llm.generate_prompt(context)
