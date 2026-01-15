@@ -132,7 +132,7 @@ class LangState(ABC):
                 # Load schema (using yaml reader and schema_to_init_state)
                 from ..state.readers.yaml import load_schema_from_openapi_yaml
                 from ..state.core.schema_to_init_state import schema_to_init_state
-                
+
                 schema = load_schema_from_openapi_yaml(config.schema_source)
                 self._schema = schema
 

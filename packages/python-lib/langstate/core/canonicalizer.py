@@ -118,7 +118,7 @@ class BaseCanonicalizer(ABC):
                         latest.value_confidence_list,
                         key=lambda x: x.score
                     )
-                    
+
                     if top_value.score >= context.confidence_threshold:
                         resolved[node_id] = top_value.value
                     else:
