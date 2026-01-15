@@ -54,7 +54,8 @@ class InteractionRequest(BaseModel):
         prompt: Message/prompt for the user
         components: UI components to render
         options: Options for selection-type interactions
-        state: Current state graph with field instances
+        state: Current interpretive state graph with field instances (includes value-confidence pairs)
+        canonical_state: Canonical state with resolved values (business state, key:value only)
         pending_fields: Fields still needing values
         metadata: Additional metadata
     """
@@ -64,6 +65,7 @@ class InteractionRequest(BaseModel):
     components: List[Any] = PydField(default_factory=list)
     options: Dict[str, List[Any]] = PydField(default_factory=dict)
     state: Optional[State] = None
+    canonical_state: Optional[State] = None
     pending_fields: List[str] = PydField(default_factory=list)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
 
@@ -74,13 +76,15 @@ class ActionResult(BaseModel):
     """Result returned when the flow is complete and action can be taken.
 
     Attributes:
-        state: Final state graph with resolved field values
+        state: Final interpretive state graph with all field snapshots (includes value-confidence pairs)
+        canonical_state: Final canonical state with resolved values for action (business state, key:value only)
         success: Whether the flow completed successfully
         action_data: Data to be used for the action
         metadata: Additional metadata
     """
 
     state: State
+    canonical_state: State
     success: bool = True
     action_data: Dict[str, Any] = PydField(default_factory=dict)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
@@ -144,17 +148,20 @@ class LangState(ABC):
                 return await self._create_interaction_request()
 
             async def process_input(self, user_input: str) -> Union[InteractionRequest, ActionResult]:
-                # Run perceiver to update field snapshots
+                # Run perceiver to update field snapshots (updates interpretive state)
                 perception = await self.perceiver.perceive(...)
-                self._state = perception.updated_state
+                self._state = perception.updated_state  # Interpretive state with value-confidence pairs
 
-                # Run canonicalizer to resolve values
+                # Run canonicalizer to resolve values (creates canonical state)
                 canonicalization = await self.canonicalizer.canonicalize(...)
-                self._state = canonicalization.updated_state
+                self._canonical_state = canonicalization.updated_state  # Canonical state with resolved values
 
-                # Check if complete (all required fields have resolved values)
-                if self._is_state_complete(self._state):
-                    return ActionResult(state=self._state)
+                # Check if complete (all required fields have resolved values in canonical state)
+                if self._is_state_complete(self._canonical_state):
+                    return ActionResult(
+                        state=self._state,  # Full interpretive state
+                        canonical_state=self._canonical_state  # Resolved canonical state for action
+                    )
 
                 # Generate next interaction
                 return await self._create_interaction_request()

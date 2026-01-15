@@ -105,14 +105,16 @@ class InterpretationContext(BaseModel):
     """Context provided to the interpreter for processing.
 
     Attributes:
-        current_state: Current state graph with field instances
+        current_state: Current interpretive state graph with field instances (includes value-confidence pairs)
+        canonical_state: Canonical state with resolved values (business state, key:value only)
         schema: The schema definition
         conversation_history: Conversation history for context
         user_preferences: User preferences for UI generation
         metadata: Additional context metadata
     """
 
-    current_state: Any  # State
+    current_state: Any  # State (Interpretive State)
+    canonical_state: Optional[Any] = None  # State (Canonical/Business State)
     schema: Optional[Any] = None  # Schema
     conversation_history: List[Dict[str, str]] = PydField(default_factory=list)
     user_preferences: Dict[str, Any] = PydField(default_factory=dict)
