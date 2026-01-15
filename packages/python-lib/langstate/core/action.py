@@ -1,7 +1,8 @@
 """Action interface for LangState.
 
-The Action represents the final step when the state is complete.
+The Action represents the final step when validation passes in the Canonicalizer.
 Actions can be triggered to perform business logic, API calls, etc.
+Actions receive the canonical state (key: value) for execution.
 """
 
 from __future__ import annotations
@@ -37,13 +38,13 @@ class ActionContext(BaseModel):
     """Context provided to an action for execution.
 
     Attributes:
-        state: The final state graph with resolved field values
+        canonical_state: The canonical state with resolved field values (key: value)
         action_type: Type of action to perform
         parameters: Additional parameters for the action
         metadata: Additional context metadata
     """
 
-    state: Any  # State - using Any to avoid circular import
+    canonical_state: Any  # State - canonical state with resolved values
     action_type: str = "default"
     parameters: Dict[str, Any] = PydField(default_factory=dict)
     metadata: Dict[str, Any] = PydField(default_factory=dict)

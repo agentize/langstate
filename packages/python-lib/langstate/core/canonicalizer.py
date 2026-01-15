@@ -1,9 +1,10 @@
 """Canonicalizer interface for LangState.
 
 The Canonicalizer is responsible for:
-- Resolving field values from multiple snapshots with different confidences
-- Applying business rules and validation
-- Managing constraint satisfaction in the state graph
+- Receiving interpretive state with value-confidence pairs from Perceiver
+- Validating field values and checking business rules/constraints
+- Resolving interpretive state to canonical state (selecting best values)
+- Triggering actions when validation passes
 - Can be implemented as a conventional function or LLM-based
 """
 
@@ -40,19 +41,21 @@ class CanonicalizationResult(BaseModel):
     """Result of a canonicalization operation.
 
     Attributes:
-        updated_state: The updated state graph with resolved values
-        resolved_fields: Fields that were successfully resolved
+        updated_state: The updated canonical state with resolved values (key: value format)
+        resolved_fields: Fields that were successfully resolved from interpretive state
         pending_fields: Fields that still need resolution (ambiguous/low confidence)
         validation_errors: Any validation errors encountered
         requires_confirmation: Fields that require user confirmation
+        actions_triggered: List of actions that were triggered based on validation
         metadata: Additional metadata about the canonicalization
     """
 
-    updated_state: Any  # State
+    updated_state: Any  # State - canonical state with resolved values
     resolved_fields: Dict[str, Any] = PydField(default_factory=dict)
     pending_fields: List[str] = PydField(default_factory=list)
     validation_errors: Dict[str, str] = PydField(default_factory=dict)
     requires_confirmation: Dict[str, Any] = PydField(default_factory=dict)
+    actions_triggered: List[str] = PydField(default_factory=list)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
 
     model_config = ConfigDict(extra="allow")
@@ -62,14 +65,16 @@ class CanonicalizationContext(BaseModel):
     """Context provided to the canonicalizer for processing.
 
     Attributes:
-        current_state: Current state graph with field snapshots
+        interpretive_state: Current interpretive state with value-confidence pairs (key: [{value, confidence}])
+        canonical_state: Current canonical state with resolved values (key: value)
         schema: The schema definition
         strategy: Resolution strategy to use
         confidence_threshold: Minimum confidence for automatic resolution
         metadata: Additional context metadata
     """
 
-    current_state: Any  # State
+    interpretive_state: Any  # State - interpretive state with value-confidence pairs
+    canonical_state: Optional[Any] = None  # State - canonical state with resolved values
     schema: Optional[Any] = None  # Schema
     strategy: CanonicalizationStrategy = CanonicalizationStrategy.HIGHEST_CONFIDENCE
     confidence_threshold: float = 0.7
@@ -81,9 +86,9 @@ class CanonicalizationContext(BaseModel):
 class BaseCanonicalizer(ABC):
     """Abstract base class for Canonicalizer implementations.
 
-    The Canonicalizer resolves field values from multiple snapshots with different
-    confidence scores. It selects the most appropriate value for each field based
-    on the strategy and constraints defined in the schema.
+    The Canonicalizer receives the interpretive state (with value-confidence pairs)
+    from the Perceiver, validates constraints, and produces the canonical state 
+    (with resolved values). It can also trigger actions when validation passes.
 
     This can be implemented as:
     - A conventional function (rule-based, highest confidence, etc.)
@@ -96,18 +101,20 @@ class BaseCanonicalizer(ABC):
                 self,
                 context: CanonicalizationContext
             ) -> CanonicalizationResult:
-                new_state = context.current_state.copy()
+                # Start with current canonical state or create new one
+                new_canonical_state = context.canonical_state.copy() if context.canonical_state else State()
                 resolved = {}
                 pending = []
+                actions = []
 
-                # Iterate through all field instances
-                for node_id, node in new_state.nodes.items():
+                # Iterate through interpretive state fields
+                for node_id, node in context.interpretive_state.nodes.items():
                     field_instance = node.value
                     if not field_instance.snapshots:
                         pending.append(node_id)
                         continue
 
-                    # Get the latest snapshot
+                    # Get the latest snapshot with value-confidence pairs
                     latest = field_instance.snapshots[-1]
                     if not latest.value_confidence_list:
                         pending.append(node_id)
@@ -120,14 +127,27 @@ class BaseCanonicalizer(ABC):
                     )
 
                     if top_value.score >= context.confidence_threshold:
-                        resolved[node_id] = top_value.value
+                        # Validate the value
+                        is_valid, error = await self.validate_value(
+                            node_id, top_value.value, context.schema
+                        )
+                        
+                        if is_valid:
+                            resolved[node_id] = top_value.value
+                            # Update canonical state with resolved value
+                            # Check if action should be triggered
+                            if self._should_trigger_action(context, node_id):
+                                actions.append(f"action_{node_id}")
+                        else:
+                            pending.append(node_id)
                     else:
                         pending.append(node_id)
 
                 return CanonicalizationResult(
-                    updated_state=new_state,
+                    updated_state=new_canonical_state,
                     resolved_fields=resolved,
-                    pending_fields=pending
+                    pending_fields=pending,
+                    actions_triggered=actions
                 )
     """
 
@@ -135,16 +155,17 @@ class BaseCanonicalizer(ABC):
     async def canonicalize(
         self, context: CanonicalizationContext
     ) -> CanonicalizationResult:
-        """Resolve field values from snapshots in the state graph.
+        """Resolve interpretive state to canonical state and validate.
 
-        This method analyzes field snapshots with multiple candidate values
-        and resolves them based on confidence scores and constraints.
+        This method analyzes the interpretive state with value-confidence pairs,
+        validates constraints, and produces a canonical state with resolved values.
+        Can also trigger actions when validation passes.
 
         Args:
-            context: CanonicalizationContext containing state and configuration
+            context: CanonicalizationContext with interpretive state and current canonical state
 
         Returns:
-            CanonicalizationResult with the updated state graph
+            CanonicalizationResult with updated canonical state and any triggered actions
         """
         pass
 
@@ -161,6 +182,20 @@ class BaseCanonicalizer(ABC):
 
         Returns:
             Tuple of (is_valid, error_message)
+        """
+        pass
+
+    @abstractmethod
+    async def can_trigger_action(
+        self, context: CanonicalizationContext
+    ) -> tuple[bool, Optional[str]]:
+        """Check if current state allows triggering an action.
+
+        Args:
+            context: CanonicalizationContext with current states
+
+        Returns:
+            Tuple of (can_trigger, action_name)
         """
         pass
 

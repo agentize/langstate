@@ -2,8 +2,10 @@
 
 LangState is the main entry point for developers. It coordinates:
 - Schema reading and initialization
-- User input processing via Perceiver
-- State canonicalization via Canonicalizer
+- Creation of canonical state (key: value) and interpretive state (key: [{value, confidence}])
+- User input processing via Perceiver (updates interpretive state)
+- Validation and canonicalization via Canonicalizer (receives interpretive state, 
+  validates, can trigger actions, updates canonical state)
 - UI/response generation via Interpreter
 """
 
@@ -129,9 +131,12 @@ class LangState(ABC):
     Example usage:
         class MyLangState(LangState):
             async def initialize(self, config: LangStateConfig) -> InteractionRequest:
-                # Load schema (using yaml reader and schema_to_init_state)
+                # Load schema (using yaml reader)
                 from ..state.readers.yaml import load_schema_from_openapi_yaml
-                from ..state.core.schema_to_init_state import schema_to_init_state
+                from ..state.core.schema_to_init_state import (
+                    schema_to_init_state, 
+                    canonical_to_interpretive_state
+                )
 
                 schema = load_schema_from_openapi_yaml(config.schema_source)
                 self._schema = schema
@@ -141,20 +146,27 @@ class LangState(ABC):
                 await self.canonicalizer.initialize(self._schema)
                 await self.interpreter.initialize(self._schema)
 
-                # Create initial state from schema
-                self._state = schema_to_init_state(schema)
+                # Create initial canonical state from schema (key: value)
+                self._canonical_state = schema_to_init_state(schema)
+                
+                # Create interpretive state from canonical state (key: [{value, confidence}])
+                self._state = canonical_to_interpretive_state(self._canonical_state)
 
                 # Return initial interaction request
                 return await self._create_interaction_request()
 
             async def process_input(self, user_input: str) -> Union[InteractionRequest, ActionResult]:
-                # Run perceiver to update field snapshots (updates interpretive state)
+                # Run perceiver to update interpretive state (adds value-confidence pairs)
                 perception = await self.perceiver.perceive(...)
                 self._state = perception.updated_state  # Interpretive state with value-confidence pairs
 
-                # Run canonicalizer to resolve values (creates canonical state)
+                # Run canonicalizer to resolve values and update canonical state
+                # Canonicalizer receives interpretive state, validates, and can trigger actions
                 canonicalization = await self.canonicalizer.canonicalize(...)
                 self._canonical_state = canonicalization.updated_state  # Canonical state with resolved values
+
+                # Run interpreter to generate UI/prompts
+                interpretation = await self.interpreter.interpret(...)
 
                 # Check if complete (all required fields have resolved values in canonical state)
                 if self._is_state_complete(self._canonical_state):
