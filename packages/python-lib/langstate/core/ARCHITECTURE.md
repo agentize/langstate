@@ -145,8 +145,6 @@ class MyLangState(LangState):
         
         # 3. Create interpretive state (key: [{value, confidence}])
         self._state = canonical_to_interpretive_state(self._canonical_state)
-        
-        return await self._create_interaction_request()
 
     async def process_input(self, user_input: str) -> Union[InteractionRequest, ActionResult]:
         # 1. Perceiver updates interpretive state
