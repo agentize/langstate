@@ -122,15 +122,16 @@ class LangState(ABC):
     and manages the conversation flow.
 
     The flow is:
-    1. Developer creates LangState instance with config
-    2. LangState returns InteractionRequest when it needs user input
-    3. Developer sends InteractionRequest to frontend (e.g., via HTTP)
-    4. Developer receives user response and calls process_input()
-    5. Repeat until flow is complete (returns ActionResult)
+    1. Developer creates LangState instance
+    2. Developer calls initialize() with config to setup schema and states
+    3. Developer calls process_input() to get initial or next InteractionRequest
+    4. Developer sends InteractionRequest to frontend (e.g., via HTTP)
+    5. Developer receives user response and calls process_input() again
+    6. Repeat until flow is complete (process_input returns ActionResult)
 
     Example usage:
         class MyLangState(LangState):
-            async def initialize(self, config: LangStateConfig) -> InteractionRequest:
+            async def initialize(self, config: LangStateConfig) -> None:
                 # Load schema (using yaml reader)
                 from ..state.readers.yaml import load_schema_from_openapi_yaml
                 from ..state.core.schema_to_init_state import (
@@ -152,10 +153,11 @@ class LangState(ABC):
                 # Create interpretive state from canonical state (key: [{value, confidence}])
                 self._state = canonical_to_interpretive_state(self._canonical_state)
 
-                # Return initial interaction request
-                return await self._create_interaction_request()
+            async def process_input(self, user_input: str = "") -> Union[InteractionRequest, ActionResult]:
+                # If user_input is empty (first call), generate initial interaction
+                if not user_input:
+                    return await self._create_interaction_request()
 
-            async def process_input(self, user_input: str) -> Union[InteractionRequest, ActionResult]:
                 # Run perceiver to update interpretive state (adds value-confidence pairs)
                 perception = await self.perceiver.perceive(...)
                 self._state = perception.updated_state  # Interpretive state with value-confidence pairs
@@ -184,23 +186,31 @@ class LangState(ABC):
         - Configuring via LangStateConfig
         - Overriding methods in subclasses
 
+        # Setup
         langstate = MyLangState()
         langstate.set_perceiver(MyCustomPerceiver())
         langstate.set_canonicalizer(MyLLMCanonicalizer())
+        
+        # Initialize (loads schema, creates states)
+        await langstate.initialize(LangStateConfig(schema_source="./schema.yaml"))
+        
+        # Get first interaction
+        interaction = await langstate.process_input()
+        
+        # Process user responses
+        result = await langstate.process_input(user_response)
     """
 
     @abstractmethod
-    async def initialize(self, config: LangStateConfig) -> InteractionRequest:
+    async def initialize(self, config: LangStateConfig) -> None:
         """Initialize LangState with configuration.
 
-        This method sets up all components and returns the initial
-        interaction request to start the conversation flow.
+        This method sets up schema, components, and creates both canonical
+        and interpretive states. Does not return interaction - call process_input()
+        to get the first InteractionRequest.
 
         Args:
             config: Configuration for this LangState instance
-
-        Returns:
-            Initial InteractionRequest to present to the user
         """
         pass
 
