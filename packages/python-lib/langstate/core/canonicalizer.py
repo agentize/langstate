@@ -74,7 +74,9 @@ class CanonicalizationContext(BaseModel):
     """
 
     interpretive_state: Any  # State - interpretive state with value-confidence pairs
-    canonical_state: Optional[Any] = None  # State - canonical state with resolved values
+    canonical_state: Optional[Any] = (
+        None  # State - canonical state with resolved values
+    )
     schema: Optional[Any] = None  # Schema
     strategy: CanonicalizationStrategy = CanonicalizationStrategy.HIGHEST_CONFIDENCE
     confidence_threshold: float = 0.7
@@ -87,7 +89,7 @@ class BaseCanonicalizer(ABC):
     """Abstract base class for Canonicalizer implementations.
 
     The Canonicalizer receives the interpretive state (with value-confidence pairs)
-    from the Perceiver, validates constraints, and produces the canonical state 
+    from the Perceiver, validates constraints, and produces the canonical state
     (with resolved values). It can also trigger actions when validation passes.
 
     This can be implemented as:
@@ -131,7 +133,7 @@ class BaseCanonicalizer(ABC):
                         is_valid, error = await self.validate_value(
                             node_id, top_value.value, context.schema
                         )
-                        
+
                         if is_valid:
                             resolved[node_id] = top_value.value
                             # Update canonical state with resolved value

@@ -4,7 +4,7 @@ LangState is the main entry point for developers. It coordinates:
 - Schema reading and initialization
 - Creation of canonical state (key: value) and interpretive state (key: [{value, confidence}])
 - User input processing via Perceiver (updates interpretive state)
-- Validation and canonicalization via Canonicalizer (receives interpretive state, 
+- Validation and canonicalization via Canonicalizer (receives interpretive state,
   validates, can trigger actions, updates canonical state)
 - UI/response generation via Interpreter
 """
@@ -134,7 +134,7 @@ class LangState(ABC):
                 # Load schema (using yaml reader)
                 from ..state.readers.yaml import load_schema_from_openapi_yaml
                 from ..state.core.schema_to_init_state import (
-                    schema_to_init_state, 
+                    schema_to_init_state,
                     canonical_to_interpretive_state
                 )
 
@@ -148,7 +148,7 @@ class LangState(ABC):
 
                 # Create initial canonical state from schema (key: value)
                 self._canonical_state = schema_to_init_state(schema)
-                
+
                 # Create interpretive state from canonical state (key: [{value, confidence}])
                 self._state = canonical_to_interpretive_state(self._canonical_state)
 

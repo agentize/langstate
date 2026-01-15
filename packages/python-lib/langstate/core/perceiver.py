@@ -60,7 +60,7 @@ class BasePerceiver(ABC):
     """Abstract base class for Perceiver implementations.
 
     The Perceiver processes user input and updates the interpretive state graph
-    by adding value-confidence pairs to field snapshots. It is responsible for 
+    by adding value-confidence pairs to field snapshots. It is responsible for
     extracting values from natural language input and assigning confidence scores.
 
     Implementations might include:
@@ -99,7 +99,7 @@ class BasePerceiver(ABC):
         """Process user input and update the interpretive state graph.
 
         This method takes the user's input along with the current interpretive state
-        and returns an updated interpretive state with value-confidence pairs extracted 
+        and returns an updated interpretive state with value-confidence pairs extracted
         from the input added to field snapshots.
 
         Args:

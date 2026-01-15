@@ -7,6 +7,7 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 ## State Types
 
 ### Canonical State
+
 - **Format**: `{key: value}`
 - **Purpose**: Business state for actions
 - **Source**: Created from schema by `schema_to_init_state()`
@@ -14,6 +15,7 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 - **Usage**: Final resolved values used for executing actions
 
 ### Interpretive State
+
 - **Format**: `{key: [{value, confidence}]}`
 - **Purpose**: Track multiple value possibilities with confidence scores
 - **Source**: Created from canonical state by `canonical_to_interpretive_state()`
@@ -71,27 +73,32 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 ## Component Responsibilities
 
 ### SchemaReaders
+
 - Read schema definitions (YAML, JSON, OpenAPI)
 - Convert to internal Schema DAG
 
 ### schema_to_init_state()
+
 - Converts Schema → Canonical State
 - Creates {key: value} structure
 - Applies default values from schema
 
 ### canonical_to_interpretive_state()
+
 - Converts Canonical State → Interpretive State
 - Creates {key: [{value, confidence}]} structure
 - Wraps default values with confidence 0.0
 - **Called only once** at initialization
 
 ### Perceiver
+
 - Receives user input (prompts, actions)
 - Extracts field values from input
 - **Updates interpretive state** by adding value-confidence pairs
 - Returns updated interpretive state
 
 ### Canonicalizer
+
 - **Receives interpretive state** as input
 - Validates field values against constraints
 - Resolves value-confidence pairs to single values
@@ -100,6 +107,7 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 - **Updates and returns canonical state**
 
 ### Interpreter
+
 - Generates UI components
 - Creates natural language prompts
 - Determines next fields to focus on
