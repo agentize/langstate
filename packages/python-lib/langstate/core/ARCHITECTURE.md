@@ -136,21 +136,33 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 
 ```python
 class MyLangState(LangState):
+    def __init__(self):
+        super().__init__(
+            schema_reader=OpenAPIYamlReader(),
+            perceiver=MyCustomPerceiver(),
+            canonicalizer=MyLLMCanonicalizer(),
+            interpreter=MyUIInterpreter()
+        )
+
     async def initialize(self, config: LangStateConfig) -> InteractionRequest:
-        # 1. Load schema
-        schema = load_schema_from_openapi_yaml(config.schema_source)
+        # 1. Load schema using configured reader
+        if self._schema_reader and config.schema_source:
+            self._schema = self._schema_reader.read(config.schema_source)
         
         # 2. Create canonical state (key: value)
-        self._canonical_state = schema_to_init_state(schema)
+        self._canonical_state = schema_to_init_state(self._schema)
         
         # 3. Create interpretive state (key: [{value, confidence}])
         self._state = canonical_to_interpretive_state(self._canonical_state)
 
-    async def process_input(self, user_input: str) -> Union[InteractionRequest, ActionResult]:
+    async def invoke(
+        self, 
+        agent_input: Optional[AgentInput] = None
+    ) -> Union[InteractionRequest, ActionResult]:
         # 1. Perceiver updates interpretive state
         perception = await self.perceiver.perceive(
             PerceptionContext(
-                user_input=user_input,
+                agent_input=agent_input,  # Structured input
                 current_state=self._state,  # Interpretive state
                 schema=self._schema
             )
@@ -189,6 +201,56 @@ class MyLangState(LangState):
             )
 
         return await self._create_interaction_request()
+```
+
+## AgentInput Structure
+
+The `AgentInput` class provides structured input for agent invocation, supporting various interaction types:
+
+```python
+class AgentInput(BaseModel):
+    """Structured input for agent invocation."""
+    
+    input_type: InputType  # TEXT, ACTION, SELECTION, CONFIRMATION, FILE, SYSTEM
+    text: Optional[str]  # Free-form text input
+    action: Optional[str]  # Action identifier (button_id, form_name)
+    action_data: Dict[str, Any]  # Additional action parameters
+    selection: List[Any]  # Selected option(s)
+    field_id: Optional[str]  # Target field for the input
+    confirmed: Optional[bool]  # Confirmation status
+    files: List[Dict[str, Any]]  # File references
+    metadata: Dict[str, Any]  # Additional context
+
+# Factory methods for common input types:
+AgentInput.from_text("John Doe")
+AgentInput.from_action("submit", {"form_id": "registration"})
+AgentInput.from_selection(["option_1", "option_2"])
+AgentInput.from_confirmation("email", confirmed=True)
+```
+
+## SchemaReader Interface
+
+The `BaseSchemaReader` interface allows custom schema loading implementations:
+
+```python
+class BaseSchemaReader(ABC):
+    """Abstract base class for schema readers."""
+    
+    @abstractmethod
+    def read(self, source: Union[str, Path, Dict[str, Any]]) -> Schema:
+        """Read and parse schema from the given source."""
+        pass
+
+# Example implementations:
+class OpenAPIYamlReader(BaseSchemaReader):
+    def read(self, source):
+        from langstate.state.readers.yaml import load_schema_from_openapi_yaml
+        return load_schema_from_openapi_yaml(source)
+
+class JSONSchemaReader(BaseSchemaReader):
+    def read(self, source):
+        # Custom JSON schema loading
+        pass
 ```
 
 ## Migration Notes

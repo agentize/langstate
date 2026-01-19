@@ -2,13 +2,14 @@
 
 This module contains the core interfaces and abstractions for the LangState system:
 
-- LangState: Main orchestrator class
+- LangState: Main orchestrator class (agent-style interface)
+- BaseSchemaReader: Interface for schema readers
+- AgentInput: Structured input for agent invocation
 - Perceiver: Processes user input and updates state
 - Canonicalizer: Resolves state values with constraints
 - Interpreter: Generates UI components and LLM completions
 - Action: Executes business logic when state is complete
 - State: Graph-based state representation with Field instances
-- SchemaReader: Reads and parses schema definitions
 """
 
 from ..models.field import (
@@ -44,6 +45,9 @@ from .langstate import (
     InteractionRequest,
     InteractionType,
     ActionResult,
+    BaseSchemaReader,
+    AgentInput,
+    InputType,
 )
 
 __all__ = [
@@ -79,4 +83,9 @@ __all__ = [
     "InteractionRequest",
     "InteractionType",
     "ActionResult",
+    # Schema Reader
+    "BaseSchemaReader",
+    # Agent Input
+    "AgentInput",
+    "InputType",
 ]
