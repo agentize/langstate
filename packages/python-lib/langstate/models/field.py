@@ -71,12 +71,60 @@ class Field(BaseModel):
         return self.id
 
 class ValueConfidence(BaseModel):
-    score: float = PydField(..., ge=-1.0, le=1.0)  # Confidence score [-1.0, 1.0]
+    """Represents a value with its confidence score.
+    
+    Attributes:
+        value: The actual field value
+        confidence: Confidence score for this value [-1.0, 1.0]
+    """
     value: FieldValue
+    confidence: float = PydField(..., ge=-1.0, le=1.0)
+    
+    # Backward compatibility alias
+    @property
+    def score(self) -> float:
+        """Alias for confidence (deprecated, use confidence instead)."""
+        return self.confidence
+
+
+class Inference(BaseModel):
+    """Represents an inference/reasoning step that led to a value.
+    
+    Inferences track the reasoning process that a Mutator used to derive
+    values from user input. This provides explainability and traceability.
+    
+    Attributes:
+        content: The inference/reasoning content (e.g., "User said 'my name is John'")
+        mutator_id: Identifier of the mutator that generated this inference
+        timestamp: When this inference was made
+        metadata: Additional inference metadata
+    """
+    content: str
+    mutator_id: str
+    timestamp: datetime.datetime = PydField(default_factory=utc_now)
+    metadata: Dict[str, Any] = PydField(default_factory=dict)
+    
+    model_config = ConfigDict(extra="allow")
+
 
 class FieldSnapshot(BaseModel):
+    """Snapshot of a field's state at a point in time.
+    
+    The interpretive state format is:
+        {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
+    
+    Attributes:
+        id: Unique identifier for this snapshot
+        status: Current status of the field
+        inference_list: List of inferences that led to the values
+        value_confidence_list: List of candidate values with confidence scores
+        timestamp: When this snapshot was created
+        updater: Who/what created this snapshot
+        meta_data: Additional snapshot metadata
+    """
     id: str
     status: FieldStatus
+    inference_list: List[Inference] = PydField(default_factory=list)
     value_confidence_list: List[ValueConfidence] = PydField(default_factory=list)
     timestamp: datetime.datetime = PydField(default_factory=utc_now)
     updater: Optional[Updater] = None

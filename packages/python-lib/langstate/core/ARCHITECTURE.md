@@ -2,7 +2,7 @@
 
 ## Overview
 
-LangState uses a dual-state architecture to separate interpretive data (with confidence) from canonical business state.
+LangState uses a dual-state architecture to separate interpretive data (with inference and confidence) from canonical business state.
 
 ## State Types
 
@@ -11,16 +11,16 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 - **Format**: `{key: value}`
 - **Purpose**: Business state for actions
 - **Source**: Created from schema by `schema_to_init_state()`
-- **Updated by**: Canonicalizer
+- **Updated by**: ProjectorCanonicalState
 - **Usage**: Final resolved values used for executing actions
 
 ### Interpretive State
 
-- **Format**: `{key: [{value, confidence}]}`
-- **Purpose**: Track multiple value possibilities with confidence scores
+- **Format**: `{key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}`
+- **Purpose**: Track reasoning process and multiple value possibilities with confidence scores
 - **Source**: Created from canonical state by `canonical_to_interpretive_state()`
-- **Updated by**: Perceiver
-- **Usage**: Accumulates user inputs and evolves through conversation
+- **Updated by**: Mutator
+- **Usage**: Accumulates user inputs, inferences, and evolves through conversation
 
 ## Data Flow
 
@@ -36,28 +36,31 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 └────┬─────────────┘
      │ canonical_to_interpretive_state()
      ▼
-┌──────────────────────┐
-│ Interpretive State   │ {key: [{value, confidence}]}
-│    (Initial)         │
-└──────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ Interpretive State                                       │
+│ {key: {inference: [{content, mutator_id}],              │
+│        values: [{value, confidence}]}}                   │
+└─────────────────────────────────────────────────────────┘
      │
-     │ User Input
+     │ User Input (AgentInput)
      ▼
 ┌──────────────┐
-│  Perceiver   │ Updates interpretive state
-└──────┬───────┘ Adds value-confidence pairs
+│   Mutator    │ Updates interpretive state
+└──────┬───────┘ Adds inferences and value-confidence pairs
        │
        ▼
-┌──────────────────────┐
-│ Interpretive State   │ {key: [{value, confidence}]}
-│    (Updated)         │
-└──────┬───────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ Interpretive State (Updated)                             │
+│ {key: {inference: [{content, mutator_id}],              │
+│        values: [{value, confidence}]}}                   │
+└──────┬──────────────────────────────────────────────────┘
        │
        ▼
-┌──────────────┐
-│Canonicalizer │ Receives interpretive state
-└──────┬───────┘ Validates, can trigger actions
-       │         Updates canonical state
+┌─────────────────────┐
+│ProjectorCanonical   │ Receives interpretive state
+│State                │ Validates, can trigger actions
+└──────┬──────────────┘ Updates canonical state
+       │
        ▼
 ┌──────────────────┐
 │ Canonical State  │ {key: value}
@@ -66,7 +69,7 @@ LangState uses a dual-state architecture to separate interpretive data (with con
        │
        ▼
 ┌──────────────┐
-│ Interpreter  │ Generates UI/prompts
+│ ProjectorUI  │ Generates UI/prompts
 └──────────────┘
 ```
 
@@ -86,18 +89,20 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 ### canonical_to_interpretive_state()
 
 - Converts Canonical State → Interpretive State
-- Creates {key: [{value, confidence}]} structure
+- Creates {key: {inference: [], values: [{value, confidence}]}} structure
 - Wraps default values with confidence 0.0
 - **Called only once** at initialization
 
-### Perceiver
+### Mutator (formerly Perceiver)
 
-- Receives user input (prompts, actions)
+- Receives user input (AgentInput: prompts, actions)
 - Extracts field values from input
-- **Updates interpretive state** by adding value-confidence pairs
+- **Updates interpretive state** by adding:
+  - Inferences (reasoning steps with mutator_id)
+  - Value-confidence pairs
 - Returns updated interpretive state
 
-### Canonicalizer
+### ProjectorCanonicalState (formerly Canonicalizer)
 
 - **Receives interpretive state** as input
 - Validates field values against constraints
@@ -106,7 +111,7 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 - **Can call action** when validation passes
 - **Updates and returns canonical state**
 
-### Interpreter
+### ProjectorUI (formerly Interpreter)
 
 - Generates UI components
 - Creates natural language prompts
@@ -116,21 +121,25 @@ LangState uses a dual-state architecture to separate interpretive data (with con
 ## Key Principles
 
 1. **Separation of Concerns**
-   - Interpretive state: Tracks uncertainty and evolution
+   - Interpretive state: Tracks uncertainty, reasoning, and evolution
    - Canonical state: Represents business logic and actions
 
 2. **Single Responsibility**
-   - Perceiver: Only updates interpretive state
-   - Canonicalizer: Validates and updates canonical state, triggers actions
+   - Mutator: Only updates interpretive state
+   - ProjectorCanonicalState: Validates and updates canonical state, triggers actions
 
 3. **One-Way Flow**
-   - User Input → Perceiver → Interpretive State → Canonicalizer → Canonical State → Interpreter
-   - Canonicalizer receives interpretive state, not perceiver output
+   - User Input → Mutator → Interpretive State → ProjectorCanonicalState → Canonical State → ProjectorUI
+   - ProjectorCanonicalState receives interpretive state, not mutator output directly
 
 4. **Action Triggering**
-   - Actions are triggered by Canonicalizer
+   - Actions are triggered by ProjectorCanonicalState
    - Only when validation passes
    - Based on canonical state completeness
+
+5. **Traceability**
+   - Inferences track reasoning process with mutator_id
+   - Enables explainability of how values were derived
 
 ## Example Implementation
 
@@ -139,9 +148,9 @@ class MyLangState(LangState):
     def __init__(self):
         super().__init__(
             schema_reader=OpenAPIYamlReader(),
-            perceiver=MyCustomPerceiver(),
-            canonicalizer=MyLLMCanonicalizer(),
-            interpreter=MyUIInterpreter()
+            mutator=MyCustomMutator(),
+            projector_canonical=MyLLMProjectorCanonical(),
+            projector_ui=MyUIProjector()
         )
 
     async def initialize(self, config: LangStateConfig) -> InteractionRequest:
@@ -152,42 +161,43 @@ class MyLangState(LangState):
         # 2. Create canonical state (key: value)
         self._canonical_state = schema_to_init_state(self._schema)
         
-        # 3. Create interpretive state (key: [{value, confidence}])
+        # 3. Create interpretive state
+        # Format: {key: {inference: [], values: [{value, confidence}]}}
         self._state = canonical_to_interpretive_state(self._canonical_state)
 
     async def invoke(
         self, 
         agent_input: Optional[AgentInput] = None
     ) -> Union[InteractionRequest, ActionResult]:
-        # 1. Perceiver updates interpretive state
-        perception = await self.perceiver.perceive(
-            PerceptionContext(
+        # 1. Mutator updates interpretive state
+        mutation = await self.mutator.mutate(
+            MutationContext(
                 agent_input=agent_input,  # Structured input
                 current_state=self._state,  # Interpretive state
                 schema=self._schema
             )
         )
-        self._state = perception.updated_state  # Updated interpretive state
+        self._state = mutation.updated_state  # Updated interpretive state
 
-        # 2. Canonicalizer validates and updates canonical state
-        canonicalization = await self.canonicalizer.canonicalize(
-            CanonicalizationContext(
+        # 2. ProjectorCanonicalState validates and updates canonical state
+        projection = await self.projector_canonical.project(
+            CanonicalProjectionContext(
                 interpretive_state=self._state,  # Pass interpretive state
                 canonical_state=self._canonical_state,
                 schema=self._schema
             )
         )
-        self._canonical_state = canonicalization.updated_state  # Updated canonical state
+        self._canonical_state = projection.updated_state  # Updated canonical state
         
         # 3. Check if actions were triggered
-        if canonicalization.actions_triggered:
+        if projection.actions_triggered:
             # Execute actions...
             pass
 
-        # 4. Interpreter generates UI
-        interpretation = await self.interpreter.interpret(
-            InterpretationContext(
-                current_state=self._state,  # Interpretive state
+        # 4. ProjectorUI generates UI
+        ui_projection = await self.projector_ui.project(
+            UIProjectionContext(
+                interpretive_state=self._state,  # Interpretive state
                 canonical_state=self._canonical_state,  # Canonical state
                 schema=self._schema
             )
@@ -202,6 +212,34 @@ class MyLangState(LangState):
 
         return await self._create_interaction_request()
 ```
+
+## Interpretive State Structure
+
+The interpretive state uses a rich structure to track both reasoning and values:
+
+```python
+{
+    "field_key": {
+        "inference": [
+            {
+                "content": "User said 'my name is John Doe'",
+                "mutator_id": "llm_mutator_v1",
+                "timestamp": "2026-01-18T10:30:00Z"
+            }
+        ],
+        "values": [
+            {"value": "John Doe", "confidence": 0.95},
+            {"value": "John", "confidence": 0.60}
+        ]
+    }
+}
+```
+
+This structure enables:
+- **Traceability**: Know how each value was derived
+- **Multi-value support**: Track multiple candidate values
+- **Confidence scoring**: Rank values by confidence
+- **Mutator attribution**: Track which component generated each inference
 
 ## AgentInput Structure
 
@@ -252,23 +290,3 @@ class JSONSchemaReader(BaseSchemaReader):
         # Custom JSON schema loading
         pass
 ```
-
-## Migration Notes
-
-### Key Changes from Previous Architecture
-
-1. **State Initialization**
-   - Before: `schema_to_init_state()` created interpretive state
-   - After: `schema_to_init_state()` creates canonical state, then `canonical_to_interpretive_state()` creates interpretive state
-
-2. **Perceiver Output**
-   - Before: Updated generic "state"
-   - After: Explicitly updates interpretive state with value-confidence pairs
-
-3. **Canonicalizer Input/Output**
-   - Before: Received and returned generic "state"
-   - After: Receives interpretive state, returns canonical state, can trigger actions
-
-4. **Action Triggering**
-   - Before: Separate mechanism
-   - After: Canonicalizer checks validation and can trigger actions

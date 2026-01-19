@@ -16,11 +16,26 @@ from .core import (
     FieldInstance,
     FieldSnapshot,
     ValueConfidence,
+    Inference,
     Schema,
-    # Core components
-    BasePerceiver,
-    BaseCanonicalizer,
-    BaseInterpreter,
+    # Mutator
+    BaseMutator,
+    MutationContext,
+    MutationResult,
+    # Base Projector
+    BaseProjector,
+    # UI Projector
+    BaseProjectorUI,
+    UIProjectionContext,
+    UIProjectionResult,
+    UIComponent,
+    UIComponentType,
+    # Canonical State Projector
+    BaseProjectorCanonicalState,
+    CanonicalProjectionContext,
+    CanonicalProjectionResult,
+    CanonicalProjectionStrategy,
+    # Action
     BaseAction,
     # Schema Reader
     BaseSchemaReader,
@@ -47,11 +62,26 @@ __all__ = [
     "FieldInstance",
     "FieldSnapshot",
     "ValueConfidence",
+    "Inference",
     "Schema",
-    # Core components
-    "BasePerceiver",
-    "BaseCanonicalizer",
-    "BaseInterpreter",
+    # Mutator
+    "BaseMutator",
+    "MutationContext",
+    "MutationResult",
+    # Base Projector
+    "BaseProjector",
+    # UI Projector
+    "BaseProjectorUI",
+    "UIProjectionContext",
+    "UIProjectionResult",
+    "UIComponent",
+    "UIComponentType",
+    # Canonical State Projector
+    "BaseProjectorCanonicalState",
+    "CanonicalProjectionContext",
+    "CanonicalProjectionResult",
+    "CanonicalProjectionStrategy",
+    # Action
     "BaseAction",
     # Schema Reader
     "BaseSchemaReader",

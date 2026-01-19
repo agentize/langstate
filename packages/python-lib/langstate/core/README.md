@@ -5,11 +5,12 @@
 ### Two State Types
 
 1. **Canonical State** - `{key: value}` - Business state for actions
-2. **Interpretive State** - `{key: [{value, confidence}]}` - Tracks uncertainty
+2. **Interpretive State** - `{key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}` - Tracks reasoning and uncertainty
 
 ### Agent-Style Interface
 
 LangState follows agent SDK conventions (similar to OpenAI Agents SDK):
+
 - Main method is `invoke()` instead of `process_input()`
 - Input is structured via `AgentInput` to support various interaction types
 - Schema readers implement `BaseSchemaReader` interface
@@ -19,21 +20,21 @@ LangState follows agent SDK conventions (similar to OpenAI Agents SDK):
 ```
 Schema → Canonical State → Interpretive State → [User Loop]
                                   ↓
-                            Perceiver (updates interpretive)
+                            Mutator (updates interpretive with inferences + values)
                                   ↓
-                            Canonicalizer (validates, triggers actions, updates canonical)
+                            ProjectorCanonicalState (validates, triggers actions, updates canonical)
                                   ↓
-                            Interpreter (generates UI)
+                            ProjectorUI (generates UI)
 ```
 
 ### Component Updates
 
+- **BaseMutator**: Updates interpretive state with inferences and value-confidence pairs
+- **BaseProjectorCanonicalState**: Receives interpretive state, validates, can trigger actions, returns canonical state
+- **BaseProjectorUI**: Generates UI components and prompts
 - **BaseSchemaReader**: Interface for schema loading (e.g., `OpenAPIYamlReader`)
 - **schema_to_init_state()**: Creates canonical state (not interpretive)
 - **canonical_to_interpretive_state()**: Converts canonical → interpretive (called once at init)
-- **Perceiver**: Updates interpretive state with value-confidence pairs
-- **Canonicalizer**: Receives interpretive state, validates, can trigger actions, returns canonical state
-- **Interpreter**: Works with both states
 
 ### Usage Example
 
@@ -41,23 +42,23 @@ Schema → Canonical State → Interpretive State → [User Loop]
 from langstate import (
     LangState, LangStateConfig, AgentInput,
     BaseSchemaReader, OpenAPIYamlReader,
-    BasePerceiver, BaseCanonicalizer, BaseInterpreter
+    BaseMutator, BaseProjectorCanonicalState, BaseProjectorUI
 )
 
 # Create LangState with components
 langstate = MyLangState(
     schema_reader=OpenAPIYamlReader(),
-    perceiver=MyCustomPerceiver(),
-    canonicalizer=MyLLMCanonicalizer(),
-    interpreter=MyUIInterpreter()
+    mutator=MyCustomMutator(),
+    projector_canonical=MyLLMProjectorCanonical(),
+    projector_ui=MyUIProjector()
 )
 
 # Or use setters
 langstate = MyLangState()
 langstate.set_schema_reader(OpenAPIYamlReader())
-langstate.set_perceiver(MyCustomPerceiver())
-langstate.set_canonicalizer(MyLLMCanonicalizer())
-langstate.set_interpreter(MyUIInterpreter())
+langstate.set_mutator(MyCustomMutator())
+langstate.set_projector_canonical(MyLLMProjectorCanonical())
+langstate.set_projector_ui(MyUIProjector())
 
 # Initialize
 await langstate.initialize(LangStateConfig(schema_source="./schema.yaml"))
@@ -100,6 +101,21 @@ AgentInput(
     action_data={"form_id": "registration"},
     metadata={"source": "mobile_app"}
 )
+```
+
+### Interpretive State Structure
+
+```python
+{
+    "field_key": {
+        "inference": [
+            {"content": "User said 'my name is John'", "mutator_id": "llm_mutator"}
+        ],
+        "values": [
+            {"value": "John", "confidence": 0.95}
+        ]
+    }
+}
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for full details.

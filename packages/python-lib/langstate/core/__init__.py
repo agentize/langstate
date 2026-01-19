@@ -5,9 +5,10 @@ This module contains the core interfaces and abstractions for the LangState syst
 - LangState: Main orchestrator class (agent-style interface)
 - BaseSchemaReader: Interface for schema readers
 - AgentInput: Structured input for agent invocation
-- Perceiver: Processes user input and updates state
-- Canonicalizer: Resolves state values with constraints
-- Interpreter: Generates UI components and LLM completions
+- Mutator: Processes user input and updates interpretive state
+- Projector: Base interface for state projection
+  - ProjectorUI: Projects state to UI components and prompts
+  - ProjectorCanonicalState: Projects interpretive state to canonical state
 - Action: Executes business logic when state is complete
 - State: Graph-based state representation with Field instances
 """
@@ -17,21 +18,32 @@ from ..models.field import (
     FieldInstance,
     FieldSnapshot,
     ValueConfidence,
+    Inference,
     Schema,
 )
-from .perceiver import BasePerceiver, PerceptionContext, PerceptionResult
-from .canonicalizer import (
-    BaseCanonicalizer,
-    CanonicalizationContext,
-    CanonicalizationResult,
-    CanonicalizationStrategy,
+from .mutator import (
+    BaseMutator,
+    MutationContext,
+    MutationResult,
+
 )
-from .interpreter import (
-    BaseInterpreter,
-    InterpretationContext,
-    InterpretationResult,
+from .projector import (
+    # Base projector
+    BaseProjector,
+    ProjectionContext,
+    ProjectionResult,
+    # UI Projector
+    BaseProjectorUI,
+    UIProjectionContext,
+    UIProjectionResult,
     UIComponent,
     UIComponentType,
+    # Canonical State Projector
+    BaseProjectorCanonicalState,
+    CanonicalProjectionContext,
+    CanonicalProjectionResult,
+    CanonicalProjectionStrategy,
+   
 )
 from .action import (
     BaseAction,
@@ -56,22 +68,29 @@ __all__ = [
     "FieldInstance",
     "FieldSnapshot",
     "ValueConfidence",
+    "Inference",
     "Schema",
-    # Perceiver
-    "BasePerceiver",
-    "PerceptionContext",
-    "PerceptionResult",
-    # Canonicalizer
-    "BaseCanonicalizer",
-    "CanonicalizationContext",
-    "CanonicalizationResult",
-    "CanonicalizationStrategy",
-    # Interpreter
-    "BaseInterpreter",
-    "InterpretationContext",
-    "InterpretationResult",
+    # Mutator
+    "BaseMutator",
+    "MutationContext",
+    "MutationResult",
+    # Base Projector
+    "BaseProjector",
+    "ProjectionContext",
+    "ProjectionResult",
+    # UI Projector
+    "BaseProjectorUI",
+    "UIProjectionContext",
+    "UIProjectionResult",
     "UIComponent",
     "UIComponentType",
+    
+    # Canonical State Projector
+    "BaseProjectorCanonicalState",
+    "CanonicalProjectionContext",
+    "CanonicalProjectionResult",
+    "CanonicalProjectionStrategy",
+   
     # Action
     "BaseAction",
     "ActionContext",

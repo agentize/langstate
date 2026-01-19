@@ -2,11 +2,14 @@
 
 LangState is the main entry point for developers. It coordinates:
 - Schema reading and initialization
-- Creation of canonical state (key: value) and interpretive state (key: [{value, confidence}])
-- User input processing via Perceiver (updates interpretive state)
-- Validation and canonicalization via Canonicalizer (receives interpretive state,
+- Creation of canonical state (key: value) and interpretive state
+- User input processing via Mutator (updates interpretive state)
+- Validation and projection via ProjectorCanonicalState (receives interpretive state,
   validates, can trigger actions, updates canonical state)
-- UI/response generation via Interpreter
+- UI/response generation via ProjectorUI
+
+Interpretive State Format:
+    {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
 
 This module follows agent SDK conventions (similar to OpenAI Agents SDK):
 - LangState acts as an agent that can be invoked with structured input
@@ -23,13 +26,15 @@ from pathlib import Path
 from pydantic import BaseModel, Field as PydField, ConfigDict
 
 from ..models.field import State, FieldInstance, Schema
-from .perceiver import BasePerceiver, PerceptionContext, PerceptionResult
-from .canonicalizer import (
-    BaseCanonicalizer,
-    CanonicalizationContext,
-    CanonicalizationResult,
+from .mutator import BaseMutator, MutationContext, MutationResult
+from .projector import (
+    BaseProjectorCanonicalState,
+    CanonicalProjectionContext,
+    CanonicalProjectionResult,
+    BaseProjectorUI,
+    UIProjectionContext,
+    UIProjectionResult,
 )
-from .interpreter import BaseInterpreter, InterpretationContext, InterpretationResult
 
 
 # =============================================================================
@@ -341,8 +346,11 @@ class LangState(ABC):
     It acts as an agent that can be invoked with structured input, following
     conventions similar to OpenAI Agents SDK.
 
-    It coordinates all components (Perceiver, Canonicalizer, Interpreter)
+    It coordinates all components (Mutator, ProjectorCanonicalState, ProjectorUI)
     and manages the conversation flow.
+
+    Interpretive State Format:
+        {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
 
     The flow is:
     1. Developer creates LangState instance with optional components
@@ -365,14 +373,15 @@ class LangState(ABC):
                 )
 
                 # Initialize components
-                await self.perceiver.initialize(self._schema)
-                await self.canonicalizer.initialize(self._schema)
-                await self.interpreter.initialize(self._schema)
+                await self.mutator.initialize(self._schema)
+                await self.projector_canonical.initialize(self._schema)
+                await self.projector_ui.initialize(self._schema)
 
                 # Create initial canonical state from schema (key: value)
                 self._canonical_state = schema_to_init_state(self._schema)
 
-                # Create interpretive state from canonical state (key: [{value, confidence}])
+                # Create interpretive state from canonical state
+                # Format: {key: {inference: [], values: [{value, confidence}]}}
                 self._state = canonical_to_interpretive_state(self._canonical_state)
 
             async def invoke(
@@ -383,16 +392,17 @@ class LangState(ABC):
                 if agent_input is None or agent_input.is_empty():
                     return await self._create_interaction_request()
 
-                # Run perceiver to update interpretive state (adds value-confidence pairs)
-                perception = await self.perceiver.perceive(...)
-                self._state = perception.updated_state
+                # Run mutator to update interpretive state
+                # Adds inference and value-confidence pairs
+                mutation = await self.mutator.mutate(...)
+                self._state = mutation.updated_state
 
-                # Run canonicalizer to resolve values and update canonical state
-                canonicalization = await self.canonicalizer.canonicalize(...)
-                self._canonical_state = canonicalization.updated_state
+                # Run canonical state projector to resolve values
+                projection = await self.projector_canonical.project(...)
+                self._canonical_state = projection.updated_state
 
-                # Run interpreter to generate UI/prompts
-                interpretation = await self.interpreter.interpret(...)
+                # Run UI projector to generate prompts/components
+                ui_projection = await self.projector_ui.project(...)
 
                 # Check if complete
                 if self._is_state_complete(self._canonical_state):
@@ -406,9 +416,9 @@ class LangState(ABC):
 
     Constructor Parameters:
         schema_reader: Optional BaseSchemaReader for loading schemas
-        perceiver: Optional BasePerceiver for input perception
-        canonicalizer: Optional BaseCanonicalizer for value validation
-        interpreter: Optional BaseInterpreter for UI/response generation
+        mutator: Optional BaseMutator for input processing (formerly Perceiver)
+        projector_canonical: Optional BaseProjectorCanonicalState for validation (formerly Canonicalizer)
+        projector_ui: Optional BaseProjectorUI for UI generation (formerly Interpreter)
 
     Customization:
         Developers can customize behavior by:
@@ -419,17 +429,17 @@ class LangState(ABC):
         # Setup with constructor parameters
         langstate = MyLangState(
             schema_reader=OpenAPIYamlReader(),
-            perceiver=MyCustomPerceiver(),
-            canonicalizer=MyLLMCanonicalizer(),
-            interpreter=MyUIInterpreter()
+            mutator=MyCustomMutator(),
+            projector_canonical=MyLLMProjectorCanonical(),
+            projector_ui=MyUIProjector()
         )
         
         # Or use setters
         langstate = MyLangState()
         langstate.set_schema_reader(OpenAPIYamlReader())
-        langstate.set_perceiver(MyCustomPerceiver())
-        langstate.set_canonicalizer(MyLLMCanonicalizer())
-        langstate.set_interpreter(MyUIInterpreter())
+        langstate.set_mutator(MyCustomMutator())
+        langstate.set_projector_canonical(MyLLMProjectorCanonical())
+        langstate.set_projector_ui(MyUIProjector())
         
         # Initialize (loads schema, creates states)
         await langstate.initialize(LangStateConfig(schema_source="./schema.yaml"))
@@ -450,22 +460,22 @@ class LangState(ABC):
     def __init__(
         self,
         schema_reader: Optional[BaseSchemaReader] = None,
-        perceiver: Optional[BasePerceiver] = None,
-        canonicalizer: Optional[BaseCanonicalizer] = None,
-        interpreter: Optional[BaseInterpreter] = None,
+        mutator: Optional[BaseMutator] = None,
+        projector_canonical: Optional[BaseProjectorCanonicalState] = None,
+        projector_ui: Optional[BaseProjectorUI] = None,
     ) -> None:
         """Initialize LangState with optional components.
 
         Args:
             schema_reader: Schema reader for loading schema definitions
-            perceiver: Perceiver for processing user input
-            canonicalizer: Canonicalizer for validating and resolving values
-            interpreter: Interpreter for generating UI/responses
+            mutator: Mutator for processing user input (formerly Perceiver)
+            projector_canonical: Canonical state projector for validation (formerly Canonicalizer)
+            projector_ui: UI projector for generating prompts/components (formerly Interpreter)
         """
         self._schema_reader = schema_reader
-        self._perceiver = perceiver
-        self._canonicalizer = canonicalizer
-        self._interpreter = interpreter
+        self._mutator = mutator
+        self._projector_canonical = projector_canonical
+        self._projector_ui = projector_ui
         self._schema: Optional[Schema] = None
 
     @abstractmethod
@@ -543,29 +553,29 @@ class LangState(ABC):
         pass
 
     @abstractmethod
-    def set_perceiver(self, perceiver: BasePerceiver) -> None:
-        """Set a custom Perceiver implementation.
+    def set_mutator(self, mutator: BaseMutator) -> None:
+        """Set a custom Mutator implementation.
 
         Args:
-            perceiver: Custom Perceiver instance
+            mutator: Custom Mutator instance
         """
         pass
 
     @abstractmethod
-    def set_canonicalizer(self, canonicalizer: BaseCanonicalizer) -> None:
-        """Set a custom Canonicalizer implementation.
+    def set_projector_canonical(self, projector: BaseProjectorCanonicalState) -> None:
+        """Set a custom Canonical State Projector implementation.
 
         Args:
-            canonicalizer: Custom Canonicalizer instance
+            projector: Custom ProjectorCanonicalState instance
         """
         pass
 
     @abstractmethod
-    def set_interpreter(self, interpreter: BaseInterpreter) -> None:
-        """Set a custom Interpreter implementation.
+    def set_projector_ui(self, projector: BaseProjectorUI) -> None:
+        """Set a custom UI Projector implementation.
 
         Args:
-            interpreter: Custom Interpreter instance
+            projector: Custom ProjectorUI instance
         """
         pass
 
@@ -604,19 +614,19 @@ class LangState(ABC):
         return self._schema_reader
 
     @property
-    def perceiver(self) -> Optional[BasePerceiver]:
-        """Get the current perceiver."""
-        return self._perceiver
+    def mutator(self) -> Optional[BaseMutator]:
+        """Get the current mutator."""
+        return self._mutator
 
     @property
-    def canonicalizer(self) -> Optional[BaseCanonicalizer]:
-        """Get the current canonicalizer."""
-        return self._canonicalizer
+    def projector_canonical(self) -> Optional[BaseProjectorCanonicalState]:
+        """Get the current canonical state projector."""
+        return self._projector_canonical
 
     @property
-    def interpreter(self) -> Optional[BaseInterpreter]:
-        """Get the current interpreter."""
-        return self._interpreter
+    def projector_ui(self) -> Optional[BaseProjectorUI]:
+        """Get the current UI projector."""
+        return self._projector_ui
 
     @property
     def schema(self) -> Optional[Schema]:
