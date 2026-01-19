@@ -296,7 +296,7 @@ class InteractionRequest(BaseModel):
     pending_fields: List[str] = PydField(default_factory=list)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
 class ActionResult(BaseModel):
@@ -316,7 +316,7 @@ class ActionResult(BaseModel):
     action_data: Dict[str, Any] = PydField(default_factory=dict)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
 class LangStateConfig(BaseModel):
@@ -375,7 +375,10 @@ class LangState(ABC):
                 # Initialize components
                 await self.mutator.initialize(self._schema)
                 await self.projector_canonical.initialize(self._schema)
-                await self.projector_ui.initialize(self._schema)
+
+                # Initialize all UI projectors
+                for projector in self._projectors_ui:
+                    await projector.initialize(self._schema)
 
                 # Create initial canonical state from schema (key: value)
                 self._canonical_state = schema_to_init_state(self._schema)
@@ -401,8 +404,11 @@ class LangState(ABC):
                 projection = await self.projector_canonical.project(...)
                 self._canonical_state = projection.updated_state
 
-                # Run UI projector to generate prompts/components
-                ui_projection = await self.projector_ui.project(...)
+                # Run all UI projectors to generate prompts/components
+                ui_projections = []
+                for projector in self._projectors_ui:
+                    ui_projection = await projector.project(...)
+                    ui_projections.append(ui_projection)
 
                 # Check if complete
                 if self._is_state_complete(self._canonical_state):
@@ -418,7 +424,7 @@ class LangState(ABC):
         schema_reader: Optional BaseSchemaReader for loading schemas
         mutator: Optional BaseMutator for input processing
         projector_canonical: Optional BaseProjectorCanonicalState for validation
-        projector_ui: Optional BaseProjectorUI for UI generation
+        projectors_ui: Optional BaseProjectorUI or List[BaseProjectorUI] for UI generation
 
     Customization:
         Developers can customize behavior by:
@@ -426,12 +432,20 @@ class LangState(ABC):
         - Configuring via LangStateConfig
         - Overriding methods in subclasses
 
-        # Setup with constructor parameters
+        # Setup with constructor parameters (single projector)
         langstate = MyLangState(
             schema_reader=OpenAPIYamlReader(),
             mutator=MyCustomMutator(),
             projector_canonical=MyLLMProjectorCanonical(),
-            projector_ui=MyUIProjector()
+            projectors_ui=MyUIProjector()
+        )
+
+        # Setup with multiple projectors
+        langstate = MyLangState(
+            schema_reader=OpenAPIYamlReader(),
+            mutator=MyCustomMutator(),
+            projector_canonical=MyLLMProjectorCanonical(),
+            projectors_ui=[MyUIProjector(), MyUIInterpreterA()]
         )
 
         # Or use setters
@@ -440,6 +454,10 @@ class LangState(ABC):
         langstate.set_mutator(MyCustomMutator())
         langstate.set_projector_canonical(MyLLMProjectorCanonical())
         langstate.set_projector_ui(MyUIProjector())
+
+        # Or add projectors one by one
+        langstate.add_projector_ui(MyUIInterpreterA())
+        langstate.add_projector_ui(MyUIInterpreterB())
 
         # Initialize (loads schema, creates states)
         await langstate.initialize(LangStateConfig(schema_source="./schema.yaml"))
@@ -462,7 +480,7 @@ class LangState(ABC):
         schema_reader: Optional[BaseSchemaReader] = None,
         mutator: Optional[BaseMutator] = None,
         projector_canonical: Optional[BaseProjectorCanonicalState] = None,
-        projector_ui: Optional[BaseProjectorUI] = None,
+        projectors_ui: Optional[Union[BaseProjectorUI, List[BaseProjectorUI]]] = None,
     ) -> None:
         """Initialize LangState with optional components.
 
@@ -470,12 +488,21 @@ class LangState(ABC):
             schema_reader: Schema reader for loading schema definitions
             mutator: Mutator for processing user input
             projector_canonical: Canonical state projector for validation
-            projector_ui: UI projector for generating prompts/components
+            projectors_ui: UI projector(s) for generating prompts/components.
+                          Can be a single projector or a list of projectors.
         """
         self._schema_reader = schema_reader
         self._mutator = mutator
         self._projector_canonical = projector_canonical
-        self._projector_ui = projector_ui
+
+        # Convert single projector to list
+        if projectors_ui is None:
+            self._projectors_ui: List[BaseProjectorUI] = []
+        elif isinstance(projectors_ui, list):
+            self._projectors_ui = projectors_ui
+        else:
+            self._projectors_ui = [projectors_ui]
+
         self._schema: Optional[Schema] = None
 
     @abstractmethod
@@ -571,11 +598,22 @@ class LangState(ABC):
         pass
 
     @abstractmethod
-    def set_projector_ui(self, projector: BaseProjectorUI) -> None:
-        """Set a custom UI Projector implementation.
+    def set_projector_ui(
+        self, projector: Union[BaseProjectorUI, List[BaseProjectorUI]]
+    ) -> None:
+        """Set UI Projector implementation(s), replacing existing projectors.
 
         Args:
-            projector: Custom ProjectorUI instance
+            projector: Custom ProjectorUI instance or list of instances
+        """
+        pass
+
+    @abstractmethod
+    def add_projector_ui(self, projector: BaseProjectorUI) -> None:
+        """Add a UI Projector to the list of projectors.
+
+        Args:
+            projector: Custom ProjectorUI instance to add
         """
         pass
 
@@ -624,9 +662,9 @@ class LangState(ABC):
         return self._projector_canonical
 
     @property
-    def projector_ui(self) -> Optional[BaseProjectorUI]:
-        """Get the current UI projector."""
-        return self._projector_ui
+    def projectors_ui(self) -> List[BaseProjectorUI]:
+        """Get the list of current UI projectors."""
+        return self._projectors_ui
 
     @property
     def schema(self) -> Optional[Schema]:

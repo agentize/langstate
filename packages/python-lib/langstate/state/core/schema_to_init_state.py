@@ -1,20 +1,20 @@
 """Schema -> initial Canonical State conversion.
 
-This module exposes a single helper `schema_to_init_state` which builds a
-canonical `State` (of FieldInstance/ConstraintInstance) from a `Schema` (of
-Field/Constraint), preserving the graph topology.
+This module exposes helpers for creating both Canonical State and Interpretive State:
+
+- `schema_to_init_state`: Builds a Canonical State from a Schema
+- `canonical_to_interpretive_state`: Builds an Interpretive State from Canonical State
 
 The canonical state is {key: value} format - simple resolved values without
 confidence information. This serves as the business state for actions.
 
+The interpretive state is {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
+format - tracks reasoning and uncertainty. Used during conversation.
+
 Rules implemented:
 - Preserve nodes and edges (same ids and direction) from Schema to State.
-- For each Field node: create FieldInstance with default_value if provided,
-  stored simply without value-confidence pairs (canonical format).
-- For each edge: create a ConstraintInstance. If the Schema edge carries a
-  Constraint (metadata), attach it to the instance and create a single
-  ConstraintSnapshot with confidence 0.0. For structural edges (metadata=None),
-  the instance is created with empty constraints/snapshots.
+- For each Field node: create FieldInstance with default_value if provided.
+- For each edge: create a ConstraintInstance.
 """
 
 from __future__ import annotations
@@ -114,14 +114,142 @@ def schema_to_init_state(schema: Schema) -> State:
         state.add_node(node_id, value=inst)
 
     # 2) Add edges with ConstraintInstance metadata, preserving direction
-    for prereq_id, dep_id, constraint in schema.iter_edges():
-        edge_id = f"{prereq_id}=>{dep_id}"
-        ci = _mk_constraint_instance(edge_id, constraint)
-        state.add_edge(prereq_id=prereq_id, dep_id=dep_id, metadata=ci)
+    # iter_hyperedges yields (source_ids: Set[str], target_id: str, metadata, edge_id)
+    for source_ids, dep_id, constraint, edge_id in schema.iter_hyperedges():
+        for prereq_id in source_ids:
+            ci = _mk_constraint_instance(f"{prereq_id}=>{dep_id}", constraint)
+            state.add_edge(prereq_id=prereq_id, dep_id=dep_id, metadata=ci)
 
     # Validate acyclic and return
     state.validate_acyclic()
     return state
 
 
-__all__ = ["schema_to_init_state"]
+def _mk_interpretive_field_instance(
+    canonical_instance: FieldInstance,
+) -> FieldInstance:
+    """Create an Interpretive FieldInstance from a Canonical FieldInstance.
+
+    For interpretive state, we convert canonical values to value-confidence pairs.
+    If the canonical instance has a default value, we wrap it with confidence 0.0.
+
+    Interpretive state format for each field:
+        {inference: [{content, mutator_id}], values: [{value, confidence}]}
+    """
+    snapshots: List[FieldSnapshot] = []
+
+    # Check if canonical instance has snapshots with values
+    if canonical_instance.snapshots:
+        for snap in canonical_instance.snapshots:
+            # If there's a default value in the field property, wrap it with confidence
+            if canonical_instance.property.default_value is not None:
+                value_confidence_list = [
+                    ValueConfidence(
+                        value=canonical_instance.property.default_value,
+                        confidence=0.0,  # Default values start with 0 confidence
+                    )
+                ]
+            else:
+                value_confidence_list = []
+
+            snapshots.append(
+                FieldSnapshot(
+                    id=f"{canonical_instance.id}#interpretive",
+                    status=FieldStatusEnum.UNTOUCHED,
+                    inference_list=[],  # No inferences yet
+                    value_confidence_list=value_confidence_list,
+                )
+            )
+    elif canonical_instance.property.default_value is not None:
+        # No snapshots but has default value - create initial snapshot
+        snapshots.append(
+            FieldSnapshot(
+                id=f"{canonical_instance.id}#interpretive",
+                status=FieldStatusEnum.UNTOUCHED,
+                inference_list=[],
+                value_confidence_list=[
+                    ValueConfidence(
+                        value=canonical_instance.property.default_value,
+                        confidence=0.0,
+                    )
+                ],
+            )
+        )
+    else:
+        # No default value - create empty snapshot ready for mutations
+        snapshots.append(
+            FieldSnapshot(
+                id=f"{canonical_instance.id}#interpretive",
+                status=FieldStatusEnum.UNTOUCHED,
+                inference_list=[],
+                value_confidence_list=[],
+            )
+        )
+
+    return FieldInstance(
+        id=canonical_instance.id,
+        property=canonical_instance.property,
+        snapshots=snapshots,
+    )
+
+
+def canonical_to_interpretive_state(canonical_state: State) -> State:
+    """Convert a Canonical State DAG into an Interpretive State DAG.
+
+    The interpretive state format is:
+        {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
+
+    This function transforms the canonical state (simple key:value) into
+    interpretive state with inference tracking and value-confidence pairs.
+
+    This is called once at initialization to prepare the state for
+    receiving user input through the Mutator.
+
+    Parameters
+    ----------
+    canonical_state : State
+        The canonical state DAG with simple key:value format.
+
+    Returns
+    -------
+    State
+        A new Interpretive State DAG where:
+        - Nodes are FieldInstance with inference_list and value_confidence_list
+        - Default values are wrapped with confidence 0.0
+        - Inference lists are empty (ready to be populated by Mutator)
+        - Edges are preserved from canonical state
+    """
+    interpretive_state = State()
+
+    # 1) Convert nodes: wrap canonical values with confidence
+    for node_id, node in canonical_state.nodes.items():
+        canonical_instance = node.value
+        if canonical_instance is None:
+            raise ValueError(
+                f"Canonical state node '{node_id}' has no FieldInstance value"
+            )
+
+        interpretive_instance = _mk_interpretive_field_instance(canonical_instance)
+        interpretive_state.add_node(node_id, value=interpretive_instance)
+
+    # 2) Preserve edges from canonical state
+    # iter_hyperedges yields (source_ids: Set[str], target_id: str, metadata, edge_id)
+    for (
+        source_ids,
+        dep_id,
+        constraint_instance,
+        edge_id,
+    ) in canonical_state.iter_hyperedges():
+        for prereq_id in source_ids:
+            interpretive_state.add_edge(
+                prereq_id=prereq_id,
+                dep_id=dep_id,
+                metadata=constraint_instance,
+            )
+
+    # Validate acyclic and return
+    interpretive_state.validate_acyclic()
+    return interpretive_state
+
+
+__all__ = ["schema_to_init_state", "canonical_to_interpretive_state"]

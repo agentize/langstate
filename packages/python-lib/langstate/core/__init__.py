@@ -10,7 +10,8 @@ This module contains the core interfaces and abstractions for the LangState syst
   - ProjectorUI: Projects state to UI components and prompts
   - ProjectorCanonicalState: Projects interpretive state to canonical state
 - Action: Executes business logic when state is complete
-- State: Graph-based state representation with Field instances
+
+Models are imported from langstate.models package.
 """
 
 from ..models.field import (
@@ -20,6 +21,10 @@ from ..models.field import (
     ValueConfidence,
     Inference,
     Schema,
+)
+from ..models.ui import (
+    UIComponent,
+    UIComponentType,
 )
 from .mutator import (
     BaseMutator,
@@ -35,8 +40,6 @@ from .projector import (
     BaseProjectorUI,
     UIProjectionContext,
     UIProjectionResult,
-    UIComponent,
-    UIComponentType,
     # Canonical State Projector
     BaseProjectorCanonicalState,
     CanonicalProjectionContext,
@@ -61,13 +64,16 @@ from .langstate import (
 )
 
 __all__ = [
-    # State - Graph-based representation
+    # State models (from models package)
     "State",
     "FieldInstance",
     "FieldSnapshot",
     "ValueConfidence",
     "Inference",
     "Schema",
+    # UI models (from models package)
+    "UIComponent",
+    "UIComponentType",
     # Mutator
     "BaseMutator",
     "MutationContext",
@@ -80,8 +86,6 @@ __all__ = [
     "BaseProjectorUI",
     "UIProjectionContext",
     "UIProjectionResult",
-    "UIComponent",
-    "UIComponentType",
     # Canonical State Projector
     "BaseProjectorCanonicalState",
     "CanonicalProjectionContext",

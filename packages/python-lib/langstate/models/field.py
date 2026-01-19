@@ -19,13 +19,13 @@ from ..data_structure.dah import (
 from .constraints import Constraint
 
 
-def utc_now() -> datetime:
+def utc_now() -> datetime.datetime:
     """Return current datetime in UTC timezone.
 
     Returns:
         datetime: Current datetime with UTC timezone information attached.
     """
-    return datetime.now(datetime.timezone.utc)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 class Field(BaseModel):

@@ -45,12 +45,20 @@ from langstate import (
     BaseMutator, BaseProjectorCanonicalState, BaseProjectorUI
 )
 
-# Create LangState with components
+# Create LangState with components (single UI projector)
 langstate = MyLangState(
     schema_reader=OpenAPIYamlReader(),
     mutator=MyCustomMutator(),
     projector_canonical=MyLLMProjectorCanonical(),
-    projector_ui=MyUIProjector()
+    projectors_ui=MyUIProjector()
+)
+
+# Create LangState with multiple UI projectors
+langstate = MyLangState(
+    schema_reader=OpenAPIYamlReader(),
+    mutator=MyCustomMutator(),
+    projector_canonical=MyLLMProjectorCanonical(),
+    projectors_ui=[MyUIProjector(), MyUIProjectorA(), MyUIProjectorB()]
 )
 
 # Or use setters
@@ -58,7 +66,11 @@ langstate = MyLangState()
 langstate.set_schema_reader(OpenAPIYamlReader())
 langstate.set_mutator(MyCustomMutator())
 langstate.set_projector_canonical(MyLLMProjectorCanonical())
-langstate.set_projector_ui(MyUIProjector())
+langstate.set_projector_ui(MyUIProjector())  # Replaces all projectors
+
+# Or add projectors one by one
+langstate.add_projector_ui(MyUIProjectorA())
+langstate.add_projector_ui(MyUIProjectorB())
 
 # Initialize
 await langstate.initialize(LangStateConfig(schema_source="./schema.yaml"))

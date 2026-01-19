@@ -32,11 +32,17 @@ from .constraints import (
 from .field import (
     Field,
     ValueConfidence,
+    Inference,
     FieldSnapshot,
     FieldInstance,
     ConstraintInstance,
     Schema,
     State,
+)
+
+from .ui import (
+    UIComponentType,
+    UIComponent,
 )
 
 __all__ = [
@@ -62,12 +68,20 @@ __all__ = [
     "PromptCondition",
     "ConstraintCondition",
     "Constraint",
+    "Range",
+    "Pattern",
+    "Similarity",
+    "Prompt",
     # field
     "Field",
     "ValueConfidence",
+    "Inference",
     "FieldSnapshot",
     "FieldInstance",
     "ConstraintInstance",
     "Schema",
     "State",
+    # ui
+    "UIComponentType",
+    "UIComponent",
 ]

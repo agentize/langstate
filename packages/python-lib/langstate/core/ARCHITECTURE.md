@@ -4,6 +4,28 @@
 
 LangState uses a dual-state architecture to separate interpretive data (with inference and confidence) from canonical business state.
 
+## Module Structure
+
+```
+langstate/
+├── core/                    # Interfaces and orchestrator
+│   ├── action.py           # BaseAction interface
+│   ├── langstate.py        # LangState orchestrator, BaseSchemaReader
+│   ├── mutator.py          # BaseMutator interface
+│   └── projector.py        # BaseProjector, ProjectorUI (supports multiple), ProjectorCanonicalState
+├── models/                  # Data models (Pydantic)
+│   ├── basic.py            # Basic types (FieldStatus, ValueType, etc.)
+│   ├── constraints.py      # Constraint models
+│   ├── field.py            # Field, FieldInstance, Schema, State
+│   └── ui.py               # UIComponent, UIComponentType
+├── state/                   # State management and readers
+│   ├── core/
+│   │   └── schema_to_init_state.py  # schema_to_init_state, canonical_to_interpretive_state
+│   └── readers/
+│       └── yaml.py         # OpenAPIYamlReader implementation
+└── data_structure/          # Graph structures (DAG, DAH)
+```
+
 ## State Types
 
 ### Canonical State
@@ -68,9 +90,10 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 └──────┬───────────┘
        │
        ▼
-┌──────────────┐
-│ ProjectorUI  │ Generates UI/prompts
-└──────────────┘
+┌─────────────────────┐
+│ ProjectorsUI        │ Generates UI/prompts
+│ (Multiple allowed)  │ All projectors are invoked
+└─────────────────────┘
 ```
 
 ## Component Responsibilities
@@ -79,15 +102,18 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 
 - Read schema definitions (YAML, JSON, OpenAPI)
 - Convert to internal Schema DAG
+- Implementation: `OpenAPIYamlReader` in `langstate.state.readers`
 
 ### schema_to_init_state()
 
+- Location: `langstate.state.core.schema_to_init_state`
 - Converts Schema → Canonical State
 - Creates {key: value} structure
 - Applies default values from schema
 
 ### canonical_to_interpretive_state()
 
+- Location: `langstate.state.core.schema_to_init_state`
 - Converts Canonical State → Interpretive State
 - Creates {key: {inference: [], values: [{value, confidence}]}} structure
 - Wraps default values with confidence 0.0
@@ -111,12 +137,16 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 - **Can call action** when validation passes
 - **Updates and returns canonical state**
 
-### ProjectorUI
+### ProjectorsUI (Multiple Allowed)
 
 - Generates UI components
 - Creates natural language prompts
 - Determines next fields to focus on
 - Works with both states for context
+- **Multiple projectors can be registered** to handle different UI interpretations
+- All projectors are invoked and their results can be combined
+- Use `set_projector_ui()` to replace all projectors
+- Use `add_projector_ui()` to add projectors to the list
 
 ## Key Principles
 
@@ -129,8 +159,9 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
    - ProjectorCanonicalState: Validates and updates canonical state, triggers actions
 
 3. **One-Way Flow**
-   - User Input → Mutator → Interpretive State → ProjectorCanonicalState → Canonical State → ProjectorUI
+   - User Input → Mutator → Interpretive State → ProjectorCanonicalState → Canonical State → ProjectorsUI
    - ProjectorCanonicalState receives interpretive state, not mutator output directly
+   - Multiple UI projectors can be invoked in sequence
 
 4. **Action Triggering**
    - Actions are triggered by ProjectorCanonicalState
@@ -146,27 +177,36 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 ```python
 class MyLangState(LangState):
     def __init__(self):
+        # Single UI projector
         super().__init__(
             schema_reader=OpenAPIYamlReader(),
             mutator=MyCustomMutator(),
             projector_canonical=MyLLMProjectorCanonical(),
-            projector_ui=MyUIProjector()
+            projectors_ui=MyUIProjector()
+        )
+        
+        # Or with multiple UI projectors
+        super().__init__(
+            schema_reader=OpenAPIYamlReader(),
+            mutator=MyCustomMutator(),
+            projector_canonical=MyLLMProjectorCanonical(),
+            projectors_ui=[MyUIProjector(), MyUIProjectorA()]
         )
 
     async def initialize(self, config: LangStateConfig) -> InteractionRequest:
         # 1. Load schema using configured reader
         if self._schema_reader and config.schema_source:
             self._schema = self._schema_reader.read(config.schema_source)
-        
+
         # 2. Create canonical state (key: value)
         self._canonical_state = schema_to_init_state(self._schema)
-        
+
         # 3. Create interpretive state
         # Format: {key: {inference: [], values: [{value, confidence}]}}
         self._state = canonical_to_interpretive_state(self._canonical_state)
 
     async def invoke(
-        self, 
+        self,
         agent_input: Optional[AgentInput] = None
     ) -> Union[InteractionRequest, ActionResult]:
         # 1. Mutator updates interpretive state
@@ -188,20 +228,23 @@ class MyLangState(LangState):
             )
         )
         self._canonical_state = projection.updated_state  # Updated canonical state
-        
+
         # 3. Check if actions were triggered
         if projection.actions_triggered:
             # Execute actions...
             pass
 
-        # 4. ProjectorUI generates UI
-        ui_projection = await self.projector_ui.project(
-            UIProjectionContext(
-                interpretive_state=self._state,  # Interpretive state
-                canonical_state=self._canonical_state,  # Canonical state
-                schema=self._schema
+        # 4. ProjectorsUI generate UI (iterate over all projectors)
+        ui_projections = []
+        for projector in self._projectors_ui:
+            ui_projection = await projector.project(
+                UIProjectionContext(
+                    interpretive_state=self._state,  # Interpretive state
+                    canonical_state=self._canonical_state,  # Canonical state
+                    schema=self._schema
+                )
             )
-        )
+            ui_projections.append(ui_projection)
 
         # 5. Check if complete
         if self._is_state_complete(self._canonical_state):
@@ -249,7 +292,7 @@ The `AgentInput` class provides structured input for agent invocation, supportin
 ```python
 class AgentInput(BaseModel):
     """Structured input for agent invocation."""
-    
+
     input_type: InputType  # TEXT, ACTION, SELECTION, CONFIRMATION, FILE, SYSTEM
     text: Optional[str]  # Free-form text input
     action: Optional[str]  # Action identifier (button_id, form_name)
@@ -274,7 +317,7 @@ The `BaseSchemaReader` interface allows custom schema loading implementations:
 ```python
 class BaseSchemaReader(ABC):
     """Abstract base class for schema readers."""
-    
+
     @abstractmethod
     def read(self, source: Union[str, Path, Dict[str, Any]]) -> Schema:
         """Read and parse schema from the given source."""
