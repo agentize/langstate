@@ -5,7 +5,12 @@ Form-related utility functions for the assistant service.
 from typing import List, Dict, Any, cast
 import json
 from ..models.formation import Form
-from ..models.property import Property, PropertySnapshot, PropertyStatusType, PropertyDependency
+from ..models.property import (
+    Property,
+    PropertySnapshot,
+    PropertyStatusType,
+    PropertyDependency,
+)
 
 
 def is_form_untouched(form: Form) -> bool:
@@ -64,7 +69,10 @@ def get_property_dependencies(
     dependencies = []
     for property_snapshot in form.properties:
         for dep in target_property.property.depends_on:
-            if property_snapshot.id == dep.property_id and property_snapshot.status.type in statuses:
+            if (
+                property_snapshot.id == dep.property_id
+                and property_snapshot.status.type in statuses
+            ):
                 dependencies.append(property_snapshot)
 
     return dependencies
@@ -85,7 +93,12 @@ def get_ready_for_generation_properties(form: Form) -> list[PropertySnapshot]:
         List of PropertySnapshot objects that are ready for generation
     """
     ready_for_generation_properties = []
-    status_order = [PropertyStatusType.UNTOUCHED, PropertyStatusType.GENERATED, PropertyStatusType.EDITED, PropertyStatusType.VALIDATED]
+    status_order = [
+        PropertyStatusType.UNTOUCHED,
+        PropertyStatusType.GENERATED,
+        PropertyStatusType.EDITED,
+        PropertyStatusType.VALIDATED,
+    ]
 
     def get_status_level(status: PropertyStatusType) -> int:
         return status_order.index(status)
@@ -147,7 +160,11 @@ def get_property_value(property_snapshot: PropertySnapshot | None) -> str:
     return str(property_snapshot.status.value)
 
 
-def get_property_desc_string(property_snapshot: PropertySnapshot | None, with_value: bool = False, raw_json: bool = False) -> str:
+def get_property_desc_string(
+    property_snapshot: PropertySnapshot | None,
+    with_value: bool = False,
+    raw_json: bool = False,
+) -> str:
     """
     Return a string in the format display_name(status): description for a property.
     Optionally include the property's value if with_value is True.
@@ -162,27 +179,41 @@ def get_property_desc_string(property_snapshot: PropertySnapshot | None, with_va
     """
     if property_snapshot is None:
         return ""
-        
+
     display_name = get_display_name(property_snapshot)
     status = get_status(property_snapshot)
     description = get_description(property_snapshot)
     value = property_snapshot.status.value
     property_id = property_snapshot.id
-    
+
     if raw_json:
         return json.dumps(
-            {"id": property_id, "display_name": display_name, "description": description, "status": status.value, "value": value}
+            {
+                "id": property_id,
+                "display_name": display_name,
+                "description": description,
+                "status": status.value,
+                "value": value,
+            }
         )
-    
+
     if display_name or description:
         desc = f"{display_name}({status.value}): {description}"
         if with_value:
-            desc += f" | Value: '{value}'" if value is not None and value != "" else " | Value: (empty)"
+            desc += (
+                f" | Value: '{value}'"
+                if value is not None and value != ""
+                else " | Value: (empty)"
+            )
         return desc
     return ""
 
 
-def get_all_properties_desc_string(property_snapshots: list[PropertySnapshot], with_value: bool = False, raw_json: bool = False) -> str:
+def get_all_properties_desc_string(
+    property_snapshots: list[PropertySnapshot],
+    with_value: bool = False,
+    raw_json: bool = False,
+) -> str:
     """
     Return a string combining the descriptions of all properties using get_property_desc_string.
     Args:
@@ -193,12 +224,24 @@ def get_all_properties_desc_string(property_snapshots: list[PropertySnapshot], w
         Combined string of all property descriptions (or JSON array if raw_json)
     """
     if raw_json:
-        return "[" + ", ".join(get_property_desc_string(prop, with_value, raw_json=True) for prop in property_snapshots) + "]"
-    return "\n".join(get_property_desc_string(prop, with_value, raw_json=False) for prop in property_snapshots)
+        return (
+            "["
+            + ", ".join(
+                get_property_desc_string(prop, with_value, raw_json=True)
+                for prop in property_snapshots
+            )
+            + "]"
+        )
+    return "\n".join(
+        get_property_desc_string(prop, with_value, raw_json=False)
+        for prop in property_snapshots
+    )
 
 
 def get_selected_property(
-    property_snapshots: list[PropertySnapshot], desc_value: bool = False, raw_json: bool = False
+    property_snapshots: list[PropertySnapshot],
+    desc_value: bool = False,
+    raw_json: bool = False,
 ) -> tuple[PropertySnapshot | None, str]:
     """
     Get the currently selected property from the properties list, and its display_name(status):description (and value if desc_value=True) if available.
@@ -212,7 +255,9 @@ def get_selected_property(
     """
     for property_snapshot in property_snapshots:
         if get_is_requested(property_snapshot):
-            desc = get_property_desc_string(property_snapshot, with_value=desc_value, raw_json=raw_json)
+            desc = get_property_desc_string(
+                property_snapshot, with_value=desc_value, raw_json=raw_json
+            )
             return property_snapshot, desc
     return None, "No property is currently selected."
 
@@ -241,7 +286,9 @@ def get_updated_properties(form: Form) -> list[PropertySnapshot]:
     return [prop for prop in form.properties if get_is_updated(prop)]
 
 
-def get_properties_by_status(form: Form, status: PropertyStatusType) -> list[PropertySnapshot]:
+def get_properties_by_status(
+    form: Form, status: PropertyStatusType
+) -> list[PropertySnapshot]:
     """
     Get all properties with a specific status.
 
@@ -255,7 +302,9 @@ def get_properties_by_status(form: Form, status: PropertyStatusType) -> list[Pro
     return [prop for prop in form.properties if get_status(prop) == status]
 
 
-def validate_property_dependencies(form: Form, property_snapshot: PropertySnapshot) -> bool:
+def validate_property_dependencies(
+    form: Form, property_snapshot: PropertySnapshot
+) -> bool:
     """
     Check if a property's dependencies are satisfied.
 
@@ -269,7 +318,12 @@ def validate_property_dependencies(form: Form, property_snapshot: PropertySnapsh
     if not property_snapshot.property.depends_on:
         return True
 
-    status_order = [PropertyStatusType.UNTOUCHED, PropertyStatusType.GENERATED, PropertyStatusType.EDITED, PropertyStatusType.VALIDATED]
+    status_order = [
+        PropertyStatusType.UNTOUCHED,
+        PropertyStatusType.GENERATED,
+        PropertyStatusType.EDITED,
+        PropertyStatusType.VALIDATED,
+    ]
 
     def get_status_level(status: PropertyStatusType) -> int:
         return status_order.index(status)
@@ -288,7 +342,9 @@ def validate_property_dependencies(form: Form, property_snapshot: PropertySnapsh
     return True
 
 
-def batch_update_property_status(form: Form, property_ids: List[str], new_status: PropertyStatusType) -> None:
+def batch_update_property_status(
+    form: Form, property_ids: List[str], new_status: PropertyStatusType
+) -> None:
     """
     Update the status of multiple properties at once.
 
@@ -358,7 +414,9 @@ def get_property_statistics(form: Form) -> Dict[str, int]:
     return stats
 
 
-def find_properties_by_dependency(form: Form, dependency_property_id: str) -> List[PropertySnapshot]:
+def find_properties_by_dependency(
+    form: Form, dependency_property_id: str
+) -> List[PropertySnapshot]:
     """
     Find all properties that depend on a specific property.
 
@@ -398,11 +456,14 @@ def validate_property_values(form: Form) -> Dict[str, List[str]]:
         if property_snapshot.status.value is not None:
             # Type validation
             from ..models.property import PropertyType
+
             if property_snapshot.property.type == PropertyType.NUMBER:
                 try:
                     float(property_snapshot.status.value)
                 except (ValueError, TypeError):
-                    errors.append(f"Value '{property_snapshot.status.value}' is not a valid number")
+                    errors.append(
+                        f"Value '{property_snapshot.status.value}' is not a valid number"
+                    )
             elif property_snapshot.property.type == PropertyType.STRING:
                 if not isinstance(property_snapshot.status.value, str):
                     errors.append("Value must be a string")
@@ -417,7 +478,9 @@ def validate_property_values(form: Form) -> Dict[str, List[str]]:
     return validation_errors
 
 
-def create_property_update_summary(form: Form, property_id: str, old_value: Any, new_value: Any) -> str:
+def create_property_update_summary(
+    form: Form, property_id: str, old_value: Any, new_value: Any
+) -> str:
     """
     Create a human-readable summary of a property update.
 
@@ -431,7 +494,9 @@ def create_property_update_summary(form: Form, property_id: str, old_value: Any,
         Human-readable update summary
     """
     property_snapshot = find_property_by_id(form, property_id)
-    display_name = get_display_name(property_snapshot) if property_snapshot else property_id
+    display_name = (
+        get_display_name(property_snapshot) if property_snapshot else property_id
+    )
 
     if old_value is None:
         return f"Set {display_name} to '{new_value}'"
@@ -462,12 +527,16 @@ def get_property_name_description_pairs(form: Form) -> str:
         else:
             current_value = "Current value: (empty)"
 
-        property_descriptions.append(f"- {display_name}: {description} | {current_value}")
+        property_descriptions.append(
+            f"- {display_name}: {description} | {current_value}"
+        )
 
     return "\n".join(property_descriptions)
 
 
-def get_missing_dependencies(form: Form, property_snapshot: PropertySnapshot) -> list[PropertySnapshot]:
+def get_missing_dependencies(
+    form: Form, property_snapshot: PropertySnapshot
+) -> list[PropertySnapshot]:
     """
     Get a list of missing dependencies for a property.
 
@@ -503,7 +572,9 @@ def get_missing_dependencies(form: Form, property_snapshot: PropertySnapshot) ->
     return missing_dependencies
 
 
-def check_intent_properties_dependencies(form: Form) -> tuple[bool, list[PropertySnapshot]]:
+def check_intent_properties_dependencies(
+    form: Form,
+) -> tuple[bool, list[PropertySnapshot]]:
     """
     Check if all intent properties have their dependencies satisfied.
 
@@ -551,7 +622,9 @@ def build_property_context(form: Form) -> dict[str, str | float | int]:
     return property_context
 
 
-def available_properties(form: Form, status: PropertyStatusType) -> list[PropertySnapshot]:
+def available_properties(
+    form: Form, status: PropertyStatusType
+) -> list[PropertySnapshot]:
     """
     Get a list of available properties that match the given status and have all dependencies satisfied.
 
@@ -564,7 +637,9 @@ def available_properties(form: Form, status: PropertyStatusType) -> list[Propert
     """
     available = []
     for property_snapshot in form.properties:
-        if property_snapshot.status.type == status and validate_property_dependencies(form, property_snapshot):
+        if property_snapshot.status.type == status and validate_property_dependencies(
+            form, property_snapshot
+        ):
             available.append(property_snapshot)
     return available
 
@@ -574,7 +649,11 @@ def suggest_edit_property(form: Form) -> PropertySnapshot | None:
     Suggest a property to work on by priority: edited > generated > untouched.
     Returns the first available property with the highest priority status, or None if none found.
     """
-    for status in [PropertyStatusType.EDITED, PropertyStatusType.GENERATED, PropertyStatusType.UNTOUCHED]:
+    for status in [
+        PropertyStatusType.EDITED,
+        PropertyStatusType.GENERATED,
+        PropertyStatusType.UNTOUCHED,
+    ]:
         candidates = available_properties(form, status)
         if candidates and len(candidates) > 0:
             return candidates[0]
@@ -588,19 +667,24 @@ def get_formatted_instruction(property_snapshot: PropertySnapshot, form: Form) -
     If a variable is missing, returns the unformatted template and logs a warning.
     """
     property_alias = form.metadata.get("property_alias", "property")
-    
+
     # Get instruction template from property
-    instruction_template = "Generate a realistic value appropriate for this property type."
-    if property_snapshot.property.prompt_template and property_snapshot.property.prompt_template.generate:
+    instruction_template = (
+        "Generate a realistic value appropriate for this property type."
+    )
+    if (
+        property_snapshot.property.prompt_template
+        and property_snapshot.property.prompt_template.generate
+    ):
         instruction_template = property_snapshot.property.prompt_template.generate
-    
+
     # Build context from other properties
     property_context = {
         other_prop.id: other_prop.status.value
         for other_prop in form.properties
         if other_prop.status.value and other_prop.id != property_snapshot.id
     }
-    
+
     try:
         formatted_instructions = instruction_template.format(**property_context)
     except KeyError as e:
@@ -631,6 +715,6 @@ def dependency_type_to_status(dependency: PropertyDependency) -> PropertyStatusT
             for condition in dependency.statusTypeCondition.allowed_condtions:
                 if isinstance(condition, PropertyStatusType):
                     return condition
-    
+
     # Default to generated if no specific status condition
     return PropertyStatusType.GENERATED

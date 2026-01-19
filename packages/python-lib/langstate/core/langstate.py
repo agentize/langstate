@@ -366,7 +366,7 @@ class LangState(ABC):
                 # Load schema using the configured schema reader
                 if self._schema_reader and config.schema_source:
                     self._schema = self._schema_reader.read(config.schema_source)
-                
+
                 from ..state.core.schema_to_init_state import (
                     schema_to_init_state,
                     canonical_to_interpretive_state
@@ -385,7 +385,7 @@ class LangState(ABC):
                 self._state = canonical_to_interpretive_state(self._canonical_state)
 
             async def invoke(
-                self, 
+                self,
                 agent_input: Optional[AgentInput] = None
             ) -> Union[InteractionRequest, ActionResult]:
                 # If agent_input is empty (first call), generate initial interaction
@@ -433,26 +433,26 @@ class LangState(ABC):
             projector_canonical=MyLLMProjectorCanonical(),
             projector_ui=MyUIProjector()
         )
-        
+
         # Or use setters
         langstate = MyLangState()
         langstate.set_schema_reader(OpenAPIYamlReader())
         langstate.set_mutator(MyCustomMutator())
         langstate.set_projector_canonical(MyLLMProjectorCanonical())
         langstate.set_projector_ui(MyUIProjector())
-        
+
         # Initialize (loads schema, creates states)
         await langstate.initialize(LangStateConfig(schema_source="./schema.yaml"))
-        
+
         # Get first interaction (invoke with no input)
         interaction = await langstate.invoke()
-        
+
         # Process user text input
         result = await langstate.invoke(AgentInput.from_text("John Doe"))
-        
+
         # Process button click
         result = await langstate.invoke(AgentInput.from_action("submit", {"form_id": "reg"}))
-        
+
         # Process selection
         result = await langstate.invoke(AgentInput.from_selection(["option_1"]))
     """

@@ -31,7 +31,9 @@ class MutationResult(BaseModel):
         metadata: Additional metadata about the mutation
     """
 
-    updated_state: Any  # State - interpretive state with inference and value-confidence pairs
+    updated_state: (
+        Any  # State - interpretive state with inference and value-confidence pairs
+    )
     extracted_fields: Dict[str, Any] = PydField(default_factory=dict)
     confidence_map: Dict[str, float] = PydField(default_factory=dict)
     raw_output: Optional[str] = None
@@ -65,8 +67,8 @@ class BaseMutator(ABC):
     """Abstract base class for Mutator implementations.
 
     The Mutator processes user input and updates the interpretive state graph
-    by adding inferences and value-confidence pairs to field snapshots. It is 
-    responsible for extracting values from natural language input and assigning 
+    by adding inferences and value-confidence pairs to field snapshots. It is
+    responsible for extracting values from natural language input and assigning
     confidence scores.
 
     The interpretive state format is:
@@ -121,7 +123,7 @@ class BaseMutator(ABC):
         """Process user input and update the interpretive state graph.
 
         This method takes the user's input along with the current interpretive state
-        and returns an updated interpretive state with inferences and value-confidence 
+        and returns an updated interpretive state with inferences and value-confidence
         pairs extracted from the input added to field snapshots.
 
         Args:
@@ -158,7 +160,7 @@ class BaseMutator(ABC):
         if agent_input is None:
             return False
         # Check if it has any meaningful content
-        return not getattr(agent_input, 'is_empty', lambda: True)()
+        return not getattr(agent_input, "is_empty", lambda: True)()
 
 
 # Backward compatibility aliases (deprecated)

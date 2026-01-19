@@ -18,12 +18,14 @@ This document specifies the `x-sup` extension format for defining constraints an
 ## Overview
 
 The `x-sup` extension allows you to:
+
 1. Specify a root entity for schema processing
 2. Define property-level constraints with dependencies
 3. Create top-level constraint rules
 4. Express complex validation logic using multiple condition types
 
 **Key Features:**
+
 - **Property Dependencies**: Define constraints that depend on other properties
 - **Multiple Condition Types**: Support for type, status, enumeration, regex, range, similarity, and LLM-based validation
 - **Flexible Syntax**: Multiple synonyms for constraint keys to improve readability
@@ -64,7 +66,8 @@ x-sup:
   root_entity: Registration  # Must match a schema name in components.schemas
 ```
 
-**Important:** 
+**Important:**
+
 - Required field (or can be passed as parameter to `load_schema_from_openapi_yaml`)
 - Must reference an existing schema in `components.schemas`
 - All property IDs will be prefixed with this entity name (e.g., `Registration.email`)
@@ -80,11 +83,13 @@ The `x-sup` extension supports the following constraint condition types:
 Validates that a property value has one of the allowed types.
 
 **Format (list):**
+
 ```yaml
 property_type: [string, integer]
 ```
 
 **Format (dict with allowed/disallowed):**
+
 ```yaml
 property_type:
   allowed: [string, integer]
@@ -92,8 +97,9 @@ property_type:
 ```
 
 **Supported Types:**
+
 - `string`
-- `integer` 
+- `integer`
 - `number`
 - `boolean`
 - `array`
@@ -106,11 +112,13 @@ property_type:
 Filters based on property status (e.g., validated, generated, edited).
 
 **Format (list):**
+
 ```yaml
 status: [validated, generated]
 ```
 
 **Format (dict):**
+
 ```yaml
 status:
   allowed: [validated, edited]
@@ -126,11 +134,13 @@ status:
 Validates that a value is in a specific set of allowed values.
 
 **Format (list):**
+
 ```yaml
 enumeration: [active, inactive, pending]
 ```
 
 **Format (dict):**
+
 ```yaml
 enumeration:
   allowed: [red, green, blue]
@@ -146,11 +156,13 @@ enumeration:
 Validates that a value matches a regular expression pattern.
 
 **Format (string):**
+
 ```yaml
 regex: '^[A-Z]{2}[0-9]{4}$'
 ```
 
 **Format (dict):**
+
 ```yaml
 regex:
   pattern: '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$'
@@ -165,6 +177,7 @@ regex:
 Validates that a numeric value falls within a specified range.
 
 **Format (dict):**
+
 ```yaml
 range:
   min: 0
@@ -174,6 +187,7 @@ range:
 ```
 
 **Fields:**
+
 - `min` (float, required): Minimum value
 - `max` (float, required): Maximum value
 - `inclusive_min` (bool, optional, default: true): Include min in valid range
@@ -188,6 +202,7 @@ range:
 Validates that a value is similar to a reference value (using similarity metrics).
 
 **Format (dict):**
+
 ```yaml
 value_similarity:
   reference: "Expected text"
@@ -195,6 +210,7 @@ value_similarity:
 ```
 
 **Fields:**
+
 - `reference` (string, required): Reference value to compare against
 - `threshold` (float, required): Similarity threshold (0.0 = no requirement, 1.0 = exact match)
 
@@ -207,11 +223,13 @@ value_similarity:
 Uses an LLM prompt for validation (semantic/contextual evaluation).
 
 **Format (string):**
+
 ```yaml
 prompt: "Check if the description is appropriate for a professional setting"
 ```
 
 **Format (dict):**
+
 ```yaml
 prompt:
   prompt: "Validate that the comment explains the algorithm complexity"
@@ -248,6 +266,7 @@ components:
 ```
 
 **Key Points:**
+
 - Each constraint is a dictionary with a source key and condition(s)
 - Multiple constraints can be defined in the list
 - Constraints apply to the property they're defined on (target)
@@ -296,6 +315,7 @@ x-sup:
 ```
 
 **Key Points:**
+
 - Requires explicit target key (`to`, `target`, `dep`, `dep_id`, or `dst`)
 - Useful for cross-cutting constraints that don't fit naturally in property definitions
 
@@ -306,6 +326,7 @@ x-sup:
 Multiple synonyms are supported for specifying source/prerequisite properties:
 
 ### Source Keys (Property-Level)
+
 Use these in property-level constraints to specify which property(ies) the constraint depends on:
 
 - `source` ✅ **Recommended** (avoids YAML 1.1 boolean coercion)
@@ -316,6 +337,7 @@ Use these in property-level constraints to specify which property(ies) the const
 - `requires`
 
 ### Target Keys (Top-Level)
+
 Use these in top-level constraints to specify which property the constraint applies to:
 
 - `to`
@@ -325,6 +347,7 @@ Use these in top-level constraints to specify which property the constraint appl
 - `dst`
 
 **Example:**
+
 ```yaml
 # Property-level (source keys)
 x-sup:
@@ -346,6 +369,7 @@ x-sup:
 **YAML 1.1 Boolean Coercion Warning:**
 
 Be careful with keys like `on`, `off`, `yes`, `no` in YAML 1.1:
+
 ```yaml
 # ❌ May be interpreted as boolean true
 on: registrant
@@ -534,6 +558,7 @@ components:
 ## Best Practices
 
 ### 1. Use Absolute Property IDs
+
 When referencing properties from nested structures or arrays, use absolute IDs:
 
 ```yaml
@@ -545,6 +570,7 @@ source: ../event_type
 ```
 
 ### 2. Prefer Clear Source Keys
+
 Use `source` or `from` to avoid YAML 1.1 boolean coercion issues:
 
 ```yaml
@@ -557,6 +583,7 @@ on: country
 ```
 
 ### 3. Group Related Constraints
+
 Keep related constraints together for readability:
 
 ```yaml
@@ -572,6 +599,7 @@ email:
 ```
 
 ### 4. Use Descriptive Constraint Names
+
 When conditions have info/name fields (in code), use descriptive names:
 
 ```python
@@ -583,6 +611,7 @@ AllowDisallowCondition(
 ```
 
 ### 5. Document Complex Constraints
+
 Add YAML comments to explain complex constraint logic:
 
 ```yaml
@@ -599,12 +628,15 @@ shipping_cost:
 ```
 
 ### 6. Test Constraint Logic
+
 Validate your constraints by:
+
 1. Loading the schema: `schema = load_schema_from_openapi_yaml('api.yaml')`
 2. Visualizing dependencies: `print(schema.to_ascii_tree())`
 3. Checking constraint edges: `print(schema.to_mermaid())`
 
 ### 7. Avoid Circular Dependencies
+
 The system checks for cycles, but design constraints to avoid them:
 
 ```yaml
@@ -627,11 +659,13 @@ field_b:
 ## Field ID Format
 
 Property IDs follow this pattern:
+
 - Root properties: `{RootEntity}.{property_name}`
 - Nested properties: `{RootEntity}.{parent}.{property_name}`
 - Array items: `{RootEntity}.{array_name}.{item_property}`
 
 **Examples:**
+
 - `Registration.email`
 - `Registration.event.name`
 - `Registration.guests.email` (for array items)
@@ -652,6 +686,7 @@ The loader performs these validations:
 6. **Type Safety**: Condition types must match property types
 
 **Error Handling:**
+
 - Missing properties in constraint references: Skipped silently (allows forward references)
 - Invalid constraint payloads: Skipped with warning
 - Malformed x-sup extensions: Raises `ValueError`

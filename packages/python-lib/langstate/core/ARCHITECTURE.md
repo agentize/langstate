@@ -236,6 +236,7 @@ The interpretive state uses a rich structure to track both reasoning and values:
 ```
 
 This structure enables:
+
 - **Traceability**: Know how each value was derived
 - **Multi-value support**: Track multiple candidate values
 - **Confidence scoring**: Rank values by confidence

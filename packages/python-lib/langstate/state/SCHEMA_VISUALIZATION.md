@@ -5,8 +5,8 @@
 ## TL;DR — Design and Implementation Summary
 
 - Two complementary views when loading a schema:
-   - Property Hierarchy (Tree): logical "contains" relationships with proper array nesting and type badges
-   - Constraint Edges (DAG): actual parent → child dependencies created during schema loading
+  - Property Hierarchy (Tree): logical "contains" relationships with proper array nesting and type badges
+  - Constraint Edges (DAG): actual parent → child dependencies created during schema loading
 - Arrays are rendered intuitively in the tree (e.g., `guests[*].name` appears under `guests [array]`) while edges preserve precise IDs with `[*]`.
 - A Mermaid diagram is auto-saved to `{filename}_schema_diagram.md` for docs and reviews.
 - Visualization can be disabled via `visualize=False` for tests/automation.
@@ -111,6 +111,7 @@ Constraint Edges (DAG relationships):
 **Shows**: "Contains" relationships
 
 **Example**: `guests` contains `name`
+
 ```
 └── guests [array]
     └── name [string]
@@ -123,6 +124,7 @@ Constraint Edges (DAG relationships):
 **Shows**: Which property constrains which
 
 **Example**: `guests[*]` constrains `name` (name depends on guests[*])
+
 ```
 Registration.guests[*] → Registration.guests[*].name
 ```
@@ -156,6 +158,7 @@ graph TD
 ### File Contents
 
 The generated file includes:
+
 - Schema metadata (filename, root entity, property count, edge count)
 - Complete Mermaid graph with all nodes and edges
 - Proper node IDs for linking
@@ -197,31 +200,40 @@ for node_id, node in schema.nodes.items():
 ## Benefits
 
 ### 1. Immediate Understanding
+
 See the schema structure at a glance without reading YAML
 
 ### 2. Debugging
+
 Quickly identify:
+
 - Missing properties
 - Incorrect relationships
 - Circular dependencies
 - Type mismatches
 
 ### 3. Documentation
+
 Auto-generated diagrams for:
+
 - API documentation
 - Developer onboarding
 - Architecture reviews
 - Design discussions
 
 ### 4. Validation
+
 Verify that:
+
 - All properties are present
 - Constraints are correctly modeled
 - Dependencies make sense
 - Array items are properly structured
 
 ### 5. Planning
+
 Understand before implementing:
+
 - Dependency chains
 - Property generation order
 - Validation sequences
@@ -238,6 +250,7 @@ This could be ambiguous in a tree view - should it be a sibling or child?
 ### Solution
 
 We normalize the notation in the tree view:
+
 - `guests[*].name` → appears under `guests` in the tree
 - The `guests` property is marked with `[array]`
 - Edge list shows the actual `guests[*]` → `guests[*].name` relationship
@@ -245,6 +258,7 @@ We normalize the notation in the tree view:
 ### Example
 
 **Property IDs** (in code):
+
 ```
 Registration.guests
 Registration.guests[*].id
@@ -252,6 +266,7 @@ Registration.guests[*].name
 ```
 
 **Tree View** (logical hierarchy):
+
 ```
 └── guests [array]
     ├── id [string]
@@ -259,12 +274,14 @@ Registration.guests[*].name
 ```
 
 **Edge List** (actual DAG):
+
 ```
 Registration.guests[*] → Registration.guests[*].id
 Registration.guests[*] → Registration.guests[*].name
 ```
 
 This gives you:
+
 - ✅ Clean tree visualization
 - ✅ Accurate DAG representation
 - ✅ No confusion between the two
@@ -293,18 +310,23 @@ print(schema.to_mermaid())     # Mermaid diagram
 ## Tips
 
 ### 1. Use in Development
+
 Keep `visualize=True` during development to catch issues early
 
 ### 2. Disable in Tests
+
 Use `visualize=False` in automated tests to avoid cluttered output
 
 ### 3. Review Diagrams
+
 Check the generated Mermaid diagram into version control for documentation
 
 ### 4. Compare Changes
+
 Diff the Mermaid diagrams to see how the schema evolved
 
 ### 5. Validate Structure
+
 Use the edge list to verify parent-child relationships are correct
 
 ## Troubleshooting
@@ -343,5 +365,6 @@ if "$ref" in raw_yaml_prop and raw_yaml_prop["$ref"]:
 ```
 
 Where this applies:
+
 - Resolving property `$ref`s and `allOf` items from aiopenapi3 objects → check `"ref"`
 - Parsing raw YAML for custom fields (e.g., x-sup) → check `"$ref"`

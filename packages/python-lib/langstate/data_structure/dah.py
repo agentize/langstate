@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 Directed Acyclic Hypergraph (DAH) implementation.
 
@@ -33,7 +34,18 @@ Ordering must place A,B before C and C before D.
 
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter, CycleError
-from typing import Any, Dict, Generic, Iterable, Iterator, List, Optional, Set, Tuple, TypeVar
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+)
 import weakref
 import itertools
 import json
@@ -44,6 +56,7 @@ E = TypeVar("E")  # Edge metadata
 # ---------------------------------------------------------------------------
 # HyperEdge & Node
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class DirectedAcyclicHypergraphEdge(Generic[E]):
@@ -65,6 +78,7 @@ class DirectedAcyclicHypergraphEdge(Generic[E]):
 
     def source_ids(self) -> Set[str]:
         return {n.id for n in self.sources}
+
 
 @dataclass
 class DirectedAcyclicHypergraphNode(Generic[V, E]):
@@ -118,9 +132,11 @@ class DirectedAcyclicHypergraphNode(Generic[V, E]):
                 return True
         return False
 
+
 # ---------------------------------------------------------------------------
 # Manager: DirectedAcyclicHypergraph
 # ---------------------------------------------------------------------------
+
 
 class DirectedAcyclicHypergraph(Generic[V, E]):
     """Manages nodes & hyperedges for a Directed Acyclic Hypergraph.
@@ -134,7 +150,9 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
 
     __slots__ = ("nodes", "_edge_counter")
 
-    def __init__(self, nodes: Iterable[DirectedAcyclicHypergraphNode[V, E]] | None = None) -> None:
+    def __init__(
+        self, nodes: Iterable[DirectedAcyclicHypergraphNode[V, E]] | None = None
+    ) -> None:
         self.nodes: Dict[str, DirectedAcyclicHypergraphNode[V, E]] = {}
         if nodes:
             for n in nodes:
@@ -142,7 +160,9 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         self._edge_counter: int = 0  # for synthetic hyperedge ids
 
     # ---- Node factory -------------------------------------------------------
-    def add_node(self, node_id: str, value: Optional[V] = None) -> DirectedAcyclicHypergraphNode[V, E]:
+    def add_node(
+        self, node_id: str, value: Optional[V] = None
+    ) -> DirectedAcyclicHypergraphNode[V, E]:
         node = self.nodes.get(node_id)
         if node is None:
             node = DirectedAcyclicHypergraphNode[V, E](id=node_id, value=value)
@@ -176,23 +196,31 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         """
         sources_set = {s for s in sources}
         if target_id in sources_set:
-            raise ValueError("Self dependency detected in hyperedge: target also listed as source.")
+            raise ValueError(
+                "Self dependency detected in hyperedge: target also listed as source."
+            )
         if not sources_set:
             raise ValueError("Hyperedge must have at least one source node.")
 
         target = self.add_node(target_id)
-        source_nodes: Set[DirectedAcyclicHypergraphNode[V, E]] = {self.add_node(s) for s in sources_set}
+        source_nodes: Set[DirectedAcyclicHypergraphNode[V, E]] = {
+            self.add_node(s) for s in sources_set
+        }
 
         # Perform cycle detection BEFORE committing (treat as multiple edges)
         if check_cycle:
             for s in sources_set:
                 if self._would_create_cycle(s, target_id):
-                    raise ValueError(f"Cycle detected when adding hyperedge {sources_set} -> {target_id} (source {s} causes cycle).")
+                    raise ValueError(
+                        f"Cycle detected when adding hyperedge {sources_set} -> {target_id} (source {s} causes cycle)."
+                    )
 
         hid = edge_id or self._next_edge_id()
         hedge = target.in_edges.get(hid)
         if hedge is None:
-            target.in_edges[hid] = DirectedAcyclicHypergraphEdge(id=hid, sources=source_nodes, metadata=metadata)
+            target.in_edges[hid] = DirectedAcyclicHypergraphEdge(
+                id=hid, sources=source_nodes, metadata=metadata
+            )
         else:
             hedge.sources = source_nodes
             if metadata is not None:
@@ -301,7 +329,9 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
 
         Creates a 1-source hyperedge. Returns the hyperedge id.
         """
-        return self.add_hyperedge([prereq_id], dep_id, metadata=metadata, check_cycle=check_cycle)
+        return self.add_hyperedge(
+            [prereq_id], dep_id, metadata=metadata, check_cycle=check_cycle
+        )
 
     # ---- Visualization / Export --------------------------------------------
     def to_dot(self) -> str:
@@ -320,10 +350,20 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         lines.append("}")
         return "\n".join(lines)
 
-    def to_mermaid(self, node_label_fn=None, edge_label_fn=None, max_label_length: int = 30) -> str:
+    def to_mermaid(
+        self, node_label_fn=None, edge_label_fn=None, max_label_length: int = 30
+    ) -> str:
         """Export to Mermaid format. Hyperedges expanded to individual edges."""
+
         def _safe(s: str) -> str:
-            return s.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
+            return (
+                s.replace("-", "_")
+                .replace(".", "_")
+                .replace("[", "_")
+                .replace("]", "_")
+                .replace("*", "star")
+            )
+
         def _fmt_label(txt: str) -> str:
             if len(txt) > max_label_length:
                 txt = txt[: max_label_length - 3] + "..."
@@ -337,7 +377,11 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
 
         lines = ["graph TD"]
         for node_id, node in self.nodes.items():
-            label = node_label_fn(node.value) if (node_label_fn and node.value is not None) else node_id
+            label = (
+                node_label_fn(node.value)
+                if (node_label_fn and node.value is not None)
+                else node_id
+            )
             lines.append(f'    {_safe(node_id)}["{_fmt_label(label)}"]')
         for sources, tgt, metadata, eid in self.iter_hyperedges():
             edge_label = ""
@@ -352,7 +396,7 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
                 if safe_txt:
                     edge_label = f"|{safe_txt}|"
             for src in sources:
-                lines.append(f'    {_safe(src)} -->{edge_label} {_safe(tgt)}')
+                lines.append(f"    {_safe(src)} -->{edge_label} {_safe(tgt)}")
         return "\n".join(lines)
 
     def to_json_dict(self) -> Dict[str, Any]:
@@ -360,12 +404,12 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         for node_id, node in self.nodes.items():
             node_info = {"id": node_id, "value": None}
             if node.value is not None:
-                if hasattr(node.value, 'model_dump'):
+                if hasattr(node.value, "model_dump"):
                     try:
                         node_info["value"] = node.value.model_dump()
                     except Exception:
                         node_info["value"] = str(node.value)
-                elif hasattr(node.value, '__dict__'):
+                elif hasattr(node.value, "__dict__"):
                     try:
                         node_info["value"] = vars(node.value)
                     except Exception:
@@ -375,14 +419,19 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             nodes_data.append(node_info)
         edges_data = []
         for sources, tgt, metadata, eid in self.iter_hyperedges():
-            edge_info = {"id": eid, "sources": list(sources), "target": tgt, "metadata": None}
+            edge_info = {
+                "id": eid,
+                "sources": list(sources),
+                "target": tgt,
+                "metadata": None,
+            }
             if metadata is not None:
-                if hasattr(metadata, 'model_dump'):
+                if hasattr(metadata, "model_dump"):
                     try:
                         edge_info["metadata"] = metadata.model_dump()
                     except Exception:
                         edge_info["metadata"] = str(metadata)
-                elif hasattr(metadata, '__dict__'):
+                elif hasattr(metadata, "__dict__"):
                     try:
                         edge_info["metadata"] = vars(metadata)
                     except Exception:
@@ -390,7 +439,12 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
                 else:
                     edge_info["metadata"] = str(metadata)
             edges_data.append(edge_info)
-        return {"nodes": nodes_data, "hyperedges": edges_data, "node_count": len(nodes_data), "hyperedge_count": len(edges_data)}
+        return {
+            "nodes": nodes_data,
+            "hyperedges": edges_data,
+            "node_count": len(nodes_data),
+            "hyperedge_count": len(edges_data),
+        }
 
     def to_json(self, pretty: bool = True, indent: int = 2) -> str:
         payload = self.to_json_dict()
@@ -412,10 +466,14 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         hyperedges list all sources.
         """
         if root_nodes is None:
-            root_nodes = [nid for nid, node in self.nodes.items() if not node.prerequisite_ids()]
+            root_nodes = [
+                nid for nid, node in self.nodes.items() if not node.prerequisite_ids()
+            ]
         lines: List[str] = []
 
-        def render_node(node_id: str, prefix: str = "", is_last: bool = True, depth: int = 0):
+        def render_node(
+            node_id: str, prefix: str = "", is_last: bool = True, depth: int = 0
+        ):
             if depth > max_depth:
                 return
             node = self.nodes.get(node_id)
@@ -435,7 +493,9 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             child_prefix = prefix + ("    " if is_last else "│   ")
             dependents = list(node.dependents())
             for i, dep_node in enumerate(dependents):
-                render_node(dep_node.id, child_prefix, i == len(dependents) - 1, depth + 1)
+                render_node(
+                    dep_node.id, child_prefix, i == len(dependents) - 1, depth + 1
+                )
 
         lines.append("Schema")
         root_entity = root_nodes[0].split(".")[0] if root_nodes else "RootNode"
@@ -447,7 +507,9 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         edges_prefix = "    "
         hyperedges = list(self.iter_hyperedges())
         # Show those with metadata first
-        hyperedges = [e for e in hyperedges if e[2] is not None] + [e for e in hyperedges if e[2] is None]
+        hyperedges = [e for e in hyperedges if e[2] is not None] + [
+            e for e in hyperedges if e[2] is None
+        ]
         for i, (sources, tgt, metadata, eid) in enumerate(hyperedges):
             is_last = i == len(hyperedges) - 1
             connector = "└── " if is_last else "├── "
@@ -461,10 +523,10 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
                 to_node = self.nodes.get(tgt)
                 if to_node and to_node.value is not None:
                     try:
-                        constraints = getattr(to_node.value, 'constraints', [])
+                        constraints = getattr(to_node.value, "constraints", [])
                         labels: List[str] = []
                         for c in constraints or []:
-                            if hasattr(c, 'to_dag_edge_name'):
+                            if hasattr(c, "to_dag_edge_name"):
                                 labels.append(c.to_dag_edge_name())
                         if labels:
                             edge_label = labels[0]
@@ -475,7 +537,9 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             src_list = ",".join(sorted(sources))
             meta_prefix = "[constraint] " if metadata is not None else ""
             label_part = f": {edge_label}" if edge_label else ""
-            lines.append(f"{edges_prefix}{connector}{meta_prefix}({src_list} -> {tgt}){label_part}")
+            lines.append(
+                f"{edges_prefix}{connector}{meta_prefix}({src_list} -> {tgt}){label_part}"
+            )
         return "\n".join(lines)
 
     # ---- Internal helpers ---------------------------------------------------
@@ -485,6 +549,7 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         Check whether `source_id` is already a descendant of `target_id`.
         """
         return source_id in self.descendants(target_id)
+
 
 __all__ = [
     "DirectedAcyclicHypergraphEdge",

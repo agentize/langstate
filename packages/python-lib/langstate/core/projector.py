@@ -321,7 +321,9 @@ class CanonicalProjectionContext(ProjectionContext):
         confidence_threshold: Minimum confidence for automatic resolution
     """
 
-    strategy: CanonicalProjectionStrategy = CanonicalProjectionStrategy.HIGHEST_CONFIDENCE
+    strategy: CanonicalProjectionStrategy = (
+        CanonicalProjectionStrategy.HIGHEST_CONFIDENCE
+    )
     confidence_threshold: float = 0.7
 
 
@@ -349,8 +351,8 @@ class BaseProjectorCanonicalState(BaseProjector):
     """Abstract base class for Canonical State Projector implementations.
 
     The Canonical State Projector receives the interpretive state (with inference
-    and value-confidence pairs) from the Mutator, validates constraints, and 
-    produces the canonical state (with resolved values). It can also trigger 
+    and value-confidence pairs) from the Mutator, validates constraints, and
+    produces the canonical state (with resolved values). It can also trigger
     actions when validation passes.
 
     This can be implemented as:

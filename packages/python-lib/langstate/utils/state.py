@@ -9,7 +9,9 @@ from studio.services.assistant.models import DynamicAssistantState, AssistantInf
 from loguru import logger
 
 
-def sanitize_state_fields(state: DynamicAssistantState, field_names: list[str]) -> DynamicAssistantState:
+def sanitize_state_fields(
+    state: DynamicAssistantState, field_names: list[str]
+) -> DynamicAssistantState:
     """
     Sanitize the flow state by removing sensitive fields before sending back to user.
     Removes specified field names from all fields.
@@ -66,7 +68,9 @@ def get_info(state: DynamicAssistantState) -> AssistantInfo:
     """
     info = getattr(state, "info", None)
     if info is None:
-        return AssistantInfo(name="Assistant", description="AI Assistant", avatar_url=None)
+        return AssistantInfo(
+            name="Assistant", description="AI Assistant", avatar_url=None
+        )
     try:
         if isinstance(info, dict):
             return AssistantInfo(**info)

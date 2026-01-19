@@ -30,7 +30,9 @@ def build_field_dependency_tree(fields: List[DynamicField]) -> Tree[DynamicField
     for field in fields:
         node = name_to_node[field.name]
         depends_on: List[FieldDependency] = getattr(field, "depends_on", [])
-        dep_names: List[str] = [dep.field_name for dep in depends_on] if depends_on else []
+        dep_names: List[str] = (
+            [dep.field_name for dep in depends_on] if depends_on else []
+        )
         if not dep_names:
             root.add_child(node)
         else:
@@ -41,7 +43,9 @@ def build_field_dependency_tree(fields: List[DynamicField]) -> Tree[DynamicField
     return root
 
 
-def find_node_by_name(node: Tree[DynamicField], name: str) -> Optional[Tree[DynamicField]]:
+def find_node_by_name(
+    node: Tree[DynamicField], name: str
+) -> Optional[Tree[DynamicField]]:
     if hasattr(node.value, "name") and node.value.name == name:
         return node
     for child in node.children:

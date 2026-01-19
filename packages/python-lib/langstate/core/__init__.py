@@ -25,7 +25,6 @@ from .mutator import (
     BaseMutator,
     MutationContext,
     MutationResult,
-
 )
 from .projector import (
     # Base projector
@@ -43,7 +42,6 @@ from .projector import (
     CanonicalProjectionContext,
     CanonicalProjectionResult,
     CanonicalProjectionStrategy,
-   
 )
 from .action import (
     BaseAction,
@@ -84,13 +82,11 @@ __all__ = [
     "UIProjectionResult",
     "UIComponent",
     "UIComponentType",
-    
     # Canonical State Projector
     "BaseProjectorCanonicalState",
     "CanonicalProjectionContext",
     "CanonicalProjectionResult",
     "CanonicalProjectionStrategy",
-   
     # Action
     "BaseAction",
     "ActionContext",

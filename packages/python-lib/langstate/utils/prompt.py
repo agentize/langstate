@@ -50,14 +50,13 @@ def prompt_determine_fences(prompt: str) -> Tuple[str, str]:
     return best_fence[0], best_fence[1]
 
 
-
 def prompt_join_with_and(items: List[str], default: str = "") -> str:
     """
     Join a list of items using proper English grammar with commas and "and".
-    
+
     This function handles the standard English pattern:
     - 1 item: "A"
-    - 2 items: "A and B" 
+    - 2 items: "A and B"
     - 3+ items: "A, B, and C"
 
     Args:
@@ -82,7 +81,7 @@ def prompt_join_with_and(items: List[str], default: str = "") -> str:
 def prompt_tones(tones: List[str]) -> str:
     """
     Get formatted tone string from a list of tones.
-    
+
     This is a convenience function that uses join_with_and with "neutral" as default.
 
     Args:

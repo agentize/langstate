@@ -1,6 +1,7 @@
 from __future__ import annotations
 import datetime
 from typing import Any, Dict, List, Optional, Union
+
 try:
     from typing import TypeAlias
 except ImportError:
@@ -20,11 +21,12 @@ from .constraints import Constraint
 
 def utc_now() -> datetime:
     """Return current datetime in UTC timezone.
-    
+
     Returns:
         datetime: Current datetime with UTC timezone information attached.
     """
     return datetime.now(datetime.timezone.utc)
+
 
 class Field(BaseModel):
     """Represents a field with its metadata, dependencies, and configuration.
@@ -38,6 +40,7 @@ class Field(BaseModel):
         default_updaters: A list of updaters that can modify the field's value.
         tags: A list of tags for categorization or additional metadata.
     """
+
     id: str
     info: Info
     constraints: List[Constraint] = PydField(default_factory=list)
@@ -47,11 +50,11 @@ class Field(BaseModel):
     tags: List[str] = PydField(default_factory=list)
 
     # Pydantic v2 style config: allow extra metadata and freeze instances by default
-    model_config = ConfigDict(extra='allow', frozen=True)
-    
+    model_config = ConfigDict(extra="allow", frozen=True)
+
     def to_dag_node_name(self) -> str:
         """Return a string representation of this Field for DAG visualization.
-        
+
         Returns:
             String label for this field node in DAG visualizations (format: id:type)
         """
@@ -59,27 +62,32 @@ class Field(BaseModel):
         type_str = None
         if self.constraints:
             for constraint in self.constraints:
-                if getattr(constraint, 'field_type', None) and constraint.field_type.allowed:
+                if (
+                    getattr(constraint, "field_type", None)
+                    and constraint.field_type.allowed
+                ):
                     # Get the first allowed type
                     types = [t.value for t in constraint.field_type.allowed]
                     if types:
                         type_str = types[0]
                         break
-        
+
         if type_str:
             return f"{self.id}:{type_str}"
         return self.id
 
+
 class ValueConfidence(BaseModel):
     """Represents a value with its confidence score.
-    
+
     Attributes:
         value: The actual field value
         confidence: Confidence score for this value [-1.0, 1.0]
     """
+
     value: FieldValue
     confidence: float = PydField(..., ge=-1.0, le=1.0)
-    
+
     # Backward compatibility alias
     @property
     def score(self) -> float:
@@ -89,30 +97,31 @@ class ValueConfidence(BaseModel):
 
 class Inference(BaseModel):
     """Represents an inference/reasoning step that led to a value.
-    
+
     Inferences track the reasoning process that a Mutator used to derive
     values from user input. This provides explainability and traceability.
-    
+
     Attributes:
         content: The inference/reasoning content (e.g., "User said 'my name is John'")
         mutator_id: Identifier of the mutator that generated this inference
         timestamp: When this inference was made
         metadata: Additional inference metadata
     """
+
     content: str
     mutator_id: str
     timestamp: datetime.datetime = PydField(default_factory=utc_now)
     metadata: Dict[str, Any] = PydField(default_factory=dict)
-    
+
     model_config = ConfigDict(extra="allow")
 
 
 class FieldSnapshot(BaseModel):
     """Snapshot of a field's state at a point in time.
-    
+
     The interpretive state format is:
         {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
-    
+
     Attributes:
         id: Unique identifier for this snapshot
         status: Current status of the field
@@ -122,6 +131,7 @@ class FieldSnapshot(BaseModel):
         updater: Who/what created this snapshot
         meta_data: Additional snapshot metadata
     """
+
     id: str
     status: FieldStatus
     inference_list: List[Inference] = PydField(default_factory=list)
@@ -138,11 +148,14 @@ class FieldSnapshot(BaseModel):
             return v.value
         return v
 
+
 class FieldInstance(BaseModel):
     """An instance of a Field with a specific value."""
+
     id: str
     property: Field
     snapshots: List[FieldSnapshot] = PydField(default_factory=list)
+
 
 class ConstraintSnapshot(BaseModel):
     """
@@ -156,6 +169,7 @@ class ConstraintSnapshot(BaseModel):
         timestamp (datetime.datetime): The time when the snapshot was taken.
         meta_data (Dict[str, Any]): Additional metadata associated with the snapshot.
     """
+
     id: str
     constraint: Constraint
     confidence: float = PydField(..., ge=0.0, le=1.0)
@@ -173,9 +187,11 @@ class ConstraintInstance(BaseModel):
         confidence (float): A value between 0.0 and 1.0 indicating the confidence level
             that the dependency is fulfilled. Higher values indicate greater confidence.
     """
+
     id: str
     constraints: List[Constraint] = PydField(default_factory=list)
     snapshots: List[ConstraintSnapshot] = PydField(default_factory=list)
+
 
 class Schema(DirectedAcyclicHypergraph[Field, Constraint]):
     """Schema represented as a directed acyclic hypergraph.
@@ -184,7 +200,9 @@ class Schema(DirectedAcyclicHypergraph[Field, Constraint]):
     collectively constraining a target field. Single prerequisite relationships
     remain a 1-source hyperedge.
     """
+
     pass
+
 
 class State(DirectedAcyclicHypergraph[FieldInstance, ConstraintInstance]):
     """State represented as a directed acyclic hypergraph.
@@ -193,5 +211,5 @@ class State(DirectedAcyclicHypergraph[FieldInstance, ConstraintInstance]):
     instances influencing a dependent field instance. Single-source instances
     degrade to 1-source hyperedges.
     """
-    pass
 
+    pass
