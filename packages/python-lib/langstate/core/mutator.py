@@ -4,9 +4,6 @@ The Mutator is responsible for:
 - Receiving user input (prompts, actions from frontend)
 - Interpreting the input in the context of the current interpretive state
 - Updating interpretive state by adding inferences and value-confidence pairs to field snapshots
-
-Note: Formerly known as "Perceiver", renamed to "Mutator" to better reflect its role
-in mutating/updating the interpretive state based on user input.
 """
 
 from __future__ import annotations
@@ -161,9 +158,3 @@ class BaseMutator(ABC):
             return False
         # Check if it has any meaningful content
         return not getattr(agent_input, "is_empty", lambda: True)()
-
-
-# Backward compatibility aliases (deprecated)
-BasePerceiver = BaseMutator
-PerceptionResult = MutationResult
-PerceptionContext = MutationContext

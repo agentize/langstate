@@ -93,7 +93,7 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 - Wraps default values with confidence 0.0
 - **Called only once** at initialization
 
-### Mutator (formerly Perceiver)
+### Mutator
 
 - Receives user input (AgentInput: prompts, actions)
 - Extracts field values from input
@@ -102,7 +102,7 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
   - Value-confidence pairs
 - Returns updated interpretive state
 
-### ProjectorCanonicalState (formerly Canonicalizer)
+### ProjectorCanonicalState
 
 - **Receives interpretive state** as input
 - Validates field values against constraints
@@ -111,7 +111,7 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 - **Can call action** when validation passes
 - **Updates and returns canonical state**
 
-### ProjectorUI (formerly Interpreter)
+### ProjectorUI
 
 - Generates UI components
 - Creates natural language prompts

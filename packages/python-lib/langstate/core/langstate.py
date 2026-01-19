@@ -416,9 +416,9 @@ class LangState(ABC):
 
     Constructor Parameters:
         schema_reader: Optional BaseSchemaReader for loading schemas
-        mutator: Optional BaseMutator for input processing (formerly Perceiver)
-        projector_canonical: Optional BaseProjectorCanonicalState for validation (formerly Canonicalizer)
-        projector_ui: Optional BaseProjectorUI for UI generation (formerly Interpreter)
+        mutator: Optional BaseMutator for input processing
+        projector_canonical: Optional BaseProjectorCanonicalState for validation
+        projector_ui: Optional BaseProjectorUI for UI generation
 
     Customization:
         Developers can customize behavior by:
@@ -468,9 +468,9 @@ class LangState(ABC):
 
         Args:
             schema_reader: Schema reader for loading schema definitions
-            mutator: Mutator for processing user input (formerly Perceiver)
-            projector_canonical: Canonical state projector for validation (formerly Canonicalizer)
-            projector_ui: UI projector for generating prompts/components (formerly Interpreter)
+            mutator: Mutator for processing user input
+            projector_canonical: Canonical state projector for validation
+            projector_ui: UI projector for generating prompts/components
         """
         self._schema_reader = schema_reader
         self._mutator = mutator
