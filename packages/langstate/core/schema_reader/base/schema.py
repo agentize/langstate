@@ -3,9 +3,28 @@
 This module contains all data models used by the Schema Reader interface.
 """
 
-from typing import Dict, List, Optional
+from enum import Enum
+from typing import Dict, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
+
+
+class SourceType(str, Enum):
+    """Type of schema source.
+
+    Attributes:
+        YAML: YAML file format
+        JSON: JSON file format
+        OPENAPI: OpenAPI specification
+        CUSTOM: Custom schema format
+        UNKNOWN: Unknown source type
+    """
+
+    YAML = "yaml"
+    JSON = "json"
+    OPENAPI = "openapi"
+    CUSTOM = "custom"
+    UNKNOWN = "unknown"
 
 
 class SchemaField(BaseModel):
@@ -35,27 +54,28 @@ class SchemaField(BaseModel):
 
 
 class Schema(BaseModel):
-    """Schema definition model.
+    """Schema definition model: simple key-value mapping of field definitions.
 
-    Attributes:
-        schema_id: Unique identifier for the schema
-        name: Human-readable name
-        description: Detailed description of the schema
-        version: Schema version
-        fields: Dictionary of field definitions
-        dependencies: Field dependencies (field_id -> list of dependent field_ids)
-        metadata: Additional schema metadata
+    Format: {key: SchemaField}
+
+    Example:
+        {
+            "name": SchemaField(
+                field_id="name",
+                field_type="string",
+                label="Full Name",
+                required=True
+            ),
+            "email": SchemaField(
+                field_id="email",
+                field_type="string",
+                label="Email Address",
+                required=True
+            )
+        }
     """
 
-    schema_id: str = ""
-    name: str = ""
-    description: str = ""
-    version: str = "1.0.0"
-    fields: Dict[str, SchemaField] = Field(default_factory=dict)
-    dependencies: Dict[str, List[str]] = Field(default_factory=dict)
-    metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
+    __root__: Dict[str, SchemaField]
 
 
 class SchemaReadResult(BaseModel):
@@ -64,15 +84,9 @@ class SchemaReadResult(BaseModel):
     Attributes:
         schema: The parsed schema
         source_type: Type of source (yaml, json, openapi, etc.)
-        source_path: Path or identifier of the source
-        warnings: Any warnings during parsing
         metadata: Additional metadata
     """
 
     schema: Schema
-    source_type: str = "unknown"
-    source_path: str = ""
-    warnings: List[str] = Field(default_factory=list)
+    source_type: SourceType = SourceType.UNKNOWN
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")

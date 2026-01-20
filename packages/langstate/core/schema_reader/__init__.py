@@ -5,6 +5,7 @@ from .base import (
     Schema,
     SchemaField,
     SchemaReadResult,
+    SourceType,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "Schema",
     "SchemaField",
     "SchemaReadResult",
+    "SourceType",
 ]

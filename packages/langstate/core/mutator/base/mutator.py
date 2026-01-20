@@ -7,9 +7,13 @@ The Mutator is responsible for:
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .schema import MutationContext, MutationResult
+
+if TYPE_CHECKING:
+    from ...schema_reader.base.schema import Schema
+    from ...langstate.base.schema import AgentInput
 
 
 class BaseMutator(ABC):
@@ -79,7 +83,7 @@ class BaseMutator(ABC):
         pass
 
     @abstractmethod
-    async def initialize(self, schema: Optional[object] = None) -> None:
+    async def initialize(self, schema: Optional["Schema"] = None) -> None:
         """Initialize the mutator with a schema.
 
         This method is called when the mutator is first set up,
@@ -90,7 +94,7 @@ class BaseMutator(ABC):
         """
         pass
 
-    def validate_input(self, agent_input: Optional[object]) -> bool:
+    def validate_input(self, agent_input: Optional["AgentInput"]) -> bool:
         """Validate agent input before processing.
 
         Override this method to add custom input validation.

@@ -29,7 +29,7 @@ class BaseSchemaReader(ABC):
                 else:
                     data = source
 
-                # Parse OpenAPI schema
+                # Parse OpenAPI schema - build {key: SchemaField} dict
                 fields = {}
                 for prop_name, prop_def in data.get("properties", {}).items():
                     fields[prop_name] = SchemaField(
@@ -40,10 +40,8 @@ class BaseSchemaReader(ABC):
                         required=prop_name in data.get("required", [])
                     )
 
-                return Schema(
-                    schema_id=data.get("title", "schema"),
-                    fields=fields
-                )
+                # Schema is now a simple {key: SchemaField} mapping
+                return Schema(__root__=fields)
     """
 
     @abstractmethod
