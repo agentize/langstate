@@ -6,7 +6,6 @@ The Projector is responsible for:
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from .schema import ProjectionContext, ProjectionResult
 
@@ -35,7 +34,7 @@ class BaseProjector(ABC):
         pass
 
     @abstractmethod
-    async def initialize(self, schema: Optional[object] = None) -> None:
+    async def initialize(self) -> None:
         """Initialize the projector with a schema.
 
         This method is called when the projector is first set up,

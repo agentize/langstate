@@ -4,7 +4,7 @@ This module contains all data models used by the UI Projector interface.
 """
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from pydantic import BaseModel, Field, ConfigDict
 

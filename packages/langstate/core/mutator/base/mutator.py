@@ -15,8 +15,8 @@ from .schema import MutationContext, MutationResult
 class BaseMutator(ABC):
     """Abstract base class for Mutator implementations.
 
-    The Mutator processes user input and updates the interpretive state graph
-    by adding inferences and value-confidence pairs to field snapshots. It is
+    The Mutator processes user input and updates the interpretive state by
+    adding inferences and value-confidence pairs to field snapshots. It is
     responsible for extracting values from natural language input and assigning
     confidence scores.
 

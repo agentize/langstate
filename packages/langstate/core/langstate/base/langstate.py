@@ -77,7 +77,6 @@ class LangState(ABC):
 
                 # Create initial canonical state from schema (key: value)
                 self._canonical_state = CanonicalState()
-                # TODO: Initialize from schema fields
 
                 # Create interpretive state from canonical state
                 # Format: {key: {inference: [], values: [{value, confidence}]}}

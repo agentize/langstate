@@ -1,6 +1,6 @@
 """Canonical State Projector interface for LangState.
 
-The Canonical State Projector (formerly Canonicalizer) is responsible for:
+The Canonical State Projector is responsible for:
 - Receiving the interpretive state from the Mutator
 - Validating constraints
 - Resolving value-confidence pairs to single values
@@ -8,8 +8,7 @@ The Canonical State Projector (formerly Canonicalizer) is responsible for:
 - Updating canonical state
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from abc import abstractmethod
 
 from ..base.projector import BaseProjector
 from .schema import (
@@ -102,32 +101,14 @@ class BaseProjectorCanonicalState(BaseProjector):
         pass
 
     @abstractmethod
-    async def validate_value(
-        self, field_key: str, value: object, schema: Optional[object] = None
-    ) -> Tuple[bool, Optional[str]]:
-        """Validate a single value against schema constraints.
-
-        Args:
-            field_key: The field key being validated
-            value: The value to validate
-            schema: Optional schema for validation rules
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        pass
-
-    @abstractmethod
-    async def can_trigger_action(
-        self, context: CanonicalProjectionContext
-    ) -> Tuple[bool, Optional[str]]:
+    async def can_trigger_action(self, context: CanonicalProjectionContext) -> bool:
         """Check if current state allows triggering an action.
 
         Args:
             context: CanonicalProjectionContext with current states
 
         Returns:
-            Tuple of (can_trigger, action_name)
+            Boolean indicating whether an action can be triggered
         """
         pass
 

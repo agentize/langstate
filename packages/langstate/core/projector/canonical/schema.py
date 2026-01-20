@@ -4,9 +4,9 @@ This module contains all data models used by the Canonical State Projector inter
 """
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import Field
 
 from ..base.schema import ProjectionContext, ProjectionResult
 

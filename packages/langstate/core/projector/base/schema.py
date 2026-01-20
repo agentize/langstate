@@ -15,13 +15,11 @@ class ProjectionContext(BaseModel):
         interpretive_state: Current interpretive state graph with field instances
             Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
         canonical_state: Current canonical state with resolved values (key: value)
-        schema: The schema definition
         metadata: Additional context metadata
     """
 
     interpretive_state: Dict[str, object] = Field(default_factory=dict)
     canonical_state: Optional[Dict[str, object]] = None
-    schema: Optional[Dict[str, object]] = None
     metadata: Dict[str, object] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="allow")

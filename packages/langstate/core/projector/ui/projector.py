@@ -7,7 +7,7 @@ The UI Projector is responsible for:
 - Determining which fields to focus on next
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import List, Optional
 
 from ..base.projector import BaseProjector
@@ -84,14 +84,11 @@ class BaseProjectorUI(BaseProjector):
         pass
 
     @abstractmethod
-    def map_field_to_component(
-        self, field_key: str, schema: Optional[object] = None
-    ) -> UIComponent:
+    def map_field_to_component(self, field_key: str) -> UIComponent:
         """Map a field to an appropriate UI component.
 
         Args:
             field_key: The field key to map
-            schema: Optional schema for field metadata
 
         Returns:
             UIComponent appropriate for the field
