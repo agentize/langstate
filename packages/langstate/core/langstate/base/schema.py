@@ -8,6 +8,9 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from ...state.interpretive.schema import InterpretiveState
+from ...state.canonical.schema import CanonicalState
+
 
 class InputType(str, Enum):
     """Type of input received from the user/client.
@@ -81,8 +84,6 @@ class AgentInput(BaseModel):
     confirmed: Optional[bool] = None
     files: List[Dict[str, object]] = Field(default_factory=list)
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
 
     @classmethod
     def from_text(cls, text: str) -> "AgentInput":
@@ -205,8 +206,8 @@ class InteractionRequest(BaseModel):
     prompt: str = ""
     components: List[object] = Field(default_factory=list)
     options: Dict[str, List[object]] = Field(default_factory=dict)
-    state: Optional[Dict[str, object]] = None
-    canonical_state: Optional[Dict[str, object]] = None
+    state: Optional[InterpretiveState] = None
+    canonical_state: Optional[CanonicalState] = None
     pending_fields: List[str] = Field(default_factory=list)
     metadata: Dict[str, object] = Field(default_factory=dict)
 
@@ -224,8 +225,8 @@ class ActionResultData(BaseModel):
         metadata: Additional metadata
     """
 
-    state: Dict[str, object] = Field(default_factory=dict)
-    canonical_state: Dict[str, object] = Field(default_factory=dict)
+    state: InterpretiveState
+    canonical_state: CanonicalState
     success: bool = True
     action_data: Dict[str, object] = Field(default_factory=dict)
     metadata: Dict[str, object] = Field(default_factory=dict)
@@ -249,5 +250,3 @@ class LangStateConfig(BaseModel):
     require_confirmation: bool = False
     conversation_history_limit: int = 100
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")

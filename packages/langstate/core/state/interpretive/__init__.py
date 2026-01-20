@@ -1,14 +1,12 @@
 """Interpretive State module exports."""
 
 from .state import InterpretiveState
-from .schema import InterpretiveFieldState, InterpretiveStateData
-from .snapshot.schema import Snapshot
+from .schema import InterpretiveFieldState, InterpretiveState as InterpretiveStateSchema
 from .snapshot.store import SnapshotStore
 
 __all__ = [
     "InterpretiveState",
+    "InterpretiveStateSchema",
     "InterpretiveFieldState",
-    "InterpretiveStateData",
-    "Snapshot",
     "SnapshotStore",
 ]

@@ -1,10 +1,9 @@
 """Canonical State module exports."""
 
 from .state import CanonicalState
-from .schema import CanonicalFieldState, CanonicalStateData
+from .schema import CanonicalState as CanonicalStateSchema
 
 __all__ = [
     "CanonicalState",
-    "CanonicalFieldState",
-    "CanonicalStateData",
+    "CanonicalStateSchema",
 ]

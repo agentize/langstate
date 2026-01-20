@@ -6,7 +6,7 @@ This module contains all data models used by the UI Projector interface.
 from enum import Enum
 from typing import Dict, List
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 from ..base.schema import ProjectionContext, ProjectionResult
 
@@ -71,8 +71,6 @@ class UIComponent(BaseModel):
     disabled: bool = False
     required: bool = False
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
 
 
 class UIProjectionContext(ProjectionContext):

@@ -5,7 +5,9 @@ This module contains all data models used by the Mutator interface.
 
 from typing import Dict
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
+
+from ...state.interpretive.schema import InterpretiveState
 
 
 class MutationResult(BaseModel):
@@ -17,10 +19,8 @@ class MutationResult(BaseModel):
         metadata: Additional metadata about the mutation
     """
 
-    updated_state: Dict[str, object] = Field(default_factory=dict)
+    updated_state: InterpretiveState
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
 
 
 class MutationContext(BaseModel):
@@ -34,7 +34,5 @@ class MutationContext(BaseModel):
     """
 
     agent_input: Dict[str, object] = Field(default_factory=dict)
-    current_state: Dict[str, object] = Field(default_factory=dict)
+    current_state: InterpretiveState
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")

@@ -4,40 +4,41 @@ This module contains all data models used by the Interpretive State.
 Interpretive State uses rich format with inferences and value-confidence pairs.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 from ..base.schema import Inference, ValueConfidence
 
 
 class InterpretiveFieldState(BaseModel):
-    """Interpretive state for a single field (rich format).
+    """Rich state for a single field with inference and values.
 
     Attributes:
-        field_id: Unique identifier for the field
         inference: List of inference/reasoning steps
         values: List of candidate values with confidence scores
-        metadata: Additional field metadata
     """
 
-    field_id: str
     inference: List[Inference] = Field(default_factory=list)
     values: List[ValueConfidence] = Field(default_factory=list)
-    metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
 
 
-class InterpretiveStateData(BaseModel):
-    """Data model for the entire interpretive state.
+class InterpretiveState(BaseModel):
+    """Interpretive state representation: rich format with inference and values.
 
-    Attributes:
-        fields: Dictionary of field_id to InterpretiveFieldState
-        metadata: Additional state metadata
+    Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
+
+    Example:
+        {
+            "name": {
+                "inference": [
+                    {"content": "Extracted from input", "mutator_id": "extractor_1"}
+                ],
+                "values": [
+                    {"value": "John Doe", "confidence": 0.95}
+                ]
+            }
+        }
     """
 
-    fields: Dict[str, InterpretiveFieldState] = Field(default_factory=dict)
-    metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
+    __root__: Dict[str, InterpretiveFieldState]

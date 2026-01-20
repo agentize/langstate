@@ -6,7 +6,9 @@ This module contains all data models used by the Action interface.
 from enum import Enum
 from typing import Dict, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
+
+from ...state.canonical.schema import CanonicalState
 
 
 class ActionStatus(str, Enum):
@@ -37,12 +39,10 @@ class ActionContext(BaseModel):
         metadata: Additional context metadata
     """
 
-    canonical_state: Dict[str, object] = Field(default_factory=dict)
+    canonical_state: CanonicalState
     action_type: str = "default"
     parameters: Dict[str, object] = Field(default_factory=dict)
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
 
 
 class ActionResult(BaseModel):
@@ -59,5 +59,3 @@ class ActionResult(BaseModel):
     result_data: Dict[str, object] = Field(default_factory=dict)
     error_message: Optional[str] = None
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")

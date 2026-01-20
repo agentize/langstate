@@ -9,6 +9,7 @@ from typing import Dict, List
 from pydantic import Field
 
 from ..base.schema import ProjectionContext, ProjectionResult
+from ...state.canonical.schema import CanonicalState
 
 
 class CanonicalProjectionStrategy(str, Enum):
@@ -57,7 +58,7 @@ class CanonicalProjectionResult(ProjectionResult):
         actions_triggered: List of actions that were triggered based on validation
     """
 
-    updated_state: Dict[str, object] = Field(default_factory=dict)
+    updated_state: CanonicalState
     resolved_fields: Dict[str, object] = Field(default_factory=dict)
     pending_fields: List[str] = Field(default_factory=list)
     validation_errors: Dict[str, str] = Field(default_factory=dict)

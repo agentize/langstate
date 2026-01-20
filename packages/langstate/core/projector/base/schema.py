@@ -5,7 +5,10 @@ This module contains all data models used by the base Projector interface.
 
 from typing import Dict, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
+
+from ...state.interpretive.schema import InterpretiveState
+from ...state.canonical.schema import CanonicalState
 
 
 class ProjectionContext(BaseModel):
@@ -18,11 +21,9 @@ class ProjectionContext(BaseModel):
         metadata: Additional context metadata
     """
 
-    interpretive_state: Dict[str, object] = Field(default_factory=dict)
-    canonical_state: Optional[Dict[str, object]] = None
+    interpretive_state: InterpretiveState
+    canonical_state: Optional[CanonicalState] = None
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
 
 
 class ProjectionResult(BaseModel):
@@ -35,5 +36,3 @@ class ProjectionResult(BaseModel):
 
     success: bool = True
     metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow")
