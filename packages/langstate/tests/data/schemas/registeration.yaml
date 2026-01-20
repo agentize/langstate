@@ -9,7 +9,6 @@ x-sup:
 
 components:
   schemas:
-
     # -----------------------------------------------------------------------
     # Reusable scalar & utility types
     # -----------------------------------------------------------------------
@@ -57,15 +56,15 @@ components:
       description: "Email content and optional scheduled send time."
       properties:
         subject: { $ref: "#/components/schemas/ShortString120" }
-        body:    { $ref: "#/components/schemas/MarkdownString" }
+        body: { $ref: "#/components/schemas/MarkdownString" }
         send_at: { $ref: "#/components/schemas/DateTime" }
 
     Person:
       type: object
       description: "Base participant profile."
       properties:
-        id:    { $ref: "#/components/schemas/Id" }
-        name:  { $ref: "#/components/schemas/NameString" }
+        id: { $ref: "#/components/schemas/Id" }
+        name: { $ref: "#/components/schemas/NameString" }
         email: { $ref: "#/components/schemas/Email" }
 
     Guest:
@@ -80,10 +79,10 @@ components:
       type: object
       description: "Bookable event with schedule and pricing."
       properties:
-        id:          { $ref: "#/components/schemas/Id" }
-        name:        { $ref: "#/components/schemas/ShortString120" }
+        id: { $ref: "#/components/schemas/Id" }
+        name: { $ref: "#/components/schemas/ShortString120" }
         description: { $ref: "#/components/schemas/MarkdownString" }
-        schedule:    { $ref: "#/components/schemas/DateTime" }
+        schedule: { $ref: "#/components/schemas/DateTime" }
         capacity:
           type: integer
           minimum: 1
@@ -98,7 +97,7 @@ components:
       type: object
       description: "Registration ties registrant, event, and guests."
       properties:
-        id:         { $ref: "#/components/schemas/Id" }
+        id: { $ref: "#/components/schemas/Id" }
 
         registrant:
           $ref: "#/components/schemas/Person"

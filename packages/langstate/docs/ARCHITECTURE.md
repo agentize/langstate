@@ -8,23 +8,48 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 
 ```
 langstate/
-├── core/                    # Interfaces and orchestrator
-│   ├── action.py           # BaseAction interface
-│   ├── langstate.py        # LangState orchestrator, BaseSchemaReader
-│   ├── mutator.py          # BaseMutator interface
-│   └── projector.py        # BaseProjector, ProjectorUI (supports multiple), ProjectorCanonicalState
-├── models/                  # Data models (Pydantic)
-│   ├── basic.py            # Basic types (FieldStatus, ValueType, etc.)
-│   ├── constraints.py      # Constraint models
-│   ├── field.py            # Field, FieldInstance, Schema, State
-│   └── ui.py               # UIComponent, UIComponentType
-├── state/                   # State management and readers
-│   ├── core/
-│   │   └── schema_to_init_state.py  # schema_to_init_state, canonical_to_interpretive_state
-│   └── readers/
-│       └── yaml.py         # OpenAPIYamlReader implementation
-└── data_structure/          # Graph structures (DAG, DAH)
-```
+├── core/
+│   ├── action/
+│   │   └── base/
+│   │       ├── action.py       # BaseAction abstract class
+│   │       └── schema.py       # ActionStatus, ActionContext, ActionResult
+│   ├── mutator/
+│   │   └── base/
+│   │       ├── mutator.py      # BaseMutator abstract class
+│   │       └── schema.py       # MutationContext, MutationResult
+│   ├── projector/
+│   │   ├── base/
+│   │   │   ├── projector.py    # BaseProjector abstract class
+│   │   │   └── schema.py       # ProjectionContext, ProjectionResult
+│   │   ├── canonical/
+│   │   │   ├── projector.py    # BaseProjectorCanonicalState
+│   │   │   └── schema.py       # CanonicalProjectionContext, CanonicalProjectionResult
+│   │   └── ui/
+│   │       ├── projector.py    # BaseProjectorUI
+│   │       └── schema.py       # UIComponent, UIProjectionContext, UIProjectionResult
+│   ├── schema_reader/
+│   │   └── base/
+│   │       ├── reader.py       # BaseSchemaReader abstract class
+│   │       └── schema.py       # Schema, SchemaField, SchemaReadResult
+│   └── state/
+│       ├── base/
+│       │   ├── state.py        # BaseState abstract class
+│       │   └── schema.py       # Inference, ValueConfidence, FieldState
+│       ├── canonical/
+│       │   ├── state.py        # CanonicalState implementation
+│       │   └── schema.py       # CanonicalFieldState, CanonicalStateData
+│       └── interpretive/
+│           ├── state.py        # InterpretiveState implementation
+│           └── schema.py       # InterpretiveFieldState, InterpretiveStateData
+└── docs/
+    └── ARCHITECTURE.md         # This file
+```text
+
+### Design Principles
+
+- **Separation of Concerns**: Each module has a `schema.py` for Pydantic data models and a main file for the abstract class
+- **Explicit Types**: All Pydantic models use explicit types (no `Any`)
+- **Inheritance**: Specialized projectors/states inherit from base classes
 
 ## State Types
 
@@ -46,7 +71,7 @@ langstate/
 
 ## Data Flow
 
-```
+```text
 ┌──────────┐
 │  Schema  │
 └────┬─────┘
@@ -184,7 +209,7 @@ class MyLangState(LangState):
             projector_canonical=MyLLMProjectorCanonical(),
             projectors_ui=MyUIProjector()
         )
-        
+
         # Or with multiple UI projectors
         super().__init__(
             schema_reader=OpenAPIYamlReader(),
