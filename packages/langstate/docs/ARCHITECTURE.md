@@ -6,7 +6,7 @@ LangState uses a dual-state architecture to separate interpretive data (with inf
 
 ## Module Structure
 
-```
+```text
 langstate/
 ├── core/
 │   ├── action/
@@ -31,25 +31,57 @@ langstate/
 │   │   └── base/
 │   │       ├── reader.py       # BaseSchemaReader abstract class
 │   │       └── schema.py       # Schema, SchemaField, SchemaReadResult
-│   └── state/
-│       ├── base/
-│       │   ├── state.py        # BaseState abstract class
-│       │   └── schema.py       # Inference, ValueConfidence, FieldState
-│       ├── canonical/
-│       │   ├── state.py        # CanonicalState implementation
-│       │   └── schema.py       # CanonicalFieldState, CanonicalStateData
-│       └── interpretive/
-│           ├── state.py        # InterpretiveState implementation
-│           └── schema.py       # InterpretiveFieldState, InterpretiveStateData
+│   ├── state/
+│   │   ├── base/
+│   │   │   ├── state.py        # BaseState abstract class
+│   │   │   └── schema.py       # Inference, ValueConfidence, FieldState
+│   │   ├── canonical/
+│   │   │   ├── state.py        # CanonicalState implementation
+│   │   │   └── schema.py       # CanonicalFieldState, CanonicalStateData
+│   │   └── interpretive/
+│   │       ├── state.py        # InterpretiveState implementation
+│   │       └── schema.py       # InterpretiveFieldState, InterpretiveStateData
+│   └── langstate/
+│       └── base/
+│           ├── langstate.py    # LangState orchestrator abstract class
+│           └── schema.py       # AgentInput, InteractionRequest, LangStateConfig
 └── docs/
     └── ARCHITECTURE.md         # This file
-```text
+```
 
 ### Design Principles
 
 - **Separation of Concerns**: Each module has a `schema.py` for Pydantic data models and a main file for the abstract class
 - **Explicit Types**: All Pydantic models use explicit types (no `Any`)
 - **Inheritance**: Specialized projectors/states inherit from base classes
+
+## LangState Orchestrator
+
+The `LangState` class is the main entry point that coordinates all components:
+
+### Key Responsibilities
+
+- Initialize schema and components
+- Manage canonical and interpretive states
+- Orchestrate the conversation flow
+- Invoke mutators, projectors, and actions
+
+### Main Methods
+
+- `initialize(config)`: Setup schema and initialize all components
+- `invoke(agent_input)`: Process input and return next interaction or result
+- `get_current_state()`: Access current interpretive state
+- `get_canonical_state()`: Access current canonical state
+- `reset()`: Reset state and restart conversation
+
+### Component Management
+
+- `set_schema_reader()`: Configure schema reader
+- `set_mutator()`: Configure mutator
+- `set_projector_canonical()`: Configure canonical projector
+- `set_projector_ui()`: Replace all UI projectors
+- `add_projector_ui()`: Add UI projector to the list
+- `add_action_handler()`: Register action handlers
 
 ## State Types
 
@@ -315,18 +347,20 @@ This structure enables:
 The `AgentInput` class provides structured input for agent invocation, supporting various interaction types:
 
 ```python
+from langstate.core import AgentInput, InputType
+
 class AgentInput(BaseModel):
     """Structured input for agent invocation."""
 
     input_type: InputType  # TEXT, ACTION, SELECTION, CONFIRMATION, FILE, SYSTEM
     text: Optional[str]  # Free-form text input
     action: Optional[str]  # Action identifier (button_id, form_name)
-    action_data: Dict[str, Any]  # Additional action parameters
-    selection: List[Any]  # Selected option(s)
+    action_data: Dict[str, object]  # Additional action parameters
+    selection: List[object]  # Selected option(s)
     field_id: Optional[str]  # Target field for the input
     confirmed: Optional[bool]  # Confirmation status
-    files: List[Dict[str, Any]]  # File references
-    metadata: Dict[str, Any]  # Additional context
+    files: List[Dict[str, object]]  # File references
+    metadata: Dict[str, object]  # Additional context
 
 # Factory methods for common input types:
 AgentInput.from_text("John Doe")
@@ -335,24 +369,79 @@ AgentInput.from_selection(["option_1", "option_2"])
 AgentInput.from_confirmation("email", confirmed=True)
 ```
 
+## Usage Example
+
+```python
+from langstate.core import (
+    LangState,
+    LangStateConfig,
+    AgentInput,
+    BaseSchemaReader,
+    BaseMutator,
+    BaseProjectorCanonicalState,
+    BaseProjectorUI,
+)
+
+class MyLangState(LangState):
+    async def initialize(self, config: LangStateConfig) -> None:
+        # Load schema
+        if self._schema_reader and config.schema_source:
+            self._schema = self._schema_reader.read(config.schema_source)
+
+        # Initialize components
+        if self._mutator:
+            await self._mutator.initialize(self._schema)
+        if self._projector_canonical:
+            await self._projector_canonical.initialize(self._schema)
+        for projector in self._projectors_ui:
+            await projector.initialize(self._schema)
+
+        # Initialize states
+        from langstate.core import CanonicalState, InterpretiveState
+        self._canonical_state = CanonicalState()
+        self._interpretive_state = InterpretiveState()
+
+    async def invoke(self, agent_input=None, metadata=None):
+        # Implementation of invoke logic
+        pass
+
+# Usage
+langstate = MyLangState(
+    schema_reader=MySchemaReader(),
+    mutator=MyMutator(),
+    projector_canonical=MyCanonicalProjector(),
+    projectors_ui=[MyUIProjector()]
+)
+
+await langstate.initialize(LangStateConfig(schema_source="schema.yaml"))
+
+# Initial invocation
+interaction = await langstate.invoke()
+
+# Process user input
+result = await langstate.invoke(AgentInput.from_text("John Doe"))
+```
+
 ## SchemaReader Interface
 
 The `BaseSchemaReader` interface allows custom schema loading implementations:
 
 ```python
+from langstate.core import BaseSchemaReader, Schema
+
 class BaseSchemaReader(ABC):
     """Abstract base class for schema readers."""
 
     @abstractmethod
-    def read(self, source: Union[str, Path, Dict[str, Any]]) -> Schema:
+    def read(self, source: Union[str, Path, Dict[str, object]]) -> Schema:
         """Read and parse schema from the given source."""
         pass
 
 # Example implementations:
 class OpenAPIYamlReader(BaseSchemaReader):
     def read(self, source):
-        from langstate.state.readers.yaml import load_schema_from_openapi_yaml
-        return load_schema_from_openapi_yaml(source)
+        # Load YAML and convert to Schema
+        pass
 
 class JSONSchemaReader(BaseSchemaReader):
     def read(self, source):

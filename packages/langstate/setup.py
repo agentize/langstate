@@ -18,7 +18,7 @@ def read_readme():
 # Read version from __init__.py
 def read_version():
     """Read version from langstate/__init__.py."""
-    version_file = os.path.join(os.path.dirname(__file__), "langstate", "__init__.py")
+    version_file = os.path.join(os.path.dirname(__file__), "__init__.py")
     if os.path.exists(version_file):
         with open(version_file, "r", encoding="utf-8") as f:
             for line in f:
@@ -53,22 +53,13 @@ setup(
     ],
     python_requires=">=3.9",
     install_requires=[
-        "uvicorn[standard]>=0.24.0,<1.0.0",
         "pydantic>=2.0.0,<3.0.0",
-        "python-multipart>=0.0.6,<1.0.0",
     ],
     extras_require={
         "dev": [
             "pytest>=7.0.0,<9.0.0",
             "pytest-asyncio>=0.21.0,<1.0.0",
             "pytest-cov>=4.0.0,<6.0.0",
-            "black>=23.0.0,<25.0.0",
-            "flake8>=6.0.0,<8.0.0",
-            "mypy>=1.0.0,<2.0.0",
-            "pre-commit>=3.0.0,<4.0.0",
-            "watchdog>=3.0.0,<5.0.0",
-            "httpx>=0.25.0,<1.0.0",
-            "requests>=2.31.0,<3.0.0",
         ],
         "docs": [
             "mkdocs>=1.5.0,<2.0.0",

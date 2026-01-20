@@ -6,6 +6,7 @@ This module provides the base interfaces and implementations for LangState:
 - Projector: Transform state to external representations (UI, Canonical)
 - SchemaReader: Load and parse schema definitions
 - State: Manage canonical and interpretive state
+- LangState: Main orchestrator coordinating all components
 """
 
 from .action import (
@@ -51,6 +52,15 @@ from .state import (
     InterpretiveFieldState,
     InterpretiveStateData,
 )
+from .langstate import (
+    LangState,
+    InputType,
+    AgentInput,
+    InteractionType,
+    InteractionRequest,
+    ActionResultData,
+    LangStateConfig,
+)
 
 __all__ = [
     # Action
@@ -95,4 +105,12 @@ __all__ = [
     "InterpretiveState",
     "InterpretiveFieldState",
     "InterpretiveStateData",
+    # LangState Orchestrator
+    "LangState",
+    "InputType",
+    "AgentInput",
+    "InteractionType",
+    "InteractionRequest",
+    "ActionResultData",
+    "LangStateConfig",
 ]
