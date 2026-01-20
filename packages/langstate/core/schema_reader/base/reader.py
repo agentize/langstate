@@ -72,3 +72,7 @@ class BaseSchemaReader(ABC):
             True if valid, raises exception otherwise
         """
         return True
+
+
+# TODO: `CustomSchemaRead('./schema.yml', root_entity: "Registration")`
+# TODO: It also can be set in runtime. `SchemaReader.set_schema_root_entity("Registration")`
