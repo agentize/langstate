@@ -27,7 +27,6 @@ from ...projector import (
     BaseProjectorUI,
 )
 from ...state import CanonicalState, InterpretiveState
-from ...action import ActionResult as ActionResultBase
 
 from .schema import (
     AgentInput,

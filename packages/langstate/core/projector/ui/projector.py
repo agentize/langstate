@@ -8,7 +8,7 @@ The UI Projector is responsible for:
 """
 
 from abc import abstractmethod
-from typing import List, Optional
+from typing import List
 
 from ..base.projector import BaseProjector
 from .schema import (
