@@ -4,7 +4,7 @@ This module contains all data models used by the Canonical State Projector inter
 """
 
 from enum import Enum
-from typing import Dict, List
+from typing import Annotated, Dict, List
 
 from pydantic import Field
 
@@ -13,15 +13,7 @@ from ...state.canonical.schema import CanonicalState
 
 
 class CanonicalProjectionStrategy(str, Enum):
-    """Strategy for resolving multiple candidate values to canonical state.
-
-    Attributes:
-        HIGHEST_CONFIDENCE: Select value with highest confidence score
-        THRESHOLD: Select value only if confidence exceeds threshold
-        LLM_RESOLVE: Use LLM to resolve ambiguous values
-        MANUAL: Require manual user confirmation
-        CUSTOM: Use custom resolution logic
-    """
+    """Strategy for resolving multiple candidate values to canonical state."""
 
     HIGHEST_CONFIDENCE = "highest_confidence"
     THRESHOLD = "threshold"
@@ -34,33 +26,58 @@ class CanonicalProjectionContext(ProjectionContext):
     """Context provided to the canonical state projector for processing.
 
     Extends ProjectionContext with canonical projection-specific fields.
-
-    Attributes:
-        strategy: Resolution strategy to use
-        confidence_threshold: Minimum confidence for automatic resolution
     """
 
-    strategy: CanonicalProjectionStrategy = (
-        CanonicalProjectionStrategy.HIGHEST_CONFIDENCE
-    )
-    confidence_threshold: float = 0.7
+    strategy: Annotated[
+        CanonicalProjectionStrategy,
+        Field(
+            default=CanonicalProjectionStrategy.HIGHEST_CONFIDENCE,
+            description="Resolution strategy to use",
+        ),
+    ]
+    confidence_threshold: Annotated[
+        float,
+        Field(default=0.7, description="Minimum confidence for automatic resolution"),
+    ]
 
 
 class CanonicalProjectionResult(ProjectionResult):
-    """Result of a canonical state projection operation.
+    """Result of a canonical state projection operation."""
 
-    Attributes:
-        updated_state: The updated canonical state with resolved values (key: value format)
-        resolved_fields: Fields that were successfully resolved from interpretive state
-        pending_fields: Fields that still need resolution (ambiguous/low confidence)
-        validation_errors: Any validation errors encountered
-        requires_confirmation: Fields that require user confirmation
-        actions_triggered: List of actions that were triggered based on validation
-    """
-
-    updated_state: CanonicalState
-    resolved_fields: Dict[str, object] = Field(default_factory=dict)
-    pending_fields: List[str] = Field(default_factory=list)
-    validation_errors: Dict[str, str] = Field(default_factory=dict)
-    requires_confirmation: Dict[str, object] = Field(default_factory=dict)
-    actions_triggered: List[str] = Field(default_factory=list)
+    updated_state: Annotated[
+        CanonicalState,
+        Field(
+            description="The updated canonical state with resolved values (key: value format)"
+        ),
+    ]
+    resolved_fields: Annotated[
+        Dict[str, object],
+        Field(
+            default_factory=dict,
+            description="Fields that were successfully resolved from interpretive state",
+        ),
+    ]
+    pending_fields: Annotated[
+        List[str],
+        Field(
+            default_factory=list,
+            description="Fields that still need resolution (ambiguous/low confidence)",
+        ),
+    ]
+    validation_errors: Annotated[
+        Dict[str, str],
+        Field(default_factory=dict, description="Any validation errors encountered"),
+    ]
+    requires_confirmation: Annotated[
+        Dict[str, object],
+        Field(
+            default_factory=dict, description="Fields that require user confirmation"
+        ),
+    ]
+    actions_triggered: Annotated[
+        List[str],
+        Field(
+            default_factory=list,
+            description="List of actions that were triggered based on validation",
+        ),
+    ]

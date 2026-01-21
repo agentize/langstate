@@ -44,13 +44,12 @@ from .state import (
     BaseState,
     Inference,
     ValueConfidence,
-    FieldState,
     CanonicalState,
-    CanonicalFieldState,
-    CanonicalStateData,
+    CanonicalStateSchema,
     InterpretiveState,
     InterpretiveFieldState,
-    InterpretiveStateData,
+    InterpretiveStateSchema,
+    SnapshotStore,
 )
 from .langstate import (
     LangState,
@@ -96,15 +95,14 @@ __all__ = [
     "BaseState",
     "Inference",
     "ValueConfidence",
-    "FieldState",
     # State - Canonical
     "CanonicalState",
-    "CanonicalFieldState",
-    "CanonicalStateData",
+    "CanonicalStateSchema",
     # State - Interpretive
     "InterpretiveState",
     "InterpretiveFieldState",
-    "InterpretiveStateData",
+    "InterpretiveStateSchema",
+    "SnapshotStore",
     # LangState Orchestrator
     "LangState",
     "InputType",

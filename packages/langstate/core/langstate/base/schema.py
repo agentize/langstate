@@ -4,25 +4,16 @@ This module contains all data models used by the LangState orchestrator.
 """
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 from ...state.interpretive.schema import InterpretiveState
 from ...state.canonical.schema import CanonicalState
 
 
 class InputType(str, Enum):
-    """Type of input received from the user/client.
-
-    Attributes:
-        TEXT: Free-form text input (chat message, prompt response)
-        ACTION: Button click, form submission, or other action trigger
-        SELECTION: User selected from provided options
-        CONFIRMATION: User confirmed or rejected a value
-        FILE: File upload or attachment
-        SYSTEM: System-generated input (timeout, error recovery, etc.)
-    """
+    """Type of input received from the user/client."""
 
     TEXT = "text"
     ACTION = "action"
@@ -37,17 +28,6 @@ class AgentInput(BaseModel):
 
     This replaces simple string input to support various interaction types
     including button clicks, form submissions, file uploads, etc.
-
-    Attributes:
-        input_type: Type of input being provided
-        text: Text content (for TEXT type or accompanying other types)
-        action: Action identifier (for ACTION type, e.g., button_id, form_name)
-        action_data: Additional data for the action (form fields, parameters)
-        selection: Selected option(s) for SELECTION type
-        field_id: Target field identifier (if input is for a specific field)
-        confirmed: Confirmation status for CONFIRMATION type
-        files: List of file references for FILE type
-        metadata: Additional context or metadata
 
     Example usage:
         # Simple text input
@@ -75,15 +55,58 @@ class AgentInput(BaseModel):
         )
     """
 
-    input_type: InputType = InputType.TEXT
-    text: Optional[str] = None
-    action: Optional[str] = None
-    action_data: Dict[str, object] = Field(default_factory=dict)
-    selection: List[object] = Field(default_factory=list)
-    field_id: Optional[str] = None
-    confirmed: Optional[bool] = None
-    files: List[Dict[str, object]] = Field(default_factory=list)
-    metadata: Dict[str, object] = Field(default_factory=dict)
+    input_type: Annotated[
+        InputType,
+        Field(default=InputType.TEXT, description="Type of input being provided"),
+    ]
+    text: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            description="Text content (for TEXT type or accompanying other types)",
+        ),
+    ]
+    action: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            description="Action identifier (for ACTION type, e.g., button_id, form_name)",
+        ),
+    ]
+    action_data: Annotated[
+        Dict[str, object],
+        Field(
+            default_factory=dict,
+            description="Additional data for the action (form fields, parameters)",
+        ),
+    ]
+    selection: Annotated[
+        List[object],
+        Field(
+            default_factory=list, description="Selected option(s) for SELECTION type"
+        ),
+    ]
+    field_id: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            description="Target field identifier (if input is for a specific field)",
+        ),
+    ]
+    confirmed: Annotated[
+        Optional[bool],
+        Field(default=None, description="Confirmation status for CONFIRMATION type"),
+    ]
+    files: Annotated[
+        List[Dict[str, object]],
+        Field(
+            default_factory=list, description="List of file references for FILE type"
+        ),
+    ]
+    metadata: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="Additional context or metadata"),
+    ]
 
     @classmethod
     def from_text(cls, text: str) -> "AgentInput":
@@ -168,15 +191,7 @@ class AgentInput(BaseModel):
 
 
 class InteractionType(str, Enum):
-    """Type of interaction required from the user.
-
-    Attributes:
-        PROMPT: Waiting for user text input
-        SELECTION: Waiting for user to select from options
-        CONFIRMATION: Waiting for user to confirm values
-        ACTION: User triggered an action
-        COMPLETE: Flow is complete, no more interaction needed
-    """
+    """Type of interaction required from the user."""
 
     PROMPT = "prompt"
     SELECTION = "selection"
@@ -190,63 +205,94 @@ class InteractionRequest(BaseModel):
 
     This is what developers receive when LangState needs input from the user.
     Developers can send this to their frontend via HTTP or other means.
-
-    Attributes:
-        interaction_type: Type of interaction needed
-        prompt: Message/prompt for the user
-        components: UI components to render
-        options: Options for selection-type interactions
-        state: Current interpretive state
-        canonical_state: Canonical state with resolved values (business state)
-        pending_fields: Fields still needing values
-        metadata: Additional metadata
     """
 
-    interaction_type: InteractionType
-    prompt: str = ""
-    components: List[object] = Field(default_factory=list)
-    options: Dict[str, List[object]] = Field(default_factory=dict)
-    state: Optional[InterpretiveState] = None
-    canonical_state: Optional[CanonicalState] = None
-    pending_fields: List[str] = Field(default_factory=list)
-    metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+    interaction_type: Annotated[
+        InteractionType,
+        Field(description="Type of interaction needed"),
+    ]
+    prompt: Annotated[
+        str,
+        Field(default="", description="Message/prompt for the user"),
+    ]
+    components: Annotated[
+        List[object],
+        Field(default_factory=list, description="UI components to render"),
+    ]
+    options: Annotated[
+        Dict[str, List[object]],
+        Field(
+            default_factory=dict, description="Options for selection-type interactions"
+        ),
+    ]
+    state: Annotated[
+        Optional[InterpretiveState],
+        Field(default=None, description="Current interpretive state"),
+    ]
+    canonical_state: Annotated[
+        Optional[CanonicalState],
+        Field(
+            default=None,
+            description="Canonical state with resolved values (business state)",
+        ),
+    ]
+    pending_fields: Annotated[
+        List[str],
+        Field(default_factory=list, description="Fields still needing values"),
+    ]
+    metadata: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="Additional metadata"),
+    ]
 
 
 class ActionResultData(BaseModel):
-    """Result returned when the flow is complete and action can be taken.
+    """Result returned when the flow is complete and action can be taken."""
 
-    Attributes:
-        state: Final interpretive state with all field snapshots
-        canonical_state: Final canonical state with resolved values for action
-        success: Whether the flow completed successfully
-        action_data: Data to be used for the action
-        metadata: Additional metadata
-    """
-
-    state: InterpretiveState
-    canonical_state: CanonicalState
-    success: bool = True
-    action_data: Dict[str, object] = Field(default_factory=dict)
-    metadata: Dict[str, object] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+    state: Annotated[
+        InterpretiveState,
+        Field(description="Final interpretive state with all field snapshots"),
+    ]
+    canonical_state: Annotated[
+        CanonicalState,
+        Field(description="Final canonical state with resolved values for action"),
+    ]
+    success: Annotated[
+        bool,
+        Field(default=True, description="Whether the flow completed successfully"),
+    ]
+    action_data: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="Data to be used for the action"),
+    ]
+    metadata: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="Additional metadata"),
+    ]
 
 
 class LangStateConfig(BaseModel):
-    """Configuration for LangState instance.
+    """Configuration for LangState instance."""
 
-    Attributes:
-        schema_source: Path or dict for schema definition
-        confidence_threshold: Minimum confidence for auto-canonicalization
-        require_confirmation: Whether to require user confirmation for values
-        conversation_history_limit: Max conversation history to maintain
-        metadata: Additional configuration
-    """
-
-    schema_source: Optional[str] = None
-    confidence_threshold: float = 0.7
-    require_confirmation: bool = False
-    conversation_history_limit: int = 100
-    metadata: Dict[str, object] = Field(default_factory=dict)
+    schema_source: Annotated[
+        Optional[str],
+        Field(default=None, description="Path or dict for schema definition"),
+    ]
+    confidence_threshold: Annotated[
+        float,
+        Field(default=0.7, description="Minimum confidence for auto-canonicalization"),
+    ]
+    require_confirmation: Annotated[
+        bool,
+        Field(
+            default=False, description="Whether to require user confirmation for values"
+        ),
+    ]
+    conversation_history_limit: Annotated[
+        int,
+        Field(default=100, description="Max conversation history to maintain"),
+    ]
+    metadata: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="Additional configuration"),
+    ]

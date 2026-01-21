@@ -4,17 +4,16 @@ from .base import (
     BaseState,
     Inference,
     ValueConfidence,
-    FieldState,
 )
 from .canonical import (
     CanonicalState,
-    CanonicalFieldState,
-    CanonicalStateData,
+    CanonicalStateSchema,
 )
 from .interpretive import (
     InterpretiveState,
     InterpretiveFieldState,
-    InterpretiveStateData,
+    InterpretiveStateSchema,
+    SnapshotStore,
 )
 
 __all__ = [
@@ -22,13 +21,12 @@ __all__ = [
     "BaseState",
     "Inference",
     "ValueConfidence",
-    "FieldState",
     # Canonical
     "CanonicalState",
-    "CanonicalFieldState",
-    "CanonicalStateData",
+    "CanonicalStateSchema",
     # Interpretive
     "InterpretiveState",
     "InterpretiveFieldState",
-    "InterpretiveStateData",
+    "InterpretiveStateSchema",
+    "SnapshotStore",
 ]

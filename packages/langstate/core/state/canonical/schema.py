@@ -6,10 +6,10 @@ Canonical State uses simple key-value format for business logic.
 
 from typing import Dict
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
-class CanonicalState(BaseModel):
+class CanonicalState(RootModel[Dict[str, object]]):
     """Canonical state representation: simple key-value mapping.
 
     Format: {key: value}
@@ -22,4 +22,4 @@ class CanonicalState(BaseModel):
         }
     """
 
-    __root__: Dict[str, object]
+    pass

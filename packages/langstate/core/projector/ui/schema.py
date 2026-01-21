@@ -4,7 +4,7 @@ This module contains all data models used by the UI Projector interface.
 """
 
 from enum import Enum
-from typing import Dict, List
+from typing import Annotated, Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -12,24 +12,7 @@ from ..base.schema import ProjectionContext, ProjectionResult
 
 
 class UIComponentType(str, Enum):
-    """Type of UI component.
-
-    Attributes:
-        TEXT_INPUT: Free-form text input field
-        SELECT: Dropdown/select component
-        RADIO: Radio button group
-        CHECKBOX: Checkbox or checkbox group
-        DATE_PICKER: Date selection component
-        TIME_PICKER: Time selection component
-        FILE_UPLOAD: File upload component
-        BUTTON: Action button
-        TEXTAREA: Multi-line text input
-        NUMBER_INPUT: Numeric input field
-        SLIDER: Range slider
-        TOGGLE: On/off toggle switch
-        AUTOCOMPLETE: Autocomplete/suggestion input
-        CUSTOM: Custom component type
-    """
+    """Type of UI component."""
 
     TEXT_INPUT = "text_input"
     SELECT = "select"
@@ -48,58 +31,87 @@ class UIComponentType(str, Enum):
 
 
 class UIComponent(BaseModel):
-    """UI component model.
+    """UI component model."""
 
-    Attributes:
-        component_type: Type of the UI component
-        field_id: Associated field identifier
-        label: Display label for the component
-        placeholder: Placeholder text
-        options: Options for select/radio/checkbox components
-        validation_rules: Client-side validation rules
-        disabled: Whether the component is disabled
-        required: Whether the field is required
-        metadata: Additional component metadata
-    """
-
-    component_type: UIComponentType
-    field_id: str
-    label: str = ""
-    placeholder: str = ""
-    options: List[Dict[str, object]] = Field(default_factory=list)
-    validation_rules: Dict[str, object] = Field(default_factory=dict)
-    disabled: bool = False
-    required: bool = False
-    metadata: Dict[str, object] = Field(default_factory=dict)
+    component_type: Annotated[
+        UIComponentType,
+        Field(description="Type of the UI component"),
+    ]
+    field_id: Annotated[
+        str,
+        Field(description="Associated field identifier"),
+    ]
+    label: Annotated[
+        str,
+        Field(default="", description="Display label for the component"),
+    ]
+    placeholder: Annotated[
+        str,
+        Field(default="", description="Placeholder text"),
+    ]
+    options: Annotated[
+        List[Dict[str, object]],
+        Field(
+            default_factory=list,
+            description="Options for select/radio/checkbox components",
+        ),
+    ]
+    validation_rules: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="Client-side validation rules"),
+    ]
+    disabled: Annotated[
+        bool,
+        Field(default=False, description="Whether the component is disabled"),
+    ]
+    required: Annotated[
+        bool,
+        Field(default=False, description="Whether the field is required"),
+    ]
+    metadata: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="Additional component metadata"),
+    ]
 
 
 class UIProjectionContext(ProjectionContext):
     """Context provided to the UI projector for processing.
 
     Extends ProjectionContext with UI-specific fields.
-
-    Attributes:
-        conversation_history: Conversation history for context
-        user_preferences: User preferences for UI generation
     """
 
-    conversation_history: List[Dict[str, str]] = Field(default_factory=list)
-    user_preferences: Dict[str, object] = Field(default_factory=dict)
+    conversation_history: Annotated[
+        List[Dict[str, str]],
+        Field(default_factory=list, description="Conversation history for context"),
+    ]
+    user_preferences: Annotated[
+        Dict[str, object],
+        Field(default_factory=dict, description="User preferences for UI generation"),
+    ]
 
 
 class UIProjectionResult(ProjectionResult):
-    """Result of a UI projection operation.
+    """Result of a UI projection operation."""
 
-    Attributes:
-        prompt: The generated prompt/message for the user
-        components: List of UI components to display
-        suggestions: Suggested values/actions for the user
-        is_complete: Whether the form/flow is complete
-        next_fields: Fields to focus on next
-    """
-
-    prompt: str = ""
-    components: List[UIComponent] = Field(default_factory=list)
-    suggestions: Dict[str, List[object]] = Field(default_factory=dict)
-    is_complete: bool = False
-    next_fields: List[str] = Field(default_factory=list)
+    prompt: Annotated[
+        str,
+        Field(default="", description="The generated prompt/message for the user"),
+    ]
+    components: Annotated[
+        List[UIComponent],
+        Field(default_factory=list, description="List of UI components to display"),
+    ]
+    suggestions: Annotated[
+        Dict[str, List[object]],
+        Field(
+            default_factory=dict, description="Suggested values/actions for the user"
+        ),
+    ]
+    is_complete: Annotated[
+        bool,
+        Field(default=False, description="Whether the form/flow is complete"),
+    ]
+    next_fields: Annotated[
+        List[str],
+        Field(default_factory=list, description="Fields to focus on next"),
+    ]
