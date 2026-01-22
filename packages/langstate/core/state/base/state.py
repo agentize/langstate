@@ -5,10 +5,12 @@ This is the base interface that specialized states inherit from.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, Generic, List, Optional
+
+from packages.langstate.core.typing.generic import TFieldData
 
 
-class BaseState(ABC):
+class BaseState(ABC, Generic[TFieldData]):
     """Abstract base class for State implementations.
 
     The State holds the current values and metadata for all fields.
@@ -18,7 +20,7 @@ class BaseState(ABC):
     """
 
     @abstractmethod
-    def get_field(self, field_id: str) -> Optional[object]:
+    def get_field(self, field_id: str) -> Optional[TFieldData]:
         """Get the value/data for a specific field.
 
         Args:
@@ -30,7 +32,7 @@ class BaseState(ABC):
         pass
 
     @abstractmethod
-    def set_field(self, field_id: str, value: object) -> None:
+    def set_field(self, field_id: str, value: TFieldData) -> None:
         """Set the value/data for a specific field.
 
         Args:
@@ -40,7 +42,7 @@ class BaseState(ABC):
         pass
 
     @abstractmethod
-    def get_all_fields(self) -> Dict[str, object]:
+    def get_all_fields(self) -> Dict[str, TFieldData]:
         """Get all fields and their values/data.
 
         Returns:
@@ -80,7 +82,7 @@ class BaseState(ABC):
         pass
 
     @abstractmethod
-    def copy(self) -> "BaseState":
+    def copy(self) -> "BaseState[TFieldData]":
         """Create a copy of the state.
 
         Returns:

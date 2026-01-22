@@ -18,7 +18,9 @@ from .schema import (
 )
 
 
-class BaseProjectorCanonicalState(BaseProjector):
+class BaseProjectorCanonicalState(
+    BaseProjector[CanonicalProjectionContext, CanonicalProjectionResult]
+):
     """Abstract base class for Canonical State Projector implementations.
 
     The Canonical State Projector receives the interpretive state (with inference

@@ -14,7 +14,7 @@ from ..base.schema import Inference, ValueConfidence
 from .schema import InterpretiveFieldState
 
 
-class InterpretiveState(BaseState):
+class InterpretiveState(BaseState[InterpretiveFieldState]):
     """Interpretive State interface.
 
     The Interpretive State stores field values with inference chains and confidence scores.
@@ -56,14 +56,14 @@ class InterpretiveState(BaseState):
         pass
 
     @abstractmethod
-    def set_field(self, field_id: str, value: object) -> None:
+    def set_field(self, field_id: str, value: InterpretiveFieldState) -> None:
         """Set the value for a specific field.
 
         For interpretive state, this creates/updates the field with the given data.
 
         Args:
             field_id: The field identifier
-            value: The value (can be InterpretiveFieldState or dict or simple value)
+            value: The InterpretiveFieldState to set
         """
         pass
 

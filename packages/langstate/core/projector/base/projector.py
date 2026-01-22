@@ -6,15 +6,18 @@ The Projector is responsible for:
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, TypeVar, Generic
 
 from .schema import ProjectionContext, ProjectionResult
+
+PC = TypeVar("PC", bound=ProjectionContext)
+PR = TypeVar("PR", bound=ProjectionResult)
 
 if TYPE_CHECKING:
     from ...schema_reader.base.schema import Schema
 
 
-class BaseProjector(ABC):
+class BaseProjector(ABC, Generic[PC, PR]):
     """Abstract base class for all Projector implementations.
 
     A Projector transforms internal state into a specific output format.
@@ -26,14 +29,14 @@ class BaseProjector(ABC):
     """
 
     @abstractmethod
-    async def project(self, context: ProjectionContext) -> ProjectionResult:
+    async def project(self, context: PC) -> PR:
         """Project the state to the target format.
 
         Args:
-            context: ProjectionContext containing current state
+            context: PC containing current state
 
         Returns:
-            ProjectionResult with the projection output
+            PR with the projection output
         """
         pass
 

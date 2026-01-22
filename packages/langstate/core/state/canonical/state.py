@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 from ..base.state import BaseState
 
 
-class CanonicalState(BaseState):
+class CanonicalState(BaseState[object]):
     """Canonical State interface.
 
     The Canonical State stores resolved field values in a simple key-value format.

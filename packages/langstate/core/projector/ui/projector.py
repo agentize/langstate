@@ -19,7 +19,7 @@ from .schema import (
 )
 
 
-class BaseProjectorUI(BaseProjector):
+class BaseProjectorUI(BaseProjector[UIProjectionContext, UIProjectionResult]):
     """Abstract base class for UI Projector implementations.
 
     The UI Projector generates UI components and LLM completions based on
