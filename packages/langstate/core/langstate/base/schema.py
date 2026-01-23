@@ -8,8 +8,8 @@ from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from ...state.interpretive.schema import InterpretiveState
-from ...state.canonical.schema import CanonicalState
+from ...state.interpretive.schema import InterpretiveStateSchema
+from ...state.canonical.schema import CanonicalStateSchema
 
 
 class InputType(str, Enum):
@@ -233,11 +233,11 @@ class InteractionRequest(BaseModel):
         ),
     ]
     state: Annotated[
-        Optional[InterpretiveState],
+        Optional[InterpretiveStateSchema],
         Field(default=None, description="Current interpretive state"),
     ]
     canonical_state: Annotated[
-        Optional[CanonicalState],
+        Optional[CanonicalStateSchema],
         Field(
             default=None,
             description="Canonical state with resolved values (business state)",
@@ -257,11 +257,11 @@ class ActionResultData(BaseModel):
     """Result returned when the flow is complete and action can be taken."""
 
     state: Annotated[
-        InterpretiveState,
+        InterpretiveStateSchema,
         Field(description="Final interpretive state with all field snapshots"),
     ]
     canonical_state: Annotated[
-        CanonicalState,
+        CanonicalStateSchema,
         Field(description="Final canonical state with resolved values for action"),
     ]
     success: Annotated[

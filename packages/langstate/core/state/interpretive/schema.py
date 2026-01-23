@@ -27,7 +27,7 @@ class InterpretiveFieldState(BaseModel):
     ]
 
 
-class InterpretiveState(RootModel[Dict[str, InterpretiveFieldState]]):
+class InterpretiveStateSchema(RootModel[Dict[str, InterpretiveFieldState]]):
     """Interpretive state representation: rich format with inference and values.
 
     Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List
 
-from ..schema import InterpretiveState
+from ..schema import InterpretiveStateSchema
 
 
 class SnapshotStore(ABC):
@@ -16,7 +16,7 @@ class SnapshotStore(ABC):
     def record_snapshot(
         self,
         mutator_id: str,
-        state: InterpretiveState,
+        state: InterpretiveStateSchema,
     ) -> None:
         """Record a snapshot for a mutator run.
 
@@ -25,7 +25,7 @@ class SnapshotStore(ABC):
         """
 
     @abstractmethod
-    def get_snapshots(self) -> List[InterpretiveState]:
+    def get_snapshots(self) -> List[InterpretiveStateSchema]:
         """Return list of recorded snapshots as dictionaries."""
 
     @abstractmethod

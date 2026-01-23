@@ -7,14 +7,14 @@ from typing import Annotated, Dict
 
 from pydantic import BaseModel, Field
 
-from ...state.interpretive.schema import InterpretiveState
+from ...state.interpretive.schema import InterpretiveStateSchema
 
 
 class MutationResult(BaseModel):
     """Result of a mutation operation."""
 
     updated_state: Annotated[
-        InterpretiveState,
+        InterpretiveStateSchema,
         Field(
             description="The updated interpretive state graph after mutation. "
             "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"
@@ -39,7 +39,7 @@ class MutationContext(BaseModel):
         ),
     ]
     current_state: Annotated[
-        InterpretiveState,
+        InterpretiveStateSchema,
         Field(
             description="Current interpretive state graph with field instances. "
             "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"

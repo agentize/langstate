@@ -7,22 +7,22 @@ from typing import Annotated, Dict, Optional
 
 from pydantic import BaseModel, Field
 
-from ...state.interpretive.schema import InterpretiveState
-from ...state.canonical.schema import CanonicalState
+from ...state.interpretive.schema import InterpretiveStateSchema
+from ...state.canonical.schema import CanonicalStateSchema
 
 
 class ProjectionContext(BaseModel):
     """Base context provided to projectors for processing."""
 
     interpretive_state: Annotated[
-        InterpretiveState,
+        InterpretiveStateSchema,
         Field(
             description="Current interpretive state graph with field instances. "
             "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"
         ),
     ]
     canonical_state: Annotated[
-        Optional[CanonicalState],
+        Optional[CanonicalStateSchema],
         Field(
             default=None,
             description="Current canonical state with resolved values (key: value)",

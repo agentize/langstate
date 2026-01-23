@@ -7,14 +7,14 @@ This state tracks how values were derived and maintains multiple candidate value
 """
 
 from abc import abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from ..base.state import BaseState
 from ..base.schema import Inference, ValueConfidence
-from .schema import InterpretiveFieldState
+from .schema import InterpretiveStateSchema
 
 
-class InterpretiveState(BaseState[InterpretiveFieldState]):
+class InterpretiveState(BaseState[InterpretiveStateSchema]):
     """Interpretive State interface.
 
     The Interpretive State stores field values with inference chains and confidence scores.
@@ -42,30 +42,6 @@ class InterpretiveState(BaseState[InterpretiveFieldState]):
         # Get best value
         best = state.get_best_value("name")  # ValueConfidence(value="John", confidence=0.9)
     """
-
-    @abstractmethod
-    def get_field(self, field_id: str) -> Optional[InterpretiveFieldState]:
-        """Get the full state for a specific field.
-
-        Args:
-            field_id: The field identifier
-
-        Returns:
-            InterpretiveFieldState, None if not found
-        """
-        pass
-
-    @abstractmethod
-    def set_field(self, field_id: str, value: InterpretiveFieldState) -> None:
-        """Set the value for a specific field.
-
-        For interpretive state, this creates/updates the field with the given data.
-
-        Args:
-            field_id: The field identifier
-            value: The InterpretiveFieldState to set
-        """
-        pass
 
     @abstractmethod
     def add_inference(self, field_id: str, inference: Inference) -> None:
@@ -96,67 +72,6 @@ class InterpretiveState(BaseState[InterpretiveFieldState]):
 
         Returns:
             ValueConfidence with highest confidence, None if no values
-        """
-        pass
-
-    @abstractmethod
-    def get_all_fields(self) -> Dict[str, InterpretiveFieldState]:
-        """Get all fields and their states.
-
-        Returns:
-            Dictionary of field_id to InterpretiveFieldState
-        """
-        pass
-
-    @abstractmethod
-    def get_filled_fields(self) -> List[str]:
-        """Get list of fields that have values.
-
-        Returns:
-            List of field identifiers that have at least one value
-        """
-        pass
-
-    @abstractmethod
-    def get_empty_fields(self) -> List[str]:
-        """Get list of fields that have no values.
-
-        Returns:
-            List of field identifiers that have no values
-        """
-        pass
-
-    @abstractmethod
-    def is_complete(
-        self, required_fields: Optional[List[str]] = None, min_confidence: float = 0.0
-    ) -> bool:
-        """Check if the state is complete.
-
-        Args:
-            required_fields: Optional list of required field IDs.
-                If None, checks all fields.
-            min_confidence: Minimum confidence threshold for a value to count
-
-        Returns:
-            True if all required fields have values above threshold
-        """
-        pass
-
-    @abstractmethod
-    def copy(self) -> "InterpretiveState":
-        """Create a copy of the state.
-
-        Returns:
-            A new InterpretiveState instance with copied data
-        """
-        pass
-
-    @abstractmethod
-    def to_dict(self) -> Dict[str, object]:
-        """Convert state to dictionary representation.
-
-        Returns:
-            Dictionary in interpretive state format
         """
         pass
 

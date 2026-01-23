@@ -9,7 +9,7 @@ from typing import Dict
 from pydantic import RootModel
 
 
-class CanonicalState(RootModel[Dict[str, object]]):
+class CanonicalStateSchema(RootModel[Dict[str, object]]):
     """Canonical state representation: simple key-value mapping.
 
     Format: {key: value}
