@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Generic, List
 
-from ..schema import InterpretiveStateSchema
+from packages.langstate.core.typing.generic import TFieldData
 
 
-class SnapshotStore(ABC):
+class SnapshotStore(ABC, Generic[TFieldData]):
     """Interface for storing snapshots of an State.
 
     Implementations can store snapshots in-memory, on-disk, or in a database.
@@ -16,7 +16,7 @@ class SnapshotStore(ABC):
     def record_snapshot(
         self,
         mutator_id: str,
-        state: InterpretiveStateSchema,
+        state: TFieldData,
     ) -> None:
         """Record a snapshot for a mutator run.
 
@@ -25,7 +25,7 @@ class SnapshotStore(ABC):
         """
 
     @abstractmethod
-    def get_snapshots(self) -> List[InterpretiveStateSchema]:
+    def get_snapshots(self) -> List[TFieldData]:
         """Return list of recorded snapshots as dictionaries."""
 
     @abstractmethod

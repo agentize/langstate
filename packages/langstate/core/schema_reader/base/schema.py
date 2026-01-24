@@ -82,23 +82,3 @@ class Schema(RootModel[Dict[str, SchemaField]]):
     """
 
     pass
-
-
-class SchemaReadResult(BaseModel):
-    """Result of reading a schema."""
-
-    schema_data: Annotated[
-        Schema,
-        Field(alias="schema", description="The parsed schema"),
-    ]
-    source_type: Annotated[
-        SourceType,
-        Field(
-            default=SourceType.UNKNOWN,
-            description="Type of source (yaml, json, openapi, etc.)",
-        ),
-    ]
-    metadata: Annotated[
-        Dict[str, object],
-        Field(default_factory=dict, description="Additional metadata"),
-    ]

@@ -65,7 +65,7 @@ class AgentInput(BaseModel):
             default=None,
             description="Text content (for TEXT type or accompanying other types)",
         ),
-    ] = None
+    ]
 
     action: Annotated[
         Optional[str],
@@ -73,7 +73,7 @@ class AgentInput(BaseModel):
             default=None,
             description="Action identifier (for ACTION type, e.g., button_id, form_name)",
         ),
-    ] = None
+    ]
 
     action_data: Annotated[
         Dict[str, object],
@@ -81,14 +81,14 @@ class AgentInput(BaseModel):
             default_factory=dict,
             description="Additional data for the action (form fields, parameters)",
         ),
-    ] = {}
+    ]
 
     selection: Annotated[
         List[object],
         Field(
             default_factory=list, description="Selected option(s) for SELECTION type"
         ),
-    ] = []
+    ]
 
     field_id: Annotated[
         Optional[str],
@@ -96,24 +96,24 @@ class AgentInput(BaseModel):
             default=None,
             description="Target field identifier (if input is for a specific field)",
         ),
-    ] = None
+    ]
 
     confirmed: Annotated[
         Optional[bool],
         Field(default=None, description="Confirmation status for CONFIRMATION type"),
-    ] = None
+    ]
 
     files: Annotated[
         List[Dict[str, object]],
         Field(
             default_factory=list, description="List of file references for FILE type"
         ),
-    ] = []
+    ]
 
     metadata: Annotated[
         Dict[str, object],
         Field(default_factory=dict, description="Additional context or metadata"),
-    ] = {}
+    ]
 
     @classmethod
     def from_text(cls, text: str) -> "AgentInput":
