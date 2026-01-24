@@ -31,7 +31,7 @@ class BaseStateFactory(ABC):
     @abstractmethod
     def create_canonical_state(
         self,
-        schema: Schema,
+        schema: "Schema",
     ) -> BaseCanonicalState:
         """Create a new canonical state instance.
 
