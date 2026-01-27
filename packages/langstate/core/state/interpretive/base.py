@@ -7,14 +7,14 @@ This state tracks how values were derived and maintains multiple candidate value
 """
 
 from abc import abstractmethod
-from typing import Dict, Optional
+from typing import Optional
 
 from ..base.state import BaseState
 from .schema import ValueConfidence
-from .schema import Inference, InterpretiveStateSchema
+from .schema import Inference, InterpretiveFieldState
 
 
-class BaseInterpretiveState(BaseState[InterpretiveStateSchema]):
+class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
     """Interpretive State interface.
 
     The Interpretive State stores field values with inference chains and confidence scores.
@@ -72,14 +72,5 @@ class BaseInterpretiveState(BaseState[InterpretiveStateSchema]):
 
         Returns:
             ValueConfidence with highest confidence, None if no values
-        """
-        pass
-
-    @abstractmethod
-    def to_canonical_dict(self) -> Dict[str, object]:
-        """Convert to canonical state format (best values only).
-
-        Returns:
-            Dictionary in canonical format {field_id: value}
         """
         pass

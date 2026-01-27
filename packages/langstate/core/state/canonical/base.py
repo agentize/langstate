@@ -6,11 +6,11 @@ Format: {key: value}
 This is the state used for executing actions and represents the final resolved values.
 """
 
-from packages.langstate.core.state.canonical.schema import CanonicalStateSchema
+from packages.langstate.core.state.canonical.schema import CanonicalFieldValue
 from ..base.state import BaseState
 
 
-class BaseCanonicalState(BaseState[CanonicalStateSchema]):
+class BaseCanonicalState(BaseState[CanonicalFieldValue]):
     """Canonical State interface.
 
     The Canonical State stores resolved field values in a simple key-value format.

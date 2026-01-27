@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Union, Any, Optional, cast
+from typing import Dict, Union, Any, cast
 
 from openapi_parser import parse
 from openapi_parser.specification import (
@@ -54,16 +54,6 @@ class OpenAPIReader(BaseSchemaReader):
 
         # Determine root entity
         root_entity = self.root_entity
-        if not root_entity:
-            # Try to get from x-sup extension
-            extensions = cast(
-                Optional[Dict[str, Any]], getattr(specification, "extensions", None)
-            )
-            x_sup = extensions.get("x-sup") if extensions else None
-            if isinstance(x_sup, dict):
-                ext = cast(Dict[str, Any], x_sup)
-                root_entity = ext.get("root_entity")
-
         if not root_entity:
             raise ValueError(
                 "No root_entity specified. Provide it in constructor or x-sup.root_entity"
@@ -120,8 +110,11 @@ class OpenAPIReader(BaseSchemaReader):
                 ext = cast(Dict[str, Any], extensions)
                 metadata["x-sup"] = ext.get("x-sup")
 
-            # Handle default value
+            # Handle default value and nested fields
             default_value = prop.schema.default
+            if isinstance(prop.schema, OpenAPIObject):
+                # Recursively parse nested object fields and put them in default_value
+                default_value = self._parse_schema(prop.schema, all_schemas)
 
             fields[prop.name] = SchemaField(
                 field_id=prop.name,

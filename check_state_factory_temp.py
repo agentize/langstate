@@ -20,7 +20,7 @@ def main() -> int:
     # Create canonical state and verify default values are set
     canonical = factory.create_canonical_state(schema)
     canonical_dict = canonical.to_dict()
-    assert canonical_dict.get("id") is None, "Canonical should contain 'id' key"
+    assert canonical_dict.get("id") is None, "Canonical should not contain 'id' key"
 
     # Create interpretive state and verify values were added with confidence 1.0
     interpretive = factory.create_interpretive_state(canonical)
