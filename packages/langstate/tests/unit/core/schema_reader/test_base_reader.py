@@ -11,7 +11,6 @@ Target: 100% code coverage for schema_reader/base/schema.py and reader.py
 """
 
 # pyright: reportUnknownMemberType=false
-# pyright: reportUnknownVariableType=false
 
 from __future__ import annotations
 
@@ -396,7 +395,7 @@ class TestSchemaEdgeCases:
 
     def test_schema_model_validate(self) -> None:
         """Schema should support model_validate for parsing."""
-        data = {
+        data: dict[str, dict[str, Any]] = {
             "name": {
                 "field_id": "name",
                 "field_type": "string",

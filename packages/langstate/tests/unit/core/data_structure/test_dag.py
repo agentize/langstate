@@ -14,13 +14,6 @@ Target: 100% code coverage for dag.py and schema.py
 """
 
 # pyright: reportPrivateUsage=false
-# pyright: reportUnknownMemberType=false
-# pyright: reportUnknownVariableType=false
-# pyright: reportUnknownArgumentType=false
-# pyright: reportMissingParameterType=false
-# pyright: reportUnknownParameterType=false
-# pyright: reportUnknownLambdaType=false
-# pyright: reportIncompatibleVariableOverride=false
 
 from __future__ import annotations
 
@@ -105,6 +98,12 @@ def diamond_dag() -> DirectedAcyclicGraph[str, str]:
     dag.add_edge("B", "D")
     dag.add_edge("C", "D")
     return dag
+
+
+@pytest.fixture
+def any_dag() -> DirectedAcyclicGraph[Any, Any]:
+    """Create an empty DAG with Any types for testing custom value/metadata types."""
+    return DirectedAcyclicGraph[Any, Any]()
 
 
 # ============================================================================
@@ -310,7 +309,7 @@ class TestDAGInitialization:
 class TestDAGNodeOperations:
     """Tests for DAG node operations."""
 
-    def test_add_node_creates_new_node(self, empty_dag):
+    def test_add_node_creates_new_node(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """Adding a new node should create it in the graph."""
         node = empty_dag.add_node("test.path", value="test_value")
 
@@ -319,7 +318,9 @@ class TestDAGNodeOperations:
         assert node.id is not None
         assert empty_dag.get_node("test.path") == node
 
-    def test_add_node_idempotent_returns_existing(self, empty_dag):
+    def test_add_node_idempotent_returns_existing(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Adding existing node should return it without creating duplicate."""
         node1 = empty_dag.add_node("test.path", value="value1")
         node2 = empty_dag.add_node("test.path")
@@ -327,7 +328,9 @@ class TestDAGNodeOperations:
         assert node1 is node2
         assert node1.value == "value1"  # Value unchanged
 
-    def test_add_node_updates_value_when_provided(self, empty_dag):
+    def test_add_node_updates_value_when_provided(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Adding existing node with new value should update it."""
         node1 = empty_dag.add_node("test.path", value="value1")
         node2 = empty_dag.add_node("test.path", value="value2")
@@ -335,7 +338,7 @@ class TestDAGNodeOperations:
         assert node1 is node2
         assert node1.value == "value2"
 
-    def test_get_node_existing(self, simple_dag):
+    def test_get_node_existing(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Getting existing node should return it."""
         node = simple_dag.get_node("A")
 
@@ -343,13 +346,13 @@ class TestDAGNodeOperations:
         assert node.path == "A"
         assert node.value == "value_A"
 
-    def test_get_node_nonexistent(self, empty_dag):
+    def test_get_node_nonexistent(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """Getting nonexistent node should return None."""
         node = empty_dag.get_node("nonexistent")
 
         assert node is None
 
-    def test_get_node_by_uuid(self, empty_dag):
+    def test_get_node_by_uuid(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """Getting node by UUID should work."""
         added_node = empty_dag.add_node("test.path")
 
@@ -357,20 +360,26 @@ class TestDAGNodeOperations:
 
         assert retrieved == added_node
 
-    def test_get_node_by_uuid_nonexistent(self, empty_dag):
+    def test_get_node_by_uuid_nonexistent(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Getting nonexistent UUID should return None."""
         result = empty_dag.get_node_by_uuid(uuid4())
 
         assert result is None
 
-    def test_remove_node_removes_from_graph(self, simple_dag):
+    def test_remove_node_removes_from_graph(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Removing node should remove it from graph."""
         simple_dag.remove_node("B")
 
         assert simple_dag.get_node("B") is None
         assert "B" not in simple_dag.path_to_uuid
 
-    def test_remove_node_removes_inbound_edges(self, simple_dag):
+    def test_remove_node_removes_inbound_edges(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Removing node should remove edges where node is dependent."""
         simple_dag.remove_node("B")
 
@@ -379,7 +388,9 @@ class TestDAGNodeOperations:
         assert node_a is not None
         assert all(d.path != "B" for d in node_a.dependents())
 
-    def test_remove_node_removes_outbound_edges(self, simple_dag):
+    def test_remove_node_removes_outbound_edges(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Removing node should remove edges where node is prerequisite."""
         simple_dag.remove_node("B")
 
@@ -388,7 +399,9 @@ class TestDAGNodeOperations:
         assert node_c is not None
         assert "B" not in node_c.depends_on
 
-    def test_remove_nonexistent_node_no_error(self, empty_dag):
+    def test_remove_nonexistent_node_no_error(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Removing nonexistent node should not raise error."""
         empty_dag.remove_node("nonexistent")  # Should not raise
 
@@ -401,76 +414,95 @@ class TestDAGNodeOperations:
 class TestDAGEdgeOperations:
     """Tests for DAG edge operations."""
 
-    def test_add_edge_creates_nodes_if_needed(self, empty_dag):
+    def test_add_edge_creates_nodes_if_needed(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Adding edge should create nodes if they don't exist."""
         empty_dag.add_edge("prereq", "dep")
 
         assert empty_dag.get_node("prereq") is not None
         assert empty_dag.get_node("dep") is not None
 
-    def test_add_edge_creates_dependency(self, empty_dag):
+    def test_add_edge_creates_dependency(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Adding edge should create dependency relationship."""
         empty_dag.add_edge("prereq", "dep")
 
         dep_node = empty_dag.get_node("dep")
+        assert dep_node is not None
         assert "prereq" in dep_node.depends_on
 
-    def test_add_edge_with_metadata(self, empty_dag):
+    def test_add_edge_with_metadata(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """Adding edge should store metadata."""
         empty_dag.add_edge("prereq", "dep", metadata="edge_metadata")
 
         dep_node = empty_dag.get_node("dep")
+        assert dep_node is not None
         edge = dep_node.depends_on["prereq"]
         assert edge.metadata == "edge_metadata"
 
-    def test_add_edge_idempotent(self, empty_dag):
+    def test_add_edge_idempotent(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """Adding same edge twice should be idempotent."""
         empty_dag.add_edge("prereq", "dep", metadata="meta1")
         empty_dag.add_edge("prereq", "dep", metadata="meta2")
 
         dep_node = empty_dag.get_node("dep")
+        assert dep_node is not None
         assert len(dep_node.depends_on) == 1
         assert dep_node.depends_on["prereq"].metadata == "meta2"
 
-    def test_add_edge_maintains_reverse_mirror(self, empty_dag):
+    def test_add_edge_maintains_reverse_mirror(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Adding edge should update prerequisite's dependents."""
         empty_dag.add_edge("prereq", "dep")
 
         prereq_node = empty_dag.get_node("prereq")
         dep_node = empty_dag.get_node("dep")
+        assert prereq_node is not None
+        assert dep_node is not None
         assert dep_node in prereq_node.dependents()
 
-    def test_add_edge_self_dependency_raises(self, empty_dag):
+    def test_add_edge_self_dependency_raises(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Self-dependency should raise ValueError."""
         with pytest.raises(ValueError, match="Self dependency"):
             empty_dag.add_edge("A", "A")
 
-    def test_add_edge_cycle_detection(self, simple_dag):
+    def test_add_edge_cycle_detection(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Adding cycle-creating edge should raise ValueError."""
         # simple_dag: A -> B -> C
         with pytest.raises(ValueError, match="cycle"):
             simple_dag.add_edge("C", "A")  # Would create cycle
 
-    def test_add_edge_no_cycle_check(self, simple_dag):
+    def test_add_edge_no_cycle_check(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Cycle check can be disabled."""
         # This would create a cycle, but check is disabled
         simple_dag.add_edge("C", "A", check_cycle=False)
 
         # Edge should be added
         node_a = simple_dag.get_node("A")
+        assert node_a is not None
         assert "C" in node_a.depends_on
 
-    def test_remove_edge(self, simple_dag):
+    def test_remove_edge(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Removing edge should remove dependency."""
         simple_dag.remove_edge("A", "B")
 
         node_b = simple_dag.get_node("B")
+        assert node_b is not None
         assert "A" not in node_b.depends_on
 
-    def test_remove_edge_updates_reverse_mirror(self, simple_dag):
+    def test_remove_edge_updates_reverse_mirror(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Removing edge should update prerequisite's dependents."""
         node_a = simple_dag.get_node("A")
         node_b = simple_dag.get_node("B")
+        assert node_a is not None
+        assert node_b is not None
 
         assert node_b in node_a.dependents()
 
@@ -478,11 +510,15 @@ class TestDAGEdgeOperations:
 
         assert node_b not in node_a.dependents()
 
-    def test_remove_nonexistent_edge_no_error(self, simple_dag):
+    def test_remove_nonexistent_edge_no_error(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Removing nonexistent edge should not raise error."""
         simple_dag.remove_edge("A", "C")  # No direct edge exists
 
-    def test_remove_edge_nonexistent_node_no_error(self, empty_dag):
+    def test_remove_edge_nonexistent_node_no_error(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Removing edge from nonexistent nodes should not raise error."""
         empty_dag.remove_edge("nonexistent1", "nonexistent2")
 
@@ -495,63 +531,68 @@ class TestDAGEdgeOperations:
 class TestDAGGraphQueries:
     """Tests for DAG graph-wide queries."""
 
-    def test_prerequisites(self, simple_dag):
+    def test_prerequisites(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Prerequisites should return direct prerequisites."""
         assert simple_dag.prerequisites("B") == {"A"}
         assert simple_dag.prerequisites("C") == {"B"}
         assert simple_dag.prerequisites("A") == set()
 
-    def test_prerequisites_nonexistent_node(self, empty_dag):
+    def test_prerequisites_nonexistent_node(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Prerequisites of nonexistent node should be empty set."""
         assert empty_dag.prerequisites("nonexistent") == set()
 
-    def test_prerequisite_ids(self, simple_dag):
+    def test_prerequisite_ids(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Prerequisite IDs should return UUIDs."""
         node_a = simple_dag.get_node("A")
+        assert node_a is not None
 
         prereq_ids = simple_dag.prerequisite_ids("B")
 
         assert prereq_ids == {node_a.id}
 
-    def test_prerequisite_paths(self, simple_dag):
+    def test_prerequisite_paths(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Prerequisite paths should be alias for prerequisites."""
         assert simple_dag.prerequisite_paths("B") == simple_dag.prerequisites("B")
 
-    def test_dependents(self, simple_dag):
+    def test_dependents(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Dependents should return direct dependents."""
         assert simple_dag.dependents("A") == {"B"}
         assert simple_dag.dependents("B") == {"C"}
         assert simple_dag.dependents("C") == set()
 
-    def test_dependents_nonexistent_node(self, empty_dag):
+    def test_dependents_nonexistent_node(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Dependents of nonexistent node should be empty set."""
         assert empty_dag.dependents("nonexistent") == set()
 
-    def test_ancestors(self, simple_dag):
+    def test_ancestors(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Ancestors should return all transitive prerequisites."""
         # A -> B -> C
         assert simple_dag.ancestors("C") == {"A", "B"}
         assert simple_dag.ancestors("B") == {"A"}
         assert simple_dag.ancestors("A") == set()
 
-    def test_ancestors_diamond(self, diamond_dag):
+    def test_ancestors_diamond(self, diamond_dag: DirectedAcyclicGraph[str, str]):
         """Ancestors should handle diamond pattern."""
         # A -> B -> D, A -> C -> D
         assert diamond_dag.ancestors("D") == {"A", "B", "C"}
 
-    def test_descendants(self, simple_dag):
+    def test_descendants(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Descendants should return all transitive dependents."""
         # A -> B -> C
         assert simple_dag.descendants("A") == {"B", "C"}
         assert simple_dag.descendants("B") == {"C"}
         assert simple_dag.descendants("C") == set()
 
-    def test_descendants_diamond(self, diamond_dag):
+    def test_descendants_diamond(self, diamond_dag: DirectedAcyclicGraph[str, str]):
         """Descendants should handle diamond pattern."""
         # A -> B -> D, A -> C -> D
         assert diamond_dag.descendants("A") == {"B", "C", "D"}
 
-    def test_iter_edges(self, simple_dag):
+    def test_iter_edges(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """iter_edges should yield all edges."""
         edges = list(simple_dag.iter_edges())
 
@@ -569,13 +610,17 @@ class TestDAGGraphQueries:
 class TestDAGReadyNodes:
     """Tests for ready node detection."""
 
-    def test_ready_nodes_empty_satisfied(self, simple_dag):
+    def test_ready_nodes_empty_satisfied(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Only root nodes should be ready with empty satisfied set."""
         ready = simple_dag.ready_nodes(set())
 
         assert ready == {"A"}
 
-    def test_ready_nodes_partial_satisfied(self, simple_dag):
+    def test_ready_nodes_partial_satisfied(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Nodes with all prerequisites satisfied should be ready."""
         ready = simple_dag.ready_nodes({"A"})
 
@@ -583,13 +628,15 @@ class TestDAGReadyNodes:
         assert "B" in ready
         assert "C" not in ready
 
-    def test_ready_nodes_all_satisfied(self, simple_dag):
+    def test_ready_nodes_all_satisfied(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """All nodes should be ready when all prerequisites satisfied."""
         ready = simple_dag.ready_nodes({"A", "B"})
 
         assert ready == {"A", "B", "C"}
 
-    def test_ready_nodes_diamond(self, diamond_dag):
+    def test_ready_nodes_diamond(self, diamond_dag: DirectedAcyclicGraph[str, str]):
         """Ready nodes in diamond pattern."""
         # A -> B -> D, A -> C -> D
 
@@ -612,14 +659,16 @@ class TestDAGReadyNodes:
 class TestDAGTopologicalOrder:
     """Tests for topological ordering and validation."""
 
-    def test_topological_order_simple(self, simple_dag):
+    def test_topological_order_simple(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Topological order should respect dependencies."""
         order = simple_dag.topological_order()
 
         assert order.index("A") < order.index("B")
         assert order.index("B") < order.index("C")
 
-    def test_topological_order_diamond(self, diamond_dag):
+    def test_topological_order_diamond(
+        self, diamond_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Topological order should handle diamond pattern."""
         order = diamond_dag.topological_order()
 
@@ -628,7 +677,9 @@ class TestDAGTopologicalOrder:
         assert order.index("B") < order.index("D")
         assert order.index("C") < order.index("D")
 
-    def test_topological_order_with_cycle_raises(self, simple_dag):
+    def test_topological_order_with_cycle_raises(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Topological order with cycle should raise ValueError."""
         # Create a cycle by disabling check
         simple_dag.add_edge("C", "A", check_cycle=False)
@@ -636,11 +687,13 @@ class TestDAGTopologicalOrder:
         with pytest.raises(ValueError, match="cycle"):
             simple_dag.topological_order()
 
-    def test_validate_acyclic_valid(self, simple_dag):
+    def test_validate_acyclic_valid(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Validate acyclic should pass for valid DAG."""
         simple_dag.validate_acyclic()  # Should not raise
 
-    def test_validate_acyclic_with_cycle_raises(self, simple_dag):
+    def test_validate_acyclic_with_cycle_raises(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Validate acyclic should raise for cyclic graph."""
         simple_dag.add_edge("C", "A", check_cycle=False)
 
@@ -656,13 +709,13 @@ class TestDAGTopologicalOrder:
 class TestDAGInternalHelpers:
     """Tests for internal helper methods."""
 
-    def test_would_create_cycle_true(self, simple_dag):
+    def test_would_create_cycle_true(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """_would_create_cycle should detect potential cycle."""
         # A -> B -> C
         # Adding C -> A would create cycle
         assert simple_dag._would_create_cycle("C", "A") is True
 
-    def test_would_create_cycle_false(self, simple_dag):
+    def test_would_create_cycle_false(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """_would_create_cycle should allow valid edges."""
         # Adding A -> C would not create cycle
         assert simple_dag._would_create_cycle("A", "C") is False
@@ -676,14 +729,14 @@ class TestDAGInternalHelpers:
 class TestDAGExportDOT:
     """Tests for DOT export."""
 
-    def test_to_dot_empty(self, empty_dag):
+    def test_to_dot_empty(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """Empty DAG should produce minimal DOT output."""
         dot = empty_dag.to_dot()
 
         assert "digraph DAG {" in dot
         assert "}" in dot
 
-    def test_to_dot_with_nodes(self, simple_dag):
+    def test_to_dot_with_nodes(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """DOT should include all nodes."""
         dot = simple_dag.to_dot()
 
@@ -691,7 +744,7 @@ class TestDAGExportDOT:
         assert '"B"' in dot
         assert '"C"' in dot
 
-    def test_to_dot_with_edges(self, simple_dag):
+    def test_to_dot_with_edges(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """DOT should include all edges."""
         dot = simple_dag.to_dot()
 
@@ -702,13 +755,13 @@ class TestDAGExportDOT:
 class TestDAGExportMermaid:
     """Tests for Mermaid export."""
 
-    def test_to_mermaid_structure(self, simple_dag):
+    def test_to_mermaid_structure(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Mermaid output should have correct structure."""
         mermaid = simple_dag.to_mermaid()
 
         assert "graph TD" in mermaid
 
-    def test_to_mermaid_nodes(self, simple_dag):
+    def test_to_mermaid_nodes(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Mermaid should include node definitions."""
         mermaid = simple_dag.to_mermaid()
 
@@ -716,34 +769,40 @@ class TestDAGExportMermaid:
         assert "B[" in mermaid
         assert "C[" in mermaid
 
-    def test_to_mermaid_edges(self, simple_dag):
+    def test_to_mermaid_edges(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """Mermaid should include edges."""
         mermaid = simple_dag.to_mermaid()
 
         assert "A -->" in mermaid
 
-    def test_to_mermaid_with_custom_label_fn(self, empty_dag):
+    def test_to_mermaid_with_custom_label_fn(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """Mermaid should use custom label function."""
-        empty_dag.add_node("A", value=MockNodeValue(name="Node A"))
-        empty_dag.add_node("B", value=MockNodeValue(name="Node B"))
-        empty_dag.add_edge("A", "B")
+        any_dag.add_node("A", value=MockNodeValue(name="Node A"))
+        any_dag.add_node("B", value=MockNodeValue(name="Node B"))
+        any_dag.add_edge("A", "B")
 
-        mermaid = empty_dag.to_mermaid(node_label_fn=lambda v: v.name)
+        mermaid = any_dag.to_mermaid(node_label_fn=lambda v: v.name if v else "")
 
         assert "Node A" in mermaid
         assert "Node B" in mermaid
 
-    def test_to_mermaid_with_edge_label_fn(self, empty_dag):
+    def test_to_mermaid_with_edge_label_fn(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """Mermaid should use edge label function."""
-        empty_dag.add_node("A")
-        empty_dag.add_node("B")
-        empty_dag.add_edge("A", "B", metadata=MockEdgeMetadata(weight=1, label="test"))
+        any_dag.add_node("A")
+        any_dag.add_node("B")
+        any_dag.add_edge("A", "B", metadata=MockEdgeMetadata(weight=1, label="test"))
 
-        mermaid = empty_dag.to_mermaid(edge_label_fn=lambda m: m.label if m else "")
+        mermaid = any_dag.to_mermaid(edge_label_fn=lambda m: m.label if m else "")
 
         assert "test" in mermaid
 
-    def test_to_mermaid_label_truncation(self, empty_dag):
+    def test_to_mermaid_label_truncation(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Mermaid should truncate long labels."""
         long_path = "this.is.a.very.long.path.name.that.exceeds.max.length"
         empty_dag.add_node(long_path)
@@ -752,7 +811,9 @@ class TestDAGExportMermaid:
 
         assert "..." in mermaid
 
-    def test_to_mermaid_safe_characters(self, empty_dag):
+    def test_to_mermaid_safe_characters(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Mermaid should sanitize special characters."""
         empty_dag.add_node("path[0].item-name")
 
@@ -761,22 +822,26 @@ class TestDAGExportMermaid:
         # Brackets, dots, and dashes should be replaced
         assert "path_0__item_name" in mermaid
 
-    def test_to_mermaid_with_root_nodes_param(self, simple_dag):
+    def test_to_mermaid_with_root_nodes_param(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Mermaid should accept root_nodes parameter."""
         mermaid = simple_dag.to_mermaid(root_nodes=["A"])
 
         assert "graph TD" in mermaid
 
-    def test_to_mermaid_with_constraint_fallback(self, empty_dag):
+    def test_to_mermaid_with_constraint_fallback(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """Mermaid should use constraint fallback for edge labels."""
         constraint = MockConstraint("constraint_label")
         node_value = MockNodeValue(name="B", constraints=[constraint])
 
-        empty_dag.add_node("A")
-        empty_dag.add_node("B", value=node_value)
-        empty_dag.add_edge("A", "B", metadata="has_metadata")
+        any_dag.add_node("A")
+        any_dag.add_node("B", value=node_value)
+        any_dag.add_edge("A", "B", metadata="has_metadata")
 
-        mermaid = empty_dag.to_mermaid()
+        mermaid = any_dag.to_mermaid()
 
         # Should try to get edge label from constraints
         assert "A" in mermaid
@@ -785,7 +850,7 @@ class TestDAGExportMermaid:
 class TestDAGExportJSON:
     """Tests for JSON export."""
 
-    def test_to_json_dict_structure(self, simple_dag):
+    def test_to_json_dict_structure(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """JSON dict should have correct structure."""
         data = simple_dag.to_json_dict()
 
@@ -796,7 +861,7 @@ class TestDAGExportJSON:
         assert data["node_count"] == 3
         assert data["edge_count"] == 2
 
-    def test_to_json_dict_node_data(self, simple_dag):
+    def test_to_json_dict_node_data(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """JSON dict should include node data with UUID and path."""
         data = simple_dag.to_json_dict()
 
@@ -808,7 +873,7 @@ class TestDAGExportJSON:
             assert "id" in node
             UUID(node["id"])  # Should be valid UUID string
 
-    def test_to_json_dict_edge_data(self, simple_dag):
+    def test_to_json_dict_edge_data(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """JSON dict should include edge data."""
         data = simple_dag.to_json_dict()
 
@@ -816,27 +881,33 @@ class TestDAGExportJSON:
         assert ("A", "B") in edge_pairs
         assert ("B", "C") in edge_pairs
 
-    def test_to_json_dict_with_model_dump_value(self, empty_dag):
+    def test_to_json_dict_with_model_dump_value(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """JSON dict should use model_dump for node values."""
-        empty_dag.add_node("A", value=MockNodeValue(name="Test"))
+        any_dag.add_node("A", value=MockNodeValue(name="Test"))
 
-        data = empty_dag.to_json_dict()
+        data = any_dag.to_json_dict()
 
         node_a = next(n for n in data["nodes"] if n["path"] == "A")
         assert node_a["value"] == {"name": "Test"}
 
-    def test_to_json_dict_with_model_dump_metadata(self, empty_dag):
+    def test_to_json_dict_with_model_dump_metadata(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """JSON dict should use model_dump for edge metadata."""
-        empty_dag.add_node("A")
-        empty_dag.add_node("B")
-        empty_dag.add_edge("A", "B", metadata=MockEdgeMetadata(weight=5, label="test"))
+        any_dag.add_node("A")
+        any_dag.add_node("B")
+        any_dag.add_edge("A", "B", metadata=MockEdgeMetadata(weight=5, label="test"))
 
-        data = empty_dag.to_json_dict()
+        data = any_dag.to_json_dict()
 
         edge = data["edges"][0]
         assert edge["metadata"] == {"weight": 5, "label": "test"}
 
-    def test_to_json_dict_with_dict_value(self, empty_dag):
+    def test_to_json_dict_with_dict_value(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """JSON dict should handle objects with __dict__."""
 
         class SimpleValue:
@@ -844,14 +915,16 @@ class TestDAGExportJSON:
                 self.x = 1
                 self.y = 2
 
-        empty_dag.add_node("A", value=SimpleValue())
+        any_dag.add_node("A", value=SimpleValue())
 
-        data = empty_dag.to_json_dict()
+        data = any_dag.to_json_dict()
 
         node_a = next(n for n in data["nodes"] if n["path"] == "A")
         assert node_a["value"]["x"] == 1
 
-    def test_to_json_dict_with_primitive_value(self, empty_dag):
+    def test_to_json_dict_with_primitive_value(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """JSON dict should handle primitive values."""
         empty_dag.add_node("A", value="simple_string")
 
@@ -860,21 +933,21 @@ class TestDAGExportJSON:
         node_a = next(n for n in data["nodes"] if n["path"] == "A")
         assert node_a["value"] == "simple_string"
 
-    def test_to_json_string(self, simple_dag):
+    def test_to_json_string(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """to_json should return valid JSON string."""
         json_str = simple_dag.to_json()
 
         parsed = json.loads(json_str)
         assert parsed["node_count"] == 3
 
-    def test_to_json_pretty(self, simple_dag):
+    def test_to_json_pretty(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """to_json with pretty=True should be indented."""
         json_str = simple_dag.to_json(pretty=True, indent=4)
 
         assert "\n" in json_str
         assert "    " in json_str  # 4-space indent
 
-    def test_to_json_compact(self, simple_dag):
+    def test_to_json_compact(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """to_json with pretty=False should be compact."""
         json_str = simple_dag.to_json(pretty=False)
 
@@ -884,14 +957,14 @@ class TestDAGExportJSON:
 class TestDAGExportASCII:
     """Tests for ASCII tree export."""
 
-    def test_to_ascii_tree_basic(self, simple_dag):
+    def test_to_ascii_tree_basic(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """ASCII tree should include Schema header."""
         tree = simple_dag.to_ascii_tree()
 
         assert "Schema" in tree
         assert "Edges" in tree
 
-    def test_to_ascii_tree_nodes(self, simple_dag):
+    def test_to_ascii_tree_nodes(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """ASCII tree should include nodes."""
         tree = simple_dag.to_ascii_tree()
 
@@ -899,21 +972,27 @@ class TestDAGExportASCII:
         assert "B" in tree
         assert "C" in tree
 
-    def test_to_ascii_tree_with_root_nodes(self, simple_dag):
+    def test_to_ascii_tree_with_root_nodes(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """ASCII tree should accept root_nodes parameter."""
         tree = simple_dag.to_ascii_tree(root_nodes=["A"])
 
         assert "Schema" in tree
 
-    def test_to_ascii_tree_with_custom_label_fn(self, empty_dag):
+    def test_to_ascii_tree_with_custom_label_fn(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """ASCII tree should use custom label function."""
-        empty_dag.add_node("A", value=MockNodeValue(name="Custom Label"))
+        any_dag.add_node("A", value=MockNodeValue(name="Custom Label"))
 
-        tree = empty_dag.to_ascii_tree(node_label_fn=lambda v: v.name)
+        tree = any_dag.to_ascii_tree(node_label_fn=lambda v: v.name if v else "")
 
         assert "Custom Label" in tree
 
-    def test_to_ascii_tree_truncates_long_labels(self, empty_dag):
+    def test_to_ascii_tree_truncates_long_labels(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """ASCII tree should truncate long labels."""
         long_name = "A" * 100
         empty_dag.add_node(long_name)
@@ -922,48 +1001,54 @@ class TestDAGExportASCII:
 
         assert "..." in tree
 
-    def test_to_ascii_tree_with_constraint_edge_labels(self, empty_dag):
+    def test_to_ascii_tree_with_constraint_edge_labels(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """ASCII tree should show constraint edge labels."""
         constraint = MockConstraint("required")
         node_value = MockNodeValue(name="B", constraints=[constraint])
 
-        empty_dag.add_node("A")
-        empty_dag.add_node("B", value=node_value)
-        empty_dag.add_edge("A", "B", metadata="has_meta")
+        any_dag.add_node("A")
+        any_dag.add_node("B", value=node_value)
+        any_dag.add_edge("A", "B", metadata="has_meta")
 
-        tree = empty_dag.to_ascii_tree()
+        tree = any_dag.to_ascii_tree()
 
         assert "[constraint]" in tree
 
-    def test_to_ascii_tree_multiple_constraints(self, empty_dag):
+    def test_to_ascii_tree_multiple_constraints(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """ASCII tree should handle multiple constraints."""
         constraints = [MockConstraint("c1"), MockConstraint("c2")]
         node_value = MockNodeValue(name="B", constraints=constraints)
 
-        empty_dag.add_node("A")
-        empty_dag.add_node("B", value=node_value)
-        empty_dag.add_edge("A", "B", metadata="has_meta")
+        any_dag.add_node("A")
+        any_dag.add_node("B", value=node_value)
+        any_dag.add_edge("A", "B", metadata="has_meta")
 
-        tree = empty_dag.to_ascii_tree()
+        tree = any_dag.to_ascii_tree()
 
         # Should show first constraint plus count
         assert "more" in tree
 
-    def test_to_ascii_tree_max_depth(self, simple_dag):
+    def test_to_ascii_tree_max_depth(self, simple_dag: DirectedAcyclicGraph[str, str]):
         """ASCII tree should respect max_depth."""
         tree = simple_dag.to_ascii_tree(max_depth=1)
 
         assert "Schema" in tree
 
-    def test_to_ascii_tree_with_edge_label_fn(self, empty_dag):
+    def test_to_ascii_tree_with_edge_label_fn(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """ASCII tree should use edge_label_fn."""
-        empty_dag.add_node("A")
-        empty_dag.add_node("B")
-        empty_dag.add_edge(
+        any_dag.add_node("A")
+        any_dag.add_node("B")
+        any_dag.add_edge(
             "A", "B", metadata=MockEdgeMetadata(weight=1, label="edge_test")
         )
 
-        tree = empty_dag.to_ascii_tree(edge_label_fn=lambda m: m.label if m else "")
+        tree = any_dag.to_ascii_tree(edge_label_fn=lambda m: m.label if m else "")
 
         assert "edge_test" in tree
 
@@ -976,7 +1061,7 @@ class TestDAGExportASCII:
 class TestDAGEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_complex_path_names(self, empty_dag):
+    def test_complex_path_names(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """DAG should handle complex path names."""
         paths = [
             "root.child.grandchild",
@@ -991,7 +1076,7 @@ class TestDAGEdgeCases:
 
         assert len(empty_dag.nodes) == len(paths)
 
-    def test_large_graph(self, empty_dag):
+    def test_large_graph(self, empty_dag: DirectedAcyclicGraph[str, str]):
         """DAG should handle large graphs."""
         # Create a chain of 100 nodes
         for i in range(100):
@@ -1004,7 +1089,9 @@ class TestDAGEdgeCases:
         order = empty_dag.topological_order()
         assert len(order) == 100
 
-    def test_node_with_none_value_in_export(self, empty_dag):
+    def test_node_with_none_value_in_export(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Export should handle nodes with None values."""
         empty_dag.add_node("A")  # No value
 
@@ -1013,7 +1100,9 @@ class TestDAGEdgeCases:
         node_a = next(n for n in data["nodes"] if n["path"] == "A")
         assert node_a["value"] is None
 
-    def test_edge_with_none_metadata_in_export(self, empty_dag):
+    def test_edge_with_none_metadata_in_export(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Export should handle edges with None metadata."""
         empty_dag.add_node("A")
         empty_dag.add_node("B")
@@ -1024,31 +1113,37 @@ class TestDAGEdgeCases:
         edge = data["edges"][0]
         assert edge["metadata"] is None
 
-    def test_mermaid_edge_label_fn_exception(self, empty_dag):
+    def test_mermaid_edge_label_fn_exception(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Mermaid should handle edge_label_fn exceptions gracefully."""
         empty_dag.add_node("A")
         empty_dag.add_node("B")
         empty_dag.add_edge("A", "B", metadata="test")
 
-        def bad_fn(m):
+        def bad_fn(m: Optional[str]) -> str:
             raise ValueError("test error")
 
         # Should not raise
         mermaid = empty_dag.to_mermaid(edge_label_fn=bad_fn)
         assert "A" in mermaid
 
-    def test_ascii_tree_node_label_fn_exception(self, empty_dag):
+    def test_ascii_tree_node_label_fn_exception(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """ASCII tree should handle node_label_fn exceptions gracefully."""
         empty_dag.add_node("A", value="test")
 
-        def bad_fn(v):
+        def bad_fn(v: Optional[str]) -> str:
             raise ValueError("test error")
 
         # Should not raise
         tree = empty_dag.to_ascii_tree(node_label_fn=bad_fn)
         assert "A" in tree
 
-    def test_remove_dependent_exception_handling(self, empty_dag):
+    def test_remove_dependent_exception_handling(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Remove edge should handle remove_dependent exceptions."""
         empty_dag.add_edge("A", "B")
 
@@ -1059,36 +1154,40 @@ class TestDAGEdgeCases:
         # Should not raise (exception caught internally)
         empty_dag.remove_edge("A", "B")
 
-    def test_model_dump_exception_in_json_dict(self, empty_dag):
+    def test_model_dump_exception_in_json_dict(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """JSON dict should handle model_dump exceptions."""
 
         class BadValue:
             def model_dump(self):
                 raise ValueError("test error")
 
-        empty_dag.add_node("A", value=BadValue())
+        any_dag.add_node("A", value=BadValue())
 
-        data = empty_dag.to_json_dict()
+        data = any_dag.to_json_dict()
 
         node_a = next(n for n in data["nodes"] if n["path"] == "A")
         assert isinstance(node_a["value"], str)  # Fallback to str()
 
-    def test_vars_exception_in_json_dict(self, empty_dag):
+    def test_vars_exception_in_json_dict(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """JSON dict should handle vars() exceptions."""
 
         class BadValue:
-            def __init__(self):
+            def __init__(self) -> None:
                 self._dict = {"x": 1}
 
             @property
-            def __dict__(self):
+            def __dict__(self) -> Dict[str, Any]:  # type: ignore[override]
                 # This won't actually be called due to how hasattr works,
                 # but we can simulate the fallback by having an object
                 # without model_dump that uses str() fallback
                 return self._dict
 
         # The actual test: object without model_dump falls back to vars or str
-        empty_dag.add_node("A", value=BadValue())
+        empty_dag.add_node("A", value=BadValue())  # type: ignore[arg-type]
 
         data = empty_dag.to_json_dict()
 
@@ -1105,29 +1204,31 @@ class TestDAGEdgeCases:
 class TestDAGConstraintLabels:
     """Tests for constraint-based edge label extraction."""
 
-    def test_ascii_tree_constraint_edge_label(self, empty_dag):
+    def test_ascii_tree_constraint_edge_label(
+        self, any_dag: DirectedAcyclicGraph[Any, Any]
+    ):
         """ASCII tree should extract labels from constraints."""
         constraint = MockConstraint("required_field")
         value = MockNodeValue(name="Target", constraints=[constraint])
 
-        empty_dag.add_node("source")
-        empty_dag.add_node("target", value=value)
-        empty_dag.add_edge("source", "target")
+        any_dag.add_node("source")
+        any_dag.add_node("target", value=value)
+        any_dag.add_edge("source", "target")
 
-        tree = empty_dag.to_ascii_tree()
+        tree = any_dag.to_ascii_tree()
 
         assert "required_field" in tree
 
-    def test_mermaid_constraint_fallback(self, empty_dag):
+    def test_mermaid_constraint_fallback(self, any_dag: DirectedAcyclicGraph[Any, Any]):
         """Mermaid should try constraint labels when no edge_label_fn."""
         constraint = MockConstraint("depends_on")
         value = MockNodeValue(name="Target", constraints=[constraint])
 
-        empty_dag.add_node("source")
-        empty_dag.add_node("target", value=value)
-        empty_dag.add_edge("source", "target", metadata="some_meta")
+        any_dag.add_node("source")
+        any_dag.add_node("target", value=value)
+        any_dag.add_edge("source", "target", metadata="some_meta")
 
-        mermaid = empty_dag.to_mermaid()
+        mermaid = any_dag.to_mermaid()
 
         # Should include edge
         assert "source" in mermaid
@@ -1141,7 +1242,9 @@ class TestDAGConstraintLabels:
 class TestDAGIntegration:
     """Integration tests combining multiple operations."""
 
-    def test_build_and_query_complex_graph(self, empty_dag):
+    def test_build_and_query_complex_graph(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Test building and querying a complex graph."""
         # Build a tree structure:
         #       root
@@ -1181,7 +1284,9 @@ class TestDAGIntegration:
         assert "nodes" in empty_dag.to_json_dict()
         assert "Schema" in empty_dag.to_ascii_tree()
 
-    def test_modify_and_validate_graph(self, simple_dag):
+    def test_modify_and_validate_graph(
+        self, simple_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Test modifying graph and validating changes."""
         # Initial state
         simple_dag.validate_acyclic()
@@ -1206,7 +1311,9 @@ class TestDAGIntegration:
 class TestDAGRemoveNodeEdgeCases:
     """Tests for edge cases in node removal."""
 
-    def test_remove_node_with_inconsistent_state(self, empty_dag):
+    def test_remove_node_with_inconsistent_state(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ):
         """Test remove_node when _nodes and _path_to_uuid are inconsistent."""
         # Add a node normally
         node = empty_dag.add_node("test_path")

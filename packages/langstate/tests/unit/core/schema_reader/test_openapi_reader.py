@@ -16,9 +16,6 @@ Target: 100% code coverage for schema_reader/openapi/reader.py
 """
 
 # pyright: reportPrivateUsage=false
-# pyright: reportUnknownMemberType=false
-# pyright: reportUnknownVariableType=false
-# pyright: reportUnknownArgumentType=false
 
 from __future__ import annotations
 
@@ -26,10 +23,14 @@ import os
 import tempfile
 import pytest
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from core.schema_reader.openapi.reader import OpenAPIReader
 from core.schema_reader.base.schema import Schema
+
+# Type aliases for OpenAPI schema dictionaries
+SchemaDict = dict[str, Any]
+AllSchemasDict = dict[str, dict[str, Any]]
 
 
 # ============================================================================
@@ -88,7 +89,7 @@ def temp_json_file() -> Path:
     """Create a temporary JSON file for testing."""
     import json
 
-    content = {
+    content: dict[str, Any] = {
         "openapi": "3.1.0",
         "info": {"title": "Test Schema", "version": "1.0.0"},
         "components": {
@@ -410,7 +411,7 @@ class TestOpenAPIReaderDetermineFieldType:
         """_determine_field_type should handle array with items."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "array", "items": {"type": "string"}}
+        schema: SchemaDict = {"type": "array", "items": {"type": "string"}}
         result = reader._determine_field_type(schema, {})
         assert result == "array<string>"
 
@@ -458,7 +459,7 @@ class TestOpenAPIReaderDetermineFieldType:
         """_determine_field_type should return 'unknown' for no type."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {}
+        schema: SchemaDict = {}
         result = reader._determine_field_type(schema, {})
         assert result == "unknown"
 
@@ -483,7 +484,7 @@ class TestOpenAPIReaderExtractValidationRules:
         """_extract_validation_rules should extract string validations."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "string",
             "minLength": 5,
             "maxLength": 100,
@@ -500,7 +501,7 @@ class TestOpenAPIReaderExtractValidationRules:
         """_extract_validation_rules should skip missing string validations."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "string", "minLength": 1}
+        schema: SchemaDict = {"type": "string", "minLength": 1}
 
         rules = reader._extract_validation_rules(schema)
 
@@ -512,7 +513,7 @@ class TestOpenAPIReaderExtractValidationRules:
         """_extract_validation_rules should extract number validations."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "number",
             "minimum": 0,
             "maximum": 100,
@@ -531,7 +532,7 @@ class TestOpenAPIReaderExtractValidationRules:
         """_extract_validation_rules should extract integer validations."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "integer", "minimum": 1, "maximum": 500}
+        schema: SchemaDict = {"type": "integer", "minimum": 1, "maximum": 500}
 
         rules = reader._extract_validation_rules(schema)
 
@@ -544,7 +545,12 @@ class TestOpenAPIReaderExtractValidationRules:
         """_extract_validation_rules should extract array validations."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "array", "minItems": 1, "maxItems": 49, "uniqueItems": True}
+        schema: SchemaDict = {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 49,
+            "uniqueItems": True,
+        }
 
         rules = reader._extract_validation_rules(schema)
 
@@ -556,7 +562,7 @@ class TestOpenAPIReaderExtractValidationRules:
         """_extract_validation_rules should skip missing array validations."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "array", "minItems": 0}
+        schema: SchemaDict = {"type": "array", "minItems": 0}
 
         rules = reader._extract_validation_rules(schema)
 
@@ -568,7 +574,10 @@ class TestOpenAPIReaderExtractValidationRules:
         """_extract_validation_rules should extract enum values."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "string", "enum": ["draft", "confirmed", "cancelled"]}
+        schema: SchemaDict = {
+            "type": "string",
+            "enum": ["draft", "confirmed", "cancelled"],
+        }
 
         rules = reader._extract_validation_rules(schema)
 
@@ -597,7 +606,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should return empty dict for non-object schemas."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "string"}
+        schema: SchemaDict = {"type": "string"}
         result = reader._parse_schema(schema, {})
 
         assert result == {}
@@ -606,7 +615,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should return empty dict for object without properties."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "object"}
+        schema: SchemaDict = {"type": "object"}
         result = reader._parse_schema(schema, {})
 
         assert result == {}
@@ -615,7 +624,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should parse object with properties."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "name": {
@@ -639,7 +648,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should generate label from field name."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {"user_name": {"type": "string", "default": "default_value"}},
         }
@@ -654,7 +663,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should extract x-sup metadata."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "event": {
@@ -676,7 +685,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should recursively parse nested objects."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "address": {
@@ -693,18 +702,19 @@ class TestOpenAPIReaderParseSchema:
 
         assert "address" in result
         assert isinstance(result["address"].default_value, dict)
-        assert "street" in result["address"].default_value
-        assert "city" in result["address"].default_value
+        default_value: dict[str, Any] = result["address"].default_value  # type: ignore[assignment]
+        assert "street" in default_value
+        assert "city" in default_value
 
     def test_parse_schema_with_ref_resolution(self) -> None:
         """_parse_schema should resolve $ref in schema."""
         reader = OpenAPIReader(root_entity="Test")
 
-        all_schemas = {
+        all_schemas: AllSchemasDict = {
             "Address": {"type": "object", "properties": {"city": {"type": "string"}}}
         }
 
-        schema = {"$ref": "#/components/schemas/Address"}
+        schema: SchemaDict = {"$ref": "#/components/schemas/Address"}
 
         result = reader._parse_schema(schema, all_schemas)
 
@@ -714,7 +724,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should handle $ref not found in all_schemas."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"$ref": "#/components/schemas/NonExistent"}
+        schema: SchemaDict = {"$ref": "#/components/schemas/NonExistent"}
 
         result = reader._parse_schema(schema, {})
 
@@ -724,9 +734,11 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should resolve $ref in properties."""
         reader = OpenAPIReader(root_entity="Test")
 
-        all_schemas = {"Name": {"type": "string", "description": "A name field"}}
+        all_schemas: AllSchemasDict = {
+            "Name": {"type": "string", "description": "A name field"}
+        }
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {"name": {"$ref": "#/components/schemas/Name"}},
         }
@@ -741,7 +753,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should handle property $ref not found."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {"field": {"$ref": "#/components/schemas/Missing"}},
         }
@@ -755,7 +767,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should handle arrays of objects."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "guests": {
@@ -772,20 +784,21 @@ class TestOpenAPIReaderParseSchema:
 
         assert "guests" in result
         assert isinstance(result["guests"].default_value, dict)
-        assert "name" in result["guests"].default_value
+        default_value: dict[str, Any] = result["guests"].default_value  # type: ignore[assignment]
+        assert "name" in default_value
 
     def test_parse_schema_array_items_with_ref(self) -> None:
         """_parse_schema should resolve $ref in array items."""
         reader = OpenAPIReader(root_entity="Test")
 
-        all_schemas = {
+        all_schemas: AllSchemasDict = {
             "Guest": {
                 "type": "object",
                 "properties": {"email": {"type": "string", "format": "email"}},
             }
         }
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "guests": {
@@ -799,13 +812,14 @@ class TestOpenAPIReaderParseSchema:
 
         assert "guests" in result
         assert isinstance(result["guests"].default_value, dict)
-        assert "email" in result["guests"].default_value
+        default_value: dict[str, Any] = result["guests"].default_value  # type: ignore[assignment]
+        assert "email" in default_value
 
     def test_parse_schema_array_items_ref_not_found(self) -> None:
         """_parse_schema should handle array items $ref not found."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "items": {
@@ -825,7 +839,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should handle arrays with non-object items."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {"tags": {"type": "array", "items": {"type": "string"}}},
         }
@@ -840,7 +854,7 @@ class TestOpenAPIReaderParseSchema:
         """_parse_schema should handle object with empty properties."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "object", "properties": {}}
+        schema: SchemaDict = {"type": "object", "properties": {}}
 
         result = reader._parse_schema(schema, {})
 
@@ -943,7 +957,7 @@ components:
         """_parse_schema should include validation rules in fields."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "email": {
@@ -964,7 +978,7 @@ components:
         """_parse_schema should handle missing required array."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {"optional_field": {"type": "string"}},
             # No 'required' key
@@ -978,7 +992,10 @@ components:
         """_parse_schema should handle missing description."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "object", "properties": {"field": {"type": "integer"}}}
+        schema: SchemaDict = {
+            "type": "object",
+            "properties": {"field": {"type": "integer"}},
+        }
 
         result = reader._parse_schema(schema, {})
 
@@ -988,7 +1005,10 @@ components:
         """_determine_field_type should handle arrays with $ref items."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {"type": "array", "items": {"$ref": "#/components/schemas/Person"}}
+        schema: SchemaDict = {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/Person"},
+        }
 
         result = reader._determine_field_type(schema, {})
 
@@ -1009,7 +1029,7 @@ components:
         """_parse_schema should handle property $ref that doesn't start with #/components/schemas/."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {"field": {"$ref": "#/definitions/CustomType"}},
         }
@@ -1026,7 +1046,7 @@ components:
         """_parse_schema should handle array items $ref that doesn't start with #/components/schemas/."""
         reader = OpenAPIReader(root_entity="Test")
 
-        schema = {
+        schema: SchemaDict = {
             "type": "object",
             "properties": {
                 "items": {"type": "array", "items": {"$ref": "#/definitions/Item"}}
@@ -1187,9 +1207,11 @@ components:
 
         # Check nested object parsing
         assert isinstance(schema.root["address"].default_value, dict)
-        assert "street" in schema.root["address"].default_value
+        address_default: dict[str, Any] = schema.root["address"].default_value  # type: ignore[assignment]
+        assert "street" in address_default
         assert isinstance(schema.root["metadata"].default_value, dict)
-        assert "created_at" in schema.root["metadata"].default_value
+        metadata_default: dict[str, Any] = schema.root["metadata"].default_value  # type: ignore[assignment]
+        assert "created_at" in metadata_default
 
         # Cleanup
         os.unlink(temp_path)

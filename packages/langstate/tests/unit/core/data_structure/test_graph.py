@@ -13,20 +13,13 @@ Target: 100% code coverage for graph/graph.py and graph/base.py
 """
 
 # pyright: reportPrivateUsage=false
-# pyright: reportUnknownMemberType=false
-# pyright: reportUnknownVariableType=false
-# pyright: reportUnknownArgumentType=false
-# pyright: reportIncompatibleMethodOverride=false
-# pyright: reportArgumentType=false
-# pyright: reportUnnecessaryIsInstance=false
-# pyright: reportIncompatibleVariableOverride=false
 
 from __future__ import annotations
 
 import json
 import pytest
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, cast
 from weakref import WeakSet
 
 from core.data_structure.graph.graph import Graph
@@ -80,8 +73,8 @@ class SimpleNode:
 
     _id: str
     _value: Optional[Any] = None
-    _prerequisites: Dict[str, "SimpleNode"] = field(default_factory=dict)
-    _dependents_set: WeakSet["SimpleNode"] = field(default_factory=WeakSet)
+    _prerequisites: Dict[str, "SimpleNode"] = field(default_factory=lambda: {})
+    _dependents_set: "WeakSet[SimpleNode]" = field(default_factory=lambda: WeakSet())
 
     @property
     def id(self) -> str:
@@ -151,16 +144,18 @@ class ConcreteGraph(Graph[Any, Any]):
         super().__init__()
         self._edges: List[SimpleEdge] = []
 
-    def add_node(self, node_id: str, value: Optional[Any] = None) -> SimpleNode:
+    def add_node(  # type: ignore[override]
+        self, node_id: str, value: Optional[Any] = None
+    ) -> SimpleNode:
         """Add or get a node."""
         if node_id in self._nodes:
             existing = self._nodes[node_id]
             if value is not None and isinstance(existing, SimpleNode):
                 existing._value = value  # type: ignore[attr-defined]
-            return existing  # type: ignore
+            return existing  # type: ignore[return-value]
 
         node = SimpleNode(_id=node_id, _value=value)
-        self._nodes[node_id] = node  # type: ignore
+        self._nodes[node_id] = node  # type: ignore[assignment]
         return node
 
     def remove_node(self, node_id: str) -> None:
@@ -178,8 +173,7 @@ class ConcreteGraph(Graph[Any, Any]):
         # Clean up dependents
         if isinstance(node, SimpleNode):
             for prereq in list(node._prerequisites.values()):
-                if isinstance(prereq, SimpleNode):
-                    prereq.remove_dependent(node)
+                prereq.remove_dependent(node)
 
         del self._nodes[node_id]
 
@@ -374,8 +368,8 @@ class TestGraphAbstractMethods:
     def test_add_node_raises_not_implemented(self) -> None:
         """Graph.add_node should raise NotImplementedError."""
         # Create instance via subclass but test base behavior
-        graph: Graph[Any, Any] = Graph.__new__(Graph)
-        graph._nodes = {}
+        graph = cast(Graph[Any, Any], Graph.__new__(Graph))
+        graph._nodes = {}  # type: ignore[attr-defined]
 
         with pytest.raises(
             NotImplementedError, match="Subclasses must implement add_node"
@@ -384,8 +378,8 @@ class TestGraphAbstractMethods:
 
     def test_remove_node_raises_not_implemented(self) -> None:
         """Graph.remove_node should raise NotImplementedError."""
-        graph: Graph[Any, Any] = Graph.__new__(Graph)
-        graph._nodes = {}
+        graph = cast(Graph[Any, Any], Graph.__new__(Graph))
+        graph._nodes = {}  # type: ignore[attr-defined]
 
         with pytest.raises(
             NotImplementedError, match="Subclasses must implement remove_node"
@@ -394,8 +388,8 @@ class TestGraphAbstractMethods:
 
     def test_iter_edges_raises_not_implemented(self) -> None:
         """Graph._iter_edges should raise NotImplementedError."""
-        graph: Graph[Any, Any] = Graph.__new__(Graph)
-        graph._nodes = {}
+        graph = cast(Graph[Any, Any], Graph.__new__(Graph))
+        graph._nodes = {}  # type: ignore[attr-defined]
 
         with pytest.raises(
             NotImplementedError, match="Subclasses must implement _iter_edges"
@@ -643,7 +637,7 @@ class TestGraphExportMermaid:
             "A", "B", metadata=MockEdgeMetadata(weight=5, label="test")
         )
 
-        mermaid = empty_graph.to_mermaid(edge_label_fn=lambda m: m.label if m else None)
+        mermaid = empty_graph.to_mermaid(edge_label_fn=lambda m: m.label if m else "")
 
         assert "test" in mermaid
 
@@ -847,7 +841,7 @@ class TestGraphExportJson:
 
         class BadVars:
             @property
-            def __dict__(self) -> Dict[str, Any]:
+            def __dict__(self) -> Dict[str, Any]:  # type: ignore[override]
                 return {"key": "value"}
 
             def __str__(self) -> str:
@@ -906,7 +900,7 @@ class TestGraphExportAsciiTree:
         )
 
         tree = empty_graph.to_ascii_tree(
-            root_nodes=["A"], edge_label_fn=lambda m: m.label if m else None
+            root_nodes=["A"], edge_label_fn=lambda m: m.label if m else ""
         )
 
         assert "edge_label" in tree
@@ -1124,7 +1118,7 @@ class TestGraphJsonEdgeCases:
 
         class BadVars:
             @property
-            def __dict__(self) -> Dict[str, Any]:
+            def __dict__(self) -> Dict[str, Any]:  # type: ignore[override]
                 return {"key": "value"}
 
             def __str__(self) -> str:
