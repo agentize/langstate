@@ -3,6 +3,8 @@
 Tests the core State class with DAH-based storage functionality.
 """
 
+# pyright: reportPrivateUsage=false
+
 from uuid import UUID
 
 import pytest

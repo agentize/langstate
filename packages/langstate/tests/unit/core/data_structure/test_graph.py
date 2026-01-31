@@ -12,6 +12,15 @@ Tests cover:
 Target: 100% code coverage for graph/graph.py and graph/base.py
 """
 
+# pyright: reportPrivateUsage=false
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
+# pyright: reportIncompatibleMethodOverride=false
+# pyright: reportArgumentType=false
+# pyright: reportUnnecessaryIsInstance=false
+# pyright: reportIncompatibleVariableOverride=false
+
 from __future__ import annotations
 
 import json
@@ -147,7 +156,7 @@ class ConcreteGraph(Graph[Any, Any]):
         if node_id in self._nodes:
             existing = self._nodes[node_id]
             if value is not None and isinstance(existing, SimpleNode):
-                existing.value = value
+                existing._value = value  # type: ignore[attr-defined]
             return existing  # type: ignore
 
         node = SimpleNode(_id=node_id, _value=value)

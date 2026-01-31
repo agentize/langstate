@@ -10,10 +10,13 @@ Tests cover:
 Target: 100% code coverage for schema_reader/base/schema.py and reader.py
 """
 
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+
 from __future__ import annotations
 
 import pytest
-from typing import Any, Dict
+from typing import Any, cast
 
 from core.schema_reader.base.schema import (
     Schema,
@@ -352,7 +355,8 @@ class TestSchemaFieldEdgeCases:
         )
 
         assert "x-sup" in field.metadata
-        assert "constraints" in field.metadata["x-sup"]
+        x_sup = cast("dict[str, object]", field.metadata["x-sup"])
+        assert "constraints" in x_sup
 
 
 # ============================================================================

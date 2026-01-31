@@ -15,6 +15,15 @@ Tests cover:
 Target: 100% code coverage for dah.py and schema.py
 """
 
+# pyright: reportPrivateUsage=false
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
+# pyright: reportMissingParameterType=false
+# pyright: reportUnknownParameterType=false
+# pyright: reportUnknownLambdaType=false
+# pyright: reportIncompatibleVariableOverride=false
+
 from __future__ import annotations
 
 import json
@@ -1169,9 +1178,9 @@ class TestDAHEdgeCases:
         empty_dah.add_node("C")
         empty_dah.add_node("target")
 
-        id1 = empty_dah.add_hyperedge(["A"], "target")
-        id2 = empty_dah.add_hyperedge(["B"], "target")
-        id3 = empty_dah.add_hyperedge(["A", "B", "C"], "target")
+        _ = empty_dah.add_hyperedge(["A"], "target")
+        _ = empty_dah.add_hyperedge(["B"], "target")
+        _ = empty_dah.add_hyperedge(["A", "B", "C"], "target")
 
         target = empty_dah.get_node("target")
         assert len(target.in_edges) == 3

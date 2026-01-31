@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 """Unit tests for CanonicalState implementation.
 
 Tests the CanonicalState class with DAH-based storage and primitive values.

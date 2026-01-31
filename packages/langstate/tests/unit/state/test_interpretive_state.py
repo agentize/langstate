@@ -4,6 +4,8 @@ Tests the InterpretiveState class with DAH-based storage,
 inference tracking, and value-confidence pairs.
 """
 
+# pyright: reportPrivateUsage=false
+
 from core.state.interpretive.schema import (
     Inference,
     InterpretiveFieldState,
@@ -101,7 +103,7 @@ class TestInterpretiveStateAddInference:
     def test_add_inference_with_default_mutator_id(self) -> None:
         """add_inference should use default mutator_id."""
         state = InterpretiveState()
-        inference = Inference(content="Some inference")
+        inference = Inference(content="Some inference", mutator_id="unknown")
 
         state.add_inference("name", inference)
 

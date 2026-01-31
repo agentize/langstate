@@ -15,16 +15,21 @@ Tests cover:
 Target: 100% code coverage for schema_reader/openapi/reader.py
 """
 
+# pyright: reportPrivateUsage=false
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
+
 from __future__ import annotations
 
 import os
 import tempfile
 import pytest
 from pathlib import Path
-from typing import Any, Dict
+from typing import cast
 
 from core.schema_reader.openapi.reader import OpenAPIReader
-from core.schema_reader.base.schema import Schema, SchemaField
+from core.schema_reader.base.schema import Schema
 
 
 # ============================================================================
@@ -127,8 +132,6 @@ components:
 @pytest.fixture
 def temp_unknown_ext_json_file() -> Path:
     """Create a temporary file with unknown extension that will fail YAML parsing."""
-    import json
-
     # Create content that will cause yaml.safe_load to fail by using tabs in a way that breaks YAML
     content = '{\t"openapi": "3.1.0", "info": {"title": "Test", "version": "1.0.0"}, "components": {"schemas": {"TestEntity": {"type": "object", "properties": {"data": {"type": "string"}}}}}}'
     with tempfile.NamedTemporaryFile(mode="w", suffix=".dat", delete=False) as f:
@@ -664,9 +667,10 @@ class TestOpenAPIReaderParseSchema:
         result = reader._parse_schema(schema, {})
 
         assert "x-sup" in result["event"].metadata
-        assert result["event"].metadata["x-sup"]["constraints"][0]["requires"] == [
-            "user_id"
-        ]
+        x_sup_metadata = cast(
+            "dict[str, list[dict[str, list[str]]]]", result["event"].metadata["x-sup"]
+        )
+        assert x_sup_metadata["constraints"][0]["requires"] == ["user_id"]
 
     def test_parse_schema_nested_object(self) -> None:
         """_parse_schema should recursively parse nested objects."""

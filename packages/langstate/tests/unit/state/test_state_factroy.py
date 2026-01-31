@@ -4,6 +4,8 @@ Tests the StateFactory class that creates CanonicalState and InterpretiveState
 instances from schemas.
 """
 
+# pyright: reportPrivateUsage=false
+
 from core.schema_reader.base.schema import Schema, SchemaField
 from core.state.canonical.state import CanonicalState
 from core.state.factory.state_factory import StateFactory
@@ -406,7 +408,7 @@ class TestStateFactoryEdgeCases:
     def test_schema_field_with_non_schemafield_dict_value(self) -> None:
         """Should treat non-SchemaField dict as leaf value."""
         factory = StateFactory()
-        metadata_dict = {"key": "value", "count": 5}
+        metadata_dict: dict[str, object] = {"key": "value", "count": 5}
         schema = Schema.model_validate(
             {
                 "metadata": SchemaField(

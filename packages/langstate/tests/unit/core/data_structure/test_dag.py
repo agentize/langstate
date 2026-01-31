@@ -13,6 +13,15 @@ Tests cover:
 Target: 100% code coverage for dag.py and schema.py
 """
 
+# pyright: reportPrivateUsage=false
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
+# pyright: reportMissingParameterType=false
+# pyright: reportUnknownParameterType=false
+# pyright: reportUnknownLambdaType=false
+# pyright: reportIncompatibleVariableOverride=false
+
 from __future__ import annotations
 
 import json
