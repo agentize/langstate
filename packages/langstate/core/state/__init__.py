@@ -1,9 +1,10 @@
 """State module exports."""
 
+from .base.base import BaseState
 from .interpretive.schema import Inference, ValueConfidence
 from .factory.state_factory import StateFactory
 from .base import (
-    BaseState,
+    State,
 )
 from .canonical import (
     BaseCanonicalState,
@@ -28,6 +29,7 @@ __all__ = [
     # Base
     "BaseState",
     "Inference",
+    "State",
     "ValueConfidence",
     # Canonical
     "BaseCanonicalState",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic, List
 
-from packages.langstate.core.typing.generic import TFieldData
+from core.typing.generic import TFieldData
 
 
 class SnapshotStore(ABC, Generic[TFieldData]):

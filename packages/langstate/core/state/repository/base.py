@@ -8,7 +8,7 @@ storage backends without changing the core logic.
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Generic, Optional, TypeVar
 
-from ..base.state import BaseState
+from ..base.base import BaseState
 from ..canonical.base import BaseCanonicalState
 from ..interpretive.base import BaseInterpretiveState
 

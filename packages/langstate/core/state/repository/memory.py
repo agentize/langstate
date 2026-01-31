@@ -6,7 +6,7 @@ for single-session or testing scenarios.
 
 from typing import Any, Dict, Generic, Optional, TypeVar
 
-from ..base.state import BaseState
+from ..base.base import BaseState
 from ..canonical.base import BaseCanonicalState
 from ..interpretive.base import BaseInterpretiveState
 from .base import (

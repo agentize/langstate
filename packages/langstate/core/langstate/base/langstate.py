@@ -26,7 +26,8 @@ from ...projector import (
     BaseProjectorCanonicalState,
     BaseProjectorUI,
 )
-from ...state import CanonicalState, InterpretiveState
+from ...state import BaseCanonicalState, BaseInterpretiveState
+from ...state.factory import BaseStateFactory
 
 from .schema import (
     AgentInput,
@@ -251,7 +252,7 @@ class LangState(ABC):
         pass
 
     @abstractmethod
-    async def get_current_state(self) -> InterpretiveState:
+    async def get_current_state(self) -> BaseInterpretiveState:
         """Get the current interpretive state.
 
         Returns:
@@ -260,7 +261,7 @@ class LangState(ABC):
         pass
 
     @abstractmethod
-    async def get_canonical_state(self) -> CanonicalState:
+    async def get_canonical_state(self) -> BaseCanonicalState:
         """Get the current canonical state.
 
         Returns:

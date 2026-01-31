@@ -30,7 +30,7 @@ langstate/
 │   ├── schema_reader/
 │   │   └── base/
 │   │       ├── reader.py       # BaseSchemaReader abstract class
-│   │       └── schema.py       # Schema, SchemaField, SchemaReadResult
+│   │       └── schema.py       # Schema, SchemaField
 │   ├── state/
 │   │   ├── base/
 │   │   │   ├── state.py        # BaseState abstract class

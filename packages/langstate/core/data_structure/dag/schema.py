@@ -9,6 +9,7 @@ through duck typing (structural subtyping).
 
 from dataclasses import dataclass, field
 from typing import Dict, Generic, Optional, Set, TypeVar
+from uuid import UUID, uuid4
 import weakref
 
 V = TypeVar("V")  # Node value
@@ -35,9 +36,13 @@ class DirectedAcyclicGraphEdge(Generic[V, E]):
         """Source nodes (returns single-element set with target for compatibility)."""
         return {self.target}
 
-    def source_ids(self) -> Set[str]:
-        """Get IDs of all source nodes (returns single-element set for DAG)."""
+    def source_ids(self) -> Set[UUID]:
+        """Get UUIDs of all source nodes (returns single-element set for DAG)."""
         return {self.target.id}
+
+    def source_paths(self) -> Set[str]:
+        """Get paths of all source nodes (returns single-element set for DAG)."""
+        return {self.target.path}
 
 
 @dataclass
@@ -45,13 +50,24 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
     """Represents a vertex in a Directed Acyclic Graph.
 
     Only local concerns live here; graph-wide logic is in the manager.
-    The node is hashable by its stable `id` to support sets and weak refs.
+    The node is hashable by its stable `id` (UUID) to support sets and weak refs.
+    
+    Attributes
+    ----------
+    id: UUID
+        Unique identifier (auto-generated UUID).
+    path: str
+        Field path (e.g., "registrant.event.id") - used for addressing.
+    value: Optional[V]
+        Optional node payload.
     """
 
-    id: str
+    id: UUID
+    path: str
     value: Optional[V] = None
 
     # Truth source: dependencies (this node depends on -> edge with node ref + metadata)
+    # Key is the prerequisite's path (for lookup), value contains node ref
     depends_on: Dict[str, "DirectedAcyclicGraphEdge[V, E]"] = field(default_factory=dict)  # type: ignore[misc]
 
     # Reverse mirror: who depends on me (weak, to avoid strong cycles)
@@ -68,7 +84,7 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
         """Unregister a node as depending on this node."""
         self._dependents.discard(node)
 
-    # Identity & hashing by id (stable across process lifetime)
+    # Identity & hashing by id (UUID, stable across process lifetime)
     def __hash__(self) -> int:
         return hash(self.id)
 
@@ -77,11 +93,15 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
 
     # ---- Local queries ------------------------------------------------------
     def prerequisites(self) -> Set[str]:
-        """IDs of nodes this node depends on."""
+        """Paths of nodes this node depends on."""
         return set(self.depends_on.keys())
 
-    def prerequisite_ids(self) -> Set[str]:
-        """IDs of nodes this node depends on (alias for prerequisites)."""
+    def prerequisite_ids(self) -> Set[UUID]:
+        """UUIDs of nodes this node depends on."""
+        return {edge.target.id for edge in self.depends_on.values()}
+
+    def prerequisite_paths(self) -> Set[str]:
+        """Paths of nodes this node depends on (alias for prerequisites)."""
         return self.prerequisites()
 
     def prerequisite_nodes(self) -> Set["DirectedAcyclicGraphNode[V, E]"]:
@@ -93,7 +113,11 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
         return set(self._dependents)
 
     def is_ready(self, satisfied: Set[str]) -> bool:
-        """True if all prerequisites are in `satisfied`."""
+        """True if all prerequisites are in `satisfied`.
+        
+        Args:
+            satisfied: Set of satisfied node paths (not UUIDs)
+        """
         return self.prerequisites().issubset(satisfied)
 
 
