@@ -13,13 +13,13 @@ from core.state.interpretive.schema import (
 
 class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
     """Interpretive State implementation with DAH-based storage and inference tracking.
-    
+
     Implements BaseInterpretiveState interface using InterpretiveFieldState as node values.
     Field values are stored directly in DAH nodes with paths like:
     - "name" for simple fields
     - "address.city" for nested objects
     - "guests.0.email" for array elements
-    
+
     Values are InterpretiveFieldState objects with:
     - inference: List of inferences about the field
     - values: List of value-confidence pairs
@@ -45,19 +45,21 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
             A new InterpretiveState instance with deep copied data
         """
         new_state = InterpretiveState()
-        
+
         # Copy all field values
         for path, value in self.iter_fields():
             if value is not None:
                 new_state._dah.add_node(path, value.model_copy(deep=True))
-        
+
         # Copy all hyperedges
         for sources, target, metadata, _edge_id in self._dah.iter_hyperedges():
             try:
-                new_state._dah.add_hyperedge(sources, target, metadata=metadata, check_cycle=False)
+                new_state._dah.add_hyperedge(
+                    sources, target, metadata=metadata, check_cycle=False
+                )
             except ValueError:
                 pass
-        
+
         return new_state
 
     def add_inference(self, path: str, inference: Inference) -> None:
@@ -94,7 +96,7 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
             return None
         if not value.values:
             return None
-        
+
         return max(value.values, key=lambda vc: vc.confidence)
 
     def _get_or_create_field_state(self, path: str) -> InterpretiveFieldState:
@@ -107,12 +109,12 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
             The InterpretiveFieldState for this field
         """
         value = self.get_field(path)
-        
+
         if value is not None:
             return value
-        
+
         # Create new field state
         new_field_state = InterpretiveFieldState(inference=[], values=[])
         self.set_field(path, new_field_state)
-        
+
         return new_field_state

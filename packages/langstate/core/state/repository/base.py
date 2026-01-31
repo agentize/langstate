@@ -99,7 +99,7 @@ class StateRepositoryBase(IStateRepository[TState]):
         existing = await self.get(state_id)
         if existing is not None:
             return existing
-        
+
         new_state = factory()
         await self.save(state_id, new_state)
         return new_state
@@ -107,17 +107,19 @@ class StateRepositoryBase(IStateRepository[TState]):
 
 class ICanonicalStateRepository(IStateRepository[BaseCanonicalState]):
     """Repository interface specifically for CanonicalState.
-    
+
     Follows Interface Segregation Principle by providing
     a focused interface for canonical state operations.
     """
+
     pass
 
 
 class IInterpretiveStateRepository(IStateRepository[BaseInterpretiveState]):
     """Repository interface specifically for InterpretiveState.
-    
+
     Follows Interface Segregation Principle by providing
     a focused interface for interpretive state operations.
     """
+
     pass

@@ -40,7 +40,7 @@ class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
         ))
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
         state.add_value("name", ValueConfidence(value="Jon", confidence=0.3))
-        
+
         # Nested array element
         state.add_value("guests.0.name", ValueConfidence(value="Jane", confidence=0.95))
 

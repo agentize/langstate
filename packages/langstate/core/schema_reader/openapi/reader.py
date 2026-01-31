@@ -39,15 +39,15 @@ class OpenAPIReader(BaseSchemaReader):
         """
         # Load the OpenAPI specification
         source_path = Path(source) if not isinstance(source, Path) else source
-        
+
         if not source_path.exists():
             raise FileNotFoundError(f"OpenAPI specification file not found: {source}")
-        
+
         # Parse the file based on extension
-        with open(source_path, 'r', encoding='utf-8') as f:
-            if source_path.suffix in ['.yaml', '.yml']:
+        with open(source_path, "r", encoding="utf-8") as f:
+            if source_path.suffix in [".yaml", ".yml"]:
                 spec_dict = yaml.safe_load(f)
-            elif source_path.suffix == '.json':
+            elif source_path.suffix == ".json":
                 spec_dict = json.load(f)
             else:
                 # Try YAML first, then JSON
@@ -60,16 +60,14 @@ class OpenAPIReader(BaseSchemaReader):
         # Determine root entity
         root_entity = self.root_entity
         if not root_entity:
-            raise ValueError(
-                "No root_entity specified. Provide it in constructor"
-            )
+            raise ValueError("No root_entity specified. Provide it in constructor")
 
         # Get the schema from components/schemas
-        if 'components' not in spec_dict or 'schemas' not in spec_dict['components']:
+        if "components" not in spec_dict or "schemas" not in spec_dict["components"]:
             raise ValueError("No components/schemas found in OpenAPI specification")
-        
-        schemas = spec_dict['components']['schemas']
-        
+
+        schemas = spec_dict["components"]["schemas"]
+
         if root_entity not in schemas:
             raise ValueError(
                 f"Root entity '{root_entity}' not found in components/schemas"
@@ -97,62 +95,62 @@ class OpenAPIReader(BaseSchemaReader):
         fields: Dict[str, SchemaField] = {}
 
         # Resolve $ref if present
-        if '$ref' in schema:
-            ref_path = schema['$ref']
-            if ref_path.startswith('#/components/schemas/'):
-                schema_name = ref_path.split('/')[-1]
+        if "$ref" in schema:
+            ref_path = schema["$ref"]
+            if ref_path.startswith("#/components/schemas/"):
+                schema_name = ref_path.split("/")[-1]
                 if schema_name in all_schemas:
                     schema = all_schemas[schema_name]
 
         # Only Object schemas have properties
-        if schema.get('type') != 'object' or 'properties' not in schema:
+        if schema.get("type") != "object" or "properties" not in schema:
             return fields
 
-        properties = schema['properties']
-        required_fields = schema.get('required', [])
+        properties = schema["properties"]
+        required_fields = schema.get("required", [])
 
         # Parse each property
         for prop_name, prop_schema in properties.items():
             # Resolve $ref in property
-            if '$ref' in prop_schema:
-                ref_path = prop_schema['$ref']
-                if ref_path.startswith('#/components/schemas/'):
-                    schema_name = ref_path.split('/')[-1]
+            if "$ref" in prop_schema:
+                ref_path = prop_schema["$ref"]
+                if ref_path.startswith("#/components/schemas/"):
+                    schema_name = ref_path.split("/")[-1]
                     if schema_name in all_schemas:
                         prop_schema = all_schemas[schema_name]
-            
+
             field_type = self._determine_field_type(prop_schema, all_schemas)
             is_required = prop_name in required_fields
 
             # Extract metadata
-            description = prop_schema.get('description', '')
-            label = prop_schema.get('title', prop_name.replace("_", " ").title())
+            description = prop_schema.get("description", "")
+            label = prop_schema.get("title", prop_name.replace("_", " ").title())
 
             # Extract validation rules
             validation_rules = self._extract_validation_rules(prop_schema)
 
             # Extract x-sup metadata if present
             metadata: Dict[str, Any] = {}
-            if 'x-sup' in prop_schema:
-                metadata["x-sup"] = prop_schema['x-sup']
+            if "x-sup" in prop_schema:
+                metadata["x-sup"] = prop_schema["x-sup"]
 
             # Handle default value and nested fields
-            default_value = prop_schema.get('default')
-            
-            if prop_schema.get('type') == 'object':
+            default_value = prop_schema.get("default")
+
+            if prop_schema.get("type") == "object":
                 # Recursively parse nested object fields and put them in default_value
                 default_value = self._parse_schema(prop_schema, all_schemas)
-            elif prop_schema.get('type') == 'array' and 'items' in prop_schema:
+            elif prop_schema.get("type") == "array" and "items" in prop_schema:
                 # Handle arrays of objects - parse the item schema
-                items_schema = prop_schema['items']
-                if '$ref' in items_schema:
-                    ref_path = items_schema['$ref']
-                    if ref_path.startswith('#/components/schemas/'):
-                        schema_name = ref_path.split('/')[-1]
+                items_schema = prop_schema["items"]
+                if "$ref" in items_schema:
+                    ref_path = items_schema["$ref"]
+                    if ref_path.startswith("#/components/schemas/"):
+                        schema_name = ref_path.split("/")[-1]
                         if schema_name in all_schemas:
                             items_schema = all_schemas[schema_name]
-                
-                if items_schema.get('type') == 'object':
+
+                if items_schema.get("type") == "object":
                     # Store the parsed item schema in default_value for array of objects
                     default_value = self._parse_schema(items_schema, all_schemas)
 
@@ -182,54 +180,54 @@ class OpenAPIReader(BaseSchemaReader):
             Field type as string
         """
         # Resolve $ref if present
-        if '$ref' in schema:
-            ref_path = schema['$ref']
-            if ref_path.startswith('#/components/schemas/'):
-                schema_name = ref_path.split('/')[-1]
+        if "$ref" in schema:
+            ref_path = schema["$ref"]
+            if ref_path.startswith("#/components/schemas/"):
+                schema_name = ref_path.split("/")[-1]
                 return f"object<{schema_name}>"
 
-        schema_type = schema.get('type')
-        schema_format = schema.get('format')
+        schema_type = schema.get("type")
+        schema_format = schema.get("format")
 
         # Handle specific schema types
-        if schema_type == 'integer':
+        if schema_type == "integer":
             if schema_format:
                 return f"integer:{schema_format}"
             return "integer"
 
-        if schema_type == 'number':
+        if schema_type == "number":
             if schema_format:
                 return f"number:{schema_format}"
             return "number"
 
-        if schema_type == 'string':
+        if schema_type == "string":
             if schema_format:
                 return f"string:{schema_format}"
             return "string"
 
-        if schema_type == 'boolean':
+        if schema_type == "boolean":
             return "boolean"
 
-        if schema_type == 'array':
-            if 'items' in schema:
-                item_type = self._determine_field_type(schema['items'], all_schemas)
+        if schema_type == "array":
+            if "items" in schema:
+                item_type = self._determine_field_type(schema["items"], all_schemas)
                 return f"array<{item_type}>"
             return "array"
 
-        if schema_type == 'object':
+        if schema_type == "object":
             return "object"
 
         # Handle oneOf
-        if 'oneOf' in schema:
+        if "oneOf" in schema:
             types = [
-                self._determine_field_type(s, all_schemas) for s in schema['oneOf']
+                self._determine_field_type(s, all_schemas) for s in schema["oneOf"]
             ]
             return f"oneOf<{','.join(types)}>"
 
         # Handle anyOf
-        if 'anyOf' in schema:
+        if "anyOf" in schema:
             types = [
-                self._determine_field_type(s, all_schemas) for s in schema['anyOf']
+                self._determine_field_type(s, all_schemas) for s in schema["anyOf"]
             ]
             return f"anyOf<{','.join(types)}>"
 
@@ -247,39 +245,39 @@ class OpenAPIReader(BaseSchemaReader):
         """
         rules: Dict[str, Any] = {}
 
-        schema_type = schema.get('type')
+        schema_type = schema.get("type")
 
         # String validations
-        if schema_type == 'string':
-            if 'minLength' in schema:
-                rules["minLength"] = schema['minLength']
-            if 'maxLength' in schema:
-                rules["maxLength"] = schema['maxLength']
-            if 'pattern' in schema:
-                rules["pattern"] = schema['pattern']
+        if schema_type == "string":
+            if "minLength" in schema:
+                rules["minLength"] = schema["minLength"]
+            if "maxLength" in schema:
+                rules["maxLength"] = schema["maxLength"]
+            if "pattern" in schema:
+                rules["pattern"] = schema["pattern"]
 
         # Number validations
-        if schema_type in ('integer', 'number'):
-            if 'minimum' in schema:
-                rules["minimum"] = schema['minimum']
-            if 'maximum' in schema:
-                rules["maximum"] = schema['maximum']
-            if 'exclusiveMinimum' in schema:
-                rules["exclusiveMinimum"] = schema['exclusiveMinimum']
-            if 'exclusiveMaximum' in schema:
-                rules["exclusiveMaximum"] = schema['exclusiveMaximum']
+        if schema_type in ("integer", "number"):
+            if "minimum" in schema:
+                rules["minimum"] = schema["minimum"]
+            if "maximum" in schema:
+                rules["maximum"] = schema["maximum"]
+            if "exclusiveMinimum" in schema:
+                rules["exclusiveMinimum"] = schema["exclusiveMinimum"]
+            if "exclusiveMaximum" in schema:
+                rules["exclusiveMaximum"] = schema["exclusiveMaximum"]
 
         # Array validations
-        if schema_type == 'array':
-            if 'minItems' in schema:
-                rules["minItems"] = schema['minItems']
-            if 'maxItems' in schema:
-                rules["maxItems"] = schema['maxItems']
-            if 'uniqueItems' in schema:
-                rules["uniqueItems"] = schema['uniqueItems']
+        if schema_type == "array":
+            if "minItems" in schema:
+                rules["minItems"] = schema["minItems"]
+            if "maxItems" in schema:
+                rules["maxItems"] = schema["maxItems"]
+            if "uniqueItems" in schema:
+                rules["uniqueItems"] = schema["uniqueItems"]
 
         # Enum
-        if 'enum' in schema:
-            rules["enum"] = schema['enum']
+        if "enum" in schema:
+            rules["enum"] = schema["enum"]
 
         return rules

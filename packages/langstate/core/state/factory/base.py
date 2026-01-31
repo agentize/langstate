@@ -59,4 +59,3 @@ class BaseStateFactory(ABC):
             New InterpretiveState instance
         """
         pass
-

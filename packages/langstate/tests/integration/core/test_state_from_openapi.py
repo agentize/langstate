@@ -40,10 +40,7 @@ from core.state.interpretive.state import InterpretiveState
 def schema_path() -> Path:
     """Path to the registration schema fixture."""
     return (
-        Path(__file__).parent.parent.parent
-        / "data"
-        / "schemas"
-        / "registeration.yaml"
+        Path(__file__).parent.parent.parent / "data" / "schemas" / "registeration.yaml"
     )
 
 
@@ -94,7 +91,7 @@ def output_dir() -> Path:
 
 def _should_save_output() -> bool:
     """Check if test outputs should be saved to files.
-    
+
     Returns True only if TEST_OUTPUT environment variable is set to 'true'.
     """
     return os.environ.get("TEST_OUTPUT", "").lower() == "true"
@@ -142,7 +139,9 @@ def _create_sample_event_data() -> Dict[str, CanonicalFieldValue]:
     }
 
 
-def _create_sample_guest_data(index: int, name: str, email: str) -> Dict[str, CanonicalFieldValue]:
+def _create_sample_guest_data(
+    index: int, name: str, email: str
+) -> Dict[str, CanonicalFieldValue]:
     """Generate sample data for a guest at a specific index."""
     return {
         f"guests.{index}.id": f"GUEST-{index:03d}",
@@ -244,7 +243,7 @@ class TestSchemaParsing:
 
     def test_guests_array_structure(self, schema: Schema) -> None:
         """Verify guests field is an array type.
-        
+
         Note: The OpenAPI reader doesn't fully resolve allOf compositions for arrays,
         so item schema may be None. Array element fields are created dynamically
         when populating state with indexed paths like 'guests.0.name'.
@@ -260,7 +259,7 @@ class TestSchemaParsing:
 
     def test_invitation_structure_in_schema(self, schema: Schema) -> None:
         """Verify Invitation is parsed as a referenced type.
-        
+
         The Invitation type is referenced via $ref in the schema.
         Since Guest uses allOf with $ref to Person, the invitation
         field structure may not be directly accessible from guests.
@@ -445,9 +444,7 @@ class TestCanonicalStatePopulation:
         )
         assert canonical_state.get_field("guests.0.invitation.send_at") is not None
 
-    def test_populate_full_registration(
-        self, canonical_state: CanonicalState
-    ) -> None:
+    def test_populate_full_registration(self, canonical_state: CanonicalState) -> None:
         """Verify complete registration data can be populated."""
         full_data = _create_full_registration_data()
         for path, value in full_data.items():
@@ -483,13 +480,11 @@ class TestCanonicalStatePopulation:
 class TestInterpretiveStatePopulation:
     """Tests for populating interpretive state with data."""
 
-    def test_add_value_with_confidence(
-        self, state_factory: StateFactory
-    ) -> None:
+    def test_add_value_with_confidence(self, state_factory: StateFactory) -> None:
         """Verify values can be added with confidence scores."""
         # Create fresh interpretive state without pre-existing values
         interpretive = InterpretiveState()
-        
+
         interpretive.add_value(
             "registrant.name",
             ValueConfidence(value="John Doe", confidence=0.95),
@@ -506,7 +501,7 @@ class TestInterpretiveStatePopulation:
         """Verify multiple values can be added and best is selected by confidence."""
         # Create fresh interpretive state without pre-existing values
         interpretive = InterpretiveState()
-        
+
         interpretive.add_value(
             "registrant.email",
             ValueConfidence(value="john@example.com", confidence=0.8),
@@ -633,7 +628,9 @@ def populated_interpretive_state(
     )
     interpretive_state.add_inference(
         "registrant.name",
-        Inference(content="Extracted from account profile", mutator_id="profile_extractor"),
+        Inference(
+            content="Extracted from account profile", mutator_id="profile_extractor"
+        ),
     )
     interpretive_state.add_value(
         "registrant.email",
@@ -662,7 +659,9 @@ def populated_interpretive_state(
 class TestCanonicalStateDahExports:
     """Tests for canonical state DAH export methods."""
 
-    def test_to_ascii_tree(self, populated_canonical_state: CanonicalState, output_dir: Path) -> None:
+    def test_to_ascii_tree(
+        self, populated_canonical_state: CanonicalState, output_dir: Path
+    ) -> None:
         """Verify to_ascii_tree produces valid ASCII tree output."""
         dah = populated_canonical_state.get_dah()
         tree = dah.to_ascii_tree()
@@ -699,7 +698,9 @@ class TestCanonicalStateDahExports:
             output_file = output_dir / "canonical_state_ascii_tree_custom.txt"
             output_file.write_text(tree, encoding="utf-8")
 
-    def test_to_json(self, populated_canonical_state: CanonicalState, output_dir: Path) -> None:
+    def test_to_json(
+        self, populated_canonical_state: CanonicalState, output_dir: Path
+    ) -> None:
         """Verify to_json produces valid JSON string."""
         dah = populated_canonical_state.get_dah()
         json_str = dah.to_json(pretty=True, indent=2)
@@ -717,7 +718,9 @@ class TestCanonicalStateDahExports:
             output_file = output_dir / "canonical_state.json"
             output_file.write_text(json_str, encoding="utf-8")
 
-    def test_to_json_compact(self, populated_canonical_state: CanonicalState, output_dir: Path) -> None:
+    def test_to_json_compact(
+        self, populated_canonical_state: CanonicalState, output_dir: Path
+    ) -> None:
         """Verify to_json compact mode produces valid JSON."""
         dah = populated_canonical_state.get_dah()
         json_str = dah.to_json(pretty=False)
@@ -730,7 +733,9 @@ class TestCanonicalStateDahExports:
             output_file = output_dir / "canonical_state_compact.json"
             output_file.write_text(json_str, encoding="utf-8")
 
-    def test_to_json_dict(self, populated_canonical_state: CanonicalState, output_dir: Path) -> None:
+    def test_to_json_dict(
+        self, populated_canonical_state: CanonicalState, output_dir: Path
+    ) -> None:
         """Verify to_json_dict produces valid dictionary structure."""
         dah = populated_canonical_state.get_dah()
         json_dict = dah.to_json_dict()
@@ -773,7 +778,9 @@ class TestCanonicalStateDahExports:
         assert "registrant.name" in paths
         assert "event.name" in paths
 
-    def test_to_mermaid(self, populated_canonical_state: CanonicalState, output_dir: Path) -> None:
+    def test_to_mermaid(
+        self, populated_canonical_state: CanonicalState, output_dir: Path
+    ) -> None:
         """Verify to_mermaid produces valid Mermaid diagram format."""
         dah = populated_canonical_state.get_dah()
         mermaid = dah.to_mermaid()
@@ -809,7 +816,9 @@ class TestCanonicalStateDahExports:
             output_file = output_dir / "canonical_state_custom.mmd"
             output_file.write_text(mermaid, encoding="utf-8")
 
-    def test_to_dot(self, populated_canonical_state: CanonicalState, output_dir: Path) -> None:
+    def test_to_dot(
+        self, populated_canonical_state: CanonicalState, output_dir: Path
+    ) -> None:
         """Verify to_dot produces valid Graphviz DOT format."""
         dah = populated_canonical_state.get_dah()
         dot = dah.to_dot()
@@ -845,7 +854,9 @@ class TestInterpretiveStateDahExports:
             output_file = output_dir / "interpretive_state_ascii_tree.txt"
             output_file.write_text(tree, encoding="utf-8")
 
-    def test_to_json(self, populated_interpretive_state: InterpretiveState, output_dir: Path) -> None:
+    def test_to_json(
+        self, populated_interpretive_state: InterpretiveState, output_dir: Path
+    ) -> None:
         """Verify to_json works for interpretive state."""
         dah = populated_interpretive_state.get_dah()
         json_str = dah.to_json()
@@ -896,7 +907,9 @@ class TestInterpretiveStateDahExports:
             output_file = output_dir / "interpretive_state.mmd"
             output_file.write_text(mermaid, encoding="utf-8")
 
-    def test_to_dot(self, populated_interpretive_state: InterpretiveState, output_dir: Path) -> None:
+    def test_to_dot(
+        self, populated_interpretive_state: InterpretiveState, output_dir: Path
+    ) -> None:
         """Verify to_dot works for interpretive state."""
         dah = populated_interpretive_state.get_dah()
         dot = dah.to_dot()
@@ -931,7 +944,7 @@ class TestExportConsistency:
     ) -> None:
         """Verify export methods work even with fresh state (no data populated)."""
         fresh_canonical = state_factory.create_canonical_state(schema)
-        
+
         # Cast to concrete type for type safety
         assert isinstance(fresh_canonical, CanonicalState)
         dah = fresh_canonical.get_dah()
@@ -944,18 +957,23 @@ class TestExportConsistency:
         assert dah.to_dot() is not None
 
     def test_canonical_and_interpretive_have_same_structure(
-        self, populated_canonical_state: CanonicalState,
+        self,
+        populated_canonical_state: CanonicalState,
         state_factory: StateFactory,
     ) -> None:
         """Verify canonical and derived interpretive states have same field paths."""
-        interpretive = state_factory.create_interpretive_state(populated_canonical_state)
+        interpretive = state_factory.create_interpretive_state(
+            populated_canonical_state
+        )
 
         canonical_paths = set(populated_canonical_state.get_all_fields().keys())
         interpretive_paths = {path for path, _ in interpretive.iter_fields()}
 
         # Interpretive state should have all canonical paths
         # (though it may have additional paths from add_value calls)
-        assert canonical_paths.issubset(interpretive_paths) or interpretive_paths.issubset(canonical_paths)
+        assert canonical_paths.issubset(
+            interpretive_paths
+        ) or interpretive_paths.issubset(canonical_paths)
 
 
 # -----------------------------------------------------------------------------
@@ -978,7 +996,7 @@ class TestFullWorkflow:
         # Step 2: Create states
         factory = StateFactory()
         canonical = factory.create_canonical_state(schema)
-        
+
         # Step 3: Populate canonical state
         full_data = _create_full_registration_data()
         for path, value in full_data.items():
@@ -986,7 +1004,7 @@ class TestFullWorkflow:
 
         # Step 4: Create interpretive state from populated canonical
         interpretive = factory.create_interpretive_state(canonical)
-        
+
         # Step 5: Add additional data with higher confidence to interpretive
         interpretive.add_value(
             "registrant.name",
@@ -999,7 +1017,7 @@ class TestFullWorkflow:
 
         # Verify data retrieval
         assert canonical.get_field("registrant.name") == "John Doe"
-        
+
         # The best value should be Jane Doe (0.99) vs John Doe (1.0 from factory)
         # Note: factory creates values with confidence 1.0, so we need higher
         best_name = interpretive.get_best_value("registrant.name")
@@ -1105,7 +1123,9 @@ class TestFullWorkflow:
         empty = canonical.get_empty_fields()
         assert len(empty) > 0
 
-    def test_dah_topological_order(self, populated_canonical_state: CanonicalState) -> None:
+    def test_dah_topological_order(
+        self, populated_canonical_state: CanonicalState
+    ) -> None:
         """Test that DAH maintains valid topological order."""
         dah = populated_canonical_state.get_dah()
 
@@ -1115,7 +1135,9 @@ class TestFullWorkflow:
         assert isinstance(order, list)
         assert len(order) > 0
 
-    def test_dah_validate_acyclic(self, populated_canonical_state: CanonicalState) -> None:
+    def test_dah_validate_acyclic(
+        self, populated_canonical_state: CanonicalState
+    ) -> None:
         """Test that DAH validates acyclic property."""
         dah = populated_canonical_state.get_dah()
 

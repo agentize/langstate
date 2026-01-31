@@ -9,7 +9,19 @@ a standard DAG where each edge connects a single source to a target.
 
 import json
 from graphlib import CycleError, TopologicalSorter
-from typing import Any, Callable, Dict, Generic, Iterable, Iterator, List, Optional, Set, Tuple, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+)
 from uuid import UUID, uuid4
 
 from .schema import DirectedAcyclicGraphEdge, DirectedAcyclicGraphNode
@@ -23,11 +35,11 @@ class DirectedAcyclicGraph(Generic[V, E]):
 
     A DAG (Directed Acyclic Graph) where each edge connects exactly one
     source node (prerequisite) to one target node (dependent).
-    
+
     Node identity:
     - id: UUID (auto-generated unique identifier)
     - path: str (field path like "registrant.event.id" for addressing)
-    
+
     Responsibilities:
     - Node/edge creation and removal (with bidirectional consistency)
     - Optional incremental cycle check on edge add
@@ -36,7 +48,9 @@ class DirectedAcyclicGraph(Generic[V, E]):
 
     __slots__ = ("_nodes", "_path_to_uuid")
 
-    def __init__(self, nodes: Iterable[DirectedAcyclicGraphNode[V, E]] | None = None) -> None:
+    def __init__(
+        self, nodes: Iterable[DirectedAcyclicGraphNode[V, E]] | None = None
+    ) -> None:
         self._nodes: Dict[UUID, DirectedAcyclicGraphNode[V, E]] = {}
         self._path_to_uuid: Dict[str, UUID] = {}  # Secondary index: path -> UUID
         if nodes:
@@ -58,13 +72,15 @@ class DirectedAcyclicGraph(Generic[V, E]):
 
     # ---- Node operations ----------------------------------------------------
 
-    def add_node(self, path: str, value: Optional[V] = None) -> DirectedAcyclicGraphNode[V, E]:
+    def add_node(
+        self, path: str, value: Optional[V] = None
+    ) -> DirectedAcyclicGraphNode[V, E]:
         """Add or update a node in the graph.
-        
+
         Args:
             path: Field path (e.g., "registrant.event.id")
             value: Optional node payload
-            
+
         Returns:
             The created or updated node
         """
@@ -75,7 +91,7 @@ class DirectedAcyclicGraph(Generic[V, E]):
             if value is not None:
                 node.value = value
             return node
-        
+
         # Create new node with generated UUID
         node_id = uuid4()
         node = DirectedAcyclicGraphNode[V, E](id=node_id, path=path, value=value)
@@ -90,7 +106,9 @@ class DirectedAcyclicGraph(Generic[V, E]):
             return None
         return self._nodes.get(node_uuid)
 
-    def get_node_by_uuid(self, node_uuid: UUID) -> Optional[DirectedAcyclicGraphNode[V, E]]:
+    def get_node_by_uuid(
+        self, node_uuid: UUID
+    ) -> Optional[DirectedAcyclicGraphNode[V, E]]:
         """Retrieve a node by UUID."""
         return self._nodes.get(node_uuid)
 
@@ -134,7 +152,9 @@ class DirectedAcyclicGraph(Generic[V, E]):
         # Idempotent update on truth side (key is prereq's path)
         edge = dep.depends_on.get(prereq_path)
         if edge is None:
-            dep.depends_on[prereq_path] = DirectedAcyclicGraphEdge(target=prereq, metadata=metadata)
+            dep.depends_on[prereq_path] = DirectedAcyclicGraphEdge(
+                target=prereq, metadata=metadata
+            )
         else:
             if metadata is not None:
                 edge.metadata = metadata
@@ -146,7 +166,9 @@ class DirectedAcyclicGraph(Generic[V, E]):
         if check_cycle and self._would_create_cycle(prereq_path, dep_path):
             # Roll back and raise
             self.remove_edge(prereq_path, dep_path)
-            raise ValueError(f"Dependency cycle detected when adding {prereq_path} -> {dep_path}.")
+            raise ValueError(
+                f"Dependency cycle detected when adding {prereq_path} -> {dep_path}."
+            )
 
     def remove_edge(self, prereq_path: str, dep_path: str) -> None:
         """Remove an edge between two nodes."""
@@ -235,7 +257,7 @@ class DirectedAcyclicGraph(Generic[V, E]):
 
     def _would_create_cycle(self, prereq_path: str, dep_path: str) -> bool:
         """True if adding prereq_path -> dep_path closes a cycle.
-        
+
         We check whether prereq_path is already a descendant of dep_path.
         If yes, then adding the edge would create a cycle.
         """
@@ -261,7 +283,7 @@ class DirectedAcyclicGraph(Generic[V, E]):
         root_nodes: Optional[List[str]] = None,
     ) -> str:
         """Export graph to Mermaid diagram format.
-        
+
         Structure:
         - Adds a synthesized root entity node and connects it to all
           graph roots (nodes with no prerequisites).
@@ -269,18 +291,25 @@ class DirectedAcyclicGraph(Generic[V, E]):
         - Uses path for node labels.
         """
         if root_nodes is None:
-            root_nodes = [node.path for node in self._nodes.values() 
-                         if not node.prerequisites()]
+            root_nodes = [
+                node.path for node in self._nodes.values() if not node.prerequisites()
+            ]
 
         # Determine a root entity name
-        root_entity = root_nodes[0].split('.')[0] if root_nodes else "Root"
+        root_entity = root_nodes[0].split(".")[0] if root_nodes else "Root"
 
         def _safe(s: str) -> str:
-            return s.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "_").replace("*", "star")
+            return (
+                s.replace("-", "_")
+                .replace(".", "_")
+                .replace("[", "_")
+                .replace("]", "_")
+                .replace("*", "star")
+            )
 
         def _fmt_label(txt: str) -> str:
             if len(txt) > max_label_length:
-                txt = txt[:max_label_length - 3] + "..."
+                txt = txt[: max_label_length - 3] + "..."
             txt = txt.replace('"', "'")
             for ch in "(){}[]|":
                 txt = txt.replace(ch, "")
@@ -305,7 +334,7 @@ class DirectedAcyclicGraph(Generic[V, E]):
 
         # Connect root entity to graph roots
         for path in root_nodes:
-            lines.append(f'    {safe_root_entity} --> {_safe(path)}')
+            lines.append(f"    {safe_root_entity} --> {_safe(path)}")
 
         # Add edges between nodes with labels
         for prereq_path, dep_path, metadata in self.iter_edges():
@@ -324,10 +353,10 @@ class DirectedAcyclicGraph(Generic[V, E]):
                 to_node = self.get_node(dep_path)
                 if to_node and to_node.value is not None:
                     try:
-                        constraints = getattr(to_node.value, 'constraints', [])
+                        constraints = getattr(to_node.value, "constraints", [])
                         constraint_labels: List[str] = []
                         for c in constraints or []:
-                            if hasattr(c, 'to_dag_edge_name'):
+                            if hasattr(c, "to_dag_edge_name"):
                                 constraint_labels.append(c.to_dag_edge_name())
                         if constraint_labels:
                             label_txt = constraint_labels[0]
@@ -341,7 +370,7 @@ class DirectedAcyclicGraph(Generic[V, E]):
                 if safe_txt:
                     edge_label = f"|{safe_txt}|"
 
-            lines.append(f'    {safe_prereq} -->{edge_label} {safe_dep}')
+            lines.append(f"    {safe_prereq} -->{edge_label} {safe_dep}")
 
         return "\n".join(lines)
 
@@ -353,31 +382,34 @@ class DirectedAcyclicGraph(Generic[V, E]):
         max_depth: int = 10,
     ) -> str:
         """Generate ASCII tree representation of the DAG.
-        
+
         Args:
             root_nodes: List of root node paths to start from (nodes with no prerequisites)
             node_label_fn: Optional function to extract label from node value
             edge_label_fn: Optional function to extract label from edge metadata
             max_depth: Maximum depth to traverse
-        
+
         Returns:
             ASCII tree string showing Schema -> [RootNode, Edges] structure.
             Uses path for node labels.
         """
         if root_nodes is None:
-            root_nodes = [node.path for node in self._nodes.values() 
-                         if not node.prerequisites()]
-        
+            root_nodes = [
+                node.path for node in self._nodes.values() if not node.prerequisites()
+            ]
+
         lines: List[str] = []
-        
-        def render_node(path: str, prefix: str = "", is_last: bool = True, depth: int = 0) -> None:
+
+        def render_node(
+            path: str, prefix: str = "", is_last: bool = True, depth: int = 0
+        ) -> None:
             if depth > max_depth:
                 return
-            
+
             node = self.get_node(path)
             if not node:
                 return
-            
+
             # Get label
             if node_label_fn and node.value is not None:
                 try:
@@ -386,47 +418,51 @@ class DirectedAcyclicGraph(Generic[V, E]):
                     label = path
             else:
                 label = path
-            
+
             # Truncate if too long
             if len(label) > 60:
                 label = label[:57] + "..."
-            
+
             # Draw the current node
             connector = "└── " if is_last else "├── "
             lines.append(f"{prefix}{connector}{label}")
-            
+
             # Prepare prefix for children
             child_prefix = prefix + ("    " if is_last else "│   ")
-            
+
             # Get dependents (children)
             dependents = list(node.dependents())
             for i, dep_node in enumerate(dependents):
-                render_node(dep_node.path, child_prefix, i == len(dependents) - 1, depth + 1)
-        
+                render_node(
+                    dep_node.path, child_prefix, i == len(dependents) - 1, depth + 1
+                )
+
         # Top level: Schema
         lines.append("Schema")
-        
+
         # Extract root entity name
-        root_entity = root_nodes[0].split('.')[0] if root_nodes else "RootNode"
+        root_entity = root_nodes[0].split(".")[0] if root_nodes else "RootNode"
         lines.append(f"├── {root_entity}")
         root_prefix = "│   "
-        
+
         # Render root nodes under RootNode
         for i, root_path in enumerate(root_nodes):
             render_node(root_path, root_prefix, i == len(root_nodes) - 1, 0)
-        
+
         # Edges section
         lines.append("└── Edges")
         edges_prefix = "    "
-        
+
         edge_list = list(self.iter_edges())
         # Show constraint edges first for visibility, then structural edges
-        edge_list = [e for e in edge_list if e[2] is not None] + [e for e in edge_list if e[2] is None]
-        
+        edge_list = [e for e in edge_list if e[2] is not None] + [
+            e for e in edge_list if e[2] is None
+        ]
+
         for i, (from_path, to_path, metadata) in enumerate(edge_list):
             is_last_edge = i == len(edge_list) - 1
             connector = "└── " if is_last_edge else "├── "
-            
+
             # Get edge label using edge_label_fn if provided
             edge_label = ""
             if edge_label_fn and metadata is not None:
@@ -439,11 +475,13 @@ class DirectedAcyclicGraph(Generic[V, E]):
                 to_node = self.get_node(to_path)
                 if to_node and to_node.value is not None:
                     try:
-                        constraints = getattr(to_node.value, 'constraints', [])
+                        constraints = getattr(to_node.value, "constraints", [])
                         if constraints:
                             constraint_labels: List[str] = []
                             for constraint in constraints or []:
-                                edge_name_fn = getattr(constraint, 'to_dag_edge_name', None)
+                                edge_name_fn = getattr(
+                                    constraint, "to_dag_edge_name", None
+                                )
                                 if edge_name_fn is not None:
                                     constraint_labels.append(str(edge_name_fn()))
                             if constraint_labels:
@@ -452,12 +490,12 @@ class DirectedAcyclicGraph(Generic[V, E]):
                                     edge_label += f" (+{len(constraint_labels)-1} more)"
                     except Exception:
                         pass
-            
+
             prefix_str = "[constraint] " if metadata is not None else ""
             label_part = f": {edge_label}" if edge_label else ""
             edge_display = f"{prefix_str}({from_path} -> {to_path}){label_part}"
             lines.append(f"{edges_prefix}{connector}{edge_display}")
-        
+
         return "\n".join(lines)
 
     def to_json_dict(self) -> Dict[str, Any]:
@@ -466,46 +504,54 @@ class DirectedAcyclicGraph(Generic[V, E]):
         """
         nodes_data: List[Dict[str, Any]] = []
         for node in self._nodes.values():
-            node_info: Dict[str, Any] = {"id": str(node.id), "path": node.path, "value": None}
-            
+            node_info: Dict[str, Any] = {
+                "id": str(node.id),
+                "path": node.path,
+                "value": None,
+            }
+
             if node.value is not None:
-                model_dump_fn = getattr(node.value, 'model_dump', None)
+                model_dump_fn = getattr(node.value, "model_dump", None)
                 if model_dump_fn is not None:
                     try:
                         node_info["value"] = model_dump_fn()
                     except Exception:
                         node_info["value"] = str(node.value)
-                elif hasattr(node.value, '__dict__'):
+                elif hasattr(node.value, "__dict__"):
                     try:
                         node_info["value"] = vars(node.value)
                     except Exception:
                         node_info["value"] = str(node.value)
                 else:
                     node_info["value"] = str(node.value)
-            
+
             nodes_data.append(node_info)
-        
+
         edges_data: List[Dict[str, Any]] = []
         for prereq_path, dep_path, metadata in self.iter_edges():
-            edge_info: Dict[str, Any] = {"from": prereq_path, "to": dep_path, "metadata": None}
-            
+            edge_info: Dict[str, Any] = {
+                "from": prereq_path,
+                "to": dep_path,
+                "metadata": None,
+            }
+
             if metadata is not None:
-                model_dump_fn = getattr(metadata, 'model_dump', None)
+                model_dump_fn = getattr(metadata, "model_dump", None)
                 if model_dump_fn is not None:
                     try:
                         edge_info["metadata"] = model_dump_fn()
                     except Exception:
                         edge_info["metadata"] = str(metadata)
-                elif hasattr(metadata, '__dict__'):
+                elif hasattr(metadata, "__dict__"):
                     try:
                         edge_info["metadata"] = vars(metadata)
                     except Exception:
                         edge_info["metadata"] = str(metadata)
                 else:
                     edge_info["metadata"] = str(metadata)
-            
+
             edges_data.append(edge_info)
-        
+
         return {
             "nodes": nodes_data,
             "edges": edges_data,

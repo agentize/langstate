@@ -59,5 +59,3 @@ class BaseSchemaReader(ABC):
             FileNotFoundError: If the source file doesn't exist
         """
         pass
-
-    

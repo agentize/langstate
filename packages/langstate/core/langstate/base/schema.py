@@ -85,9 +85,7 @@ class AgentInput(BaseModel):
 
     selection: Annotated[
         Optional[List[object]],
-        Field(
-            default=None, description="Selected option(s) for SELECTION type"
-        ),
+        Field(default=None, description="Selected option(s) for SELECTION type"),
     ]
 
     field_id: Annotated[
@@ -105,9 +103,7 @@ class AgentInput(BaseModel):
 
     files: Annotated[
         Optional[List[Dict[str, object]]],
-        Field(
-            default=None, description="List of file references for FILE type"
-        ),
+        Field(default=None, description="List of file references for FILE type"),
     ]
 
     metadata: Annotated[

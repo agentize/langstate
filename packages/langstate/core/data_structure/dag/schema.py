@@ -51,7 +51,7 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
 
     Only local concerns live here; graph-wide logic is in the manager.
     The node is hashable by its stable `id` (UUID) to support sets and weak refs.
-    
+
     Attributes
     ----------
     id: UUID
@@ -114,7 +114,7 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
 
     def is_ready(self, satisfied: Set[str]) -> bool:
         """True if all prerequisites are in `satisfied`.
-        
+
         Args:
             satisfied: Set of satisfied node paths (not UUIDs)
         """

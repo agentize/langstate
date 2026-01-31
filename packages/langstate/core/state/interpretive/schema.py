@@ -73,5 +73,3 @@ class InterpretiveStateSchema(RootModel[Dict[str, InterpretiveFieldState]]):
     """
 
     pass
-
-

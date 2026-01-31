@@ -10,6 +10,7 @@ from pydantic import RootModel
 
 CanonicalFieldValue = object
 
+
 class CanonicalStateSchema(RootModel[Dict[str, CanonicalFieldValue]]):
     """Canonical state representation: simple key-value mapping.
 

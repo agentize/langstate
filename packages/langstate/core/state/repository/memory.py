@@ -80,16 +80,16 @@ class InMemoryStateRepository(StateRepositoryBase[TState], Generic[TState]):
 
 
 class InMemoryCanonicalStateRepository(
-    InMemoryStateRepository[BaseCanonicalState],
-    ICanonicalStateRepository
+    InMemoryStateRepository[BaseCanonicalState], ICanonicalStateRepository
 ):
     """In-memory repository for CanonicalState."""
+
     pass
 
 
 class InMemoryInterpretiveStateRepository(
-    InMemoryStateRepository[BaseInterpretiveState],
-    IInterpretiveStateRepository
+    InMemoryStateRepository[BaseInterpretiveState], IInterpretiveStateRepository
 ):
     """In-memory repository for InterpretiveState."""
+
     pass

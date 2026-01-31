@@ -33,18 +33,15 @@ class StateFactory(BaseStateFactory):
             New CanonicalState instance with fields initialized from schema
         """
         canonical_state = CanonicalState()
-        
+
         # Initialize only leaf fields with primitive values from schema
         # Uses dot notation for paths: "field", "parent.child", "array.0.field"
         self._initialize_leaf_fields(canonical_state, schema.root, prefix="")
-        
+
         return canonical_state
 
     def _initialize_leaf_fields(
-        self,
-        state: CanonicalState,
-        fields: dict[str, SchemaField],
-        prefix: str
+        self, state: CanonicalState, fields: dict[str, SchemaField], prefix: str
     ) -> None:
         """Recursively initialize only leaf fields with primitive values.
 
@@ -56,20 +53,22 @@ class StateFactory(BaseStateFactory):
         for field_id, field in fields.items():
             full_path = f"{prefix}{field_id}" if prefix else field_id
             default_value = field.default_value
-            
+
             # Check if default_value is a dict that contains SchemaFields (nested object)
             is_nested_schema = False
             if isinstance(default_value, dict) and default_value:
                 dict_value = cast(dict[str, Any], default_value)
                 first_value = next(iter(dict_value.values()), None)
-                
+
                 if isinstance(first_value, SchemaField):
                     # This is a nested object - recurse into it
                     # Don't create a node for the parent, only for leaf fields
                     nested_fields = cast(dict[str, SchemaField], dict_value)
-                    self._initialize_leaf_fields(state, nested_fields, prefix=f"{full_path}.")
+                    self._initialize_leaf_fields(
+                        state, nested_fields, prefix=f"{full_path}."
+                    )
                     is_nested_schema = True
-            
+
             # This is a leaf field - set the primitive value
             # value can be: None, str, int, float, bool, list (but NOT dict with SchemaFields)
             if not is_nested_schema:
@@ -90,16 +89,14 @@ class StateFactory(BaseStateFactory):
             New InterpretiveState instance with values derived from canonical state
         """
         interpretive_state = InterpretiveState()
-        
+
         # Get all fields from canonical state
         # Each canonical leaf field gets corresponding interpretive node
         for path, value in canonical_state.iter_fields():
             # Add value with confidence 1.0 since it comes from schema default
             # The primitive value goes into values: [{value: <primitive>, confidence: 1.0}]
             interpretive_state.add_value(
-                path,
-                ValueConfidence(value=value, confidence=1.0)
+                path, ValueConfidence(value=value, confidence=1.0)
             )
-        
-        return interpretive_state
 
+        return interpretive_state

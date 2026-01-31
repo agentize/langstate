@@ -45,7 +45,7 @@ class DirectedAcyclicHypergraphNode(Generic[V, E]):
     """Represents a vertex in a Directed Acyclic Hypergraph.
 
     Local concerns only; global logic in manager. Hashable by id (UUID).
-    
+
     Attributes
     ----------
     id: UUID
@@ -110,7 +110,7 @@ class DirectedAcyclicHypergraphNode(Generic[V, E]):
         Interpretation: node becomes available when ANY of its incoming hyperedges
         has all prerequisites satisfied (OR-of-ANDs). If a node has no incoming
         hyperedges it is trivially ready.
-        
+
         Args:
             satisfied: Set of satisfied node paths (not UUIDs)
         """

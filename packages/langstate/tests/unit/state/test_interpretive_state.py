@@ -18,13 +18,13 @@ class TestInterpretiveStateInitialization:
     def test_init_creates_empty_state(self) -> None:
         """InterpretiveState should initialize empty."""
         state = InterpretiveState()
-        
+
         assert len(state.get_all_fields()) == 0
 
     def test_instance_type(self) -> None:
         """InterpretiveState should be correct type."""
         state = InterpretiveState()
-        
+
         assert isinstance(state, InterpretiveState)
 
 
@@ -34,9 +34,9 @@ class TestInterpretiveStateAddValue:
     def test_add_value_new_field(self) -> None:
         """add_value should create field if it doesn't exist."""
         state = InterpretiveState()
-        
+
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         field_state = state.get_field("name")
         assert field_state is not None
         assert len(field_state.values) == 1
@@ -47,9 +47,9 @@ class TestInterpretiveStateAddValue:
         """add_value should append to existing field."""
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         state.add_value("name", ValueConfidence(value="Jon", confidence=0.7))
-        
+
         field_state = state.get_field("name")
         assert field_state is not None
         assert len(field_state.values) == 2
@@ -57,10 +57,12 @@ class TestInterpretiveStateAddValue:
     def test_add_value_multiple_fields(self) -> None:
         """add_value should work with multiple fields."""
         state = InterpretiveState()
-        
+
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        state.add_value("email", ValueConfidence(value="john@test.com", confidence=0.85))
-        
+        state.add_value(
+            "email", ValueConfidence(value="john@test.com", confidence=0.85)
+        )
+
         assert state.get_field("name") is not None
         assert state.get_field("email") is not None
 
@@ -72,9 +74,9 @@ class TestInterpretiveStateAddInference:
         """add_inference should create field if it doesn't exist."""
         state = InterpretiveState()
         inference = Inference(content="User said 'my name is John'", mutator_id="llm")
-        
+
         state.add_inference("name", inference)
-        
+
         field_state = state.get_field("name")
         assert field_state is not None
         assert len(field_state.inference) == 1
@@ -84,10 +86,14 @@ class TestInterpretiveStateAddInference:
     def test_add_inference_existing_field(self) -> None:
         """add_inference should append to existing field."""
         state = InterpretiveState()
-        state.add_inference("name", Inference(content="First inference", mutator_id="llm1"))
-        
-        state.add_inference("name", Inference(content="Second inference", mutator_id="llm2"))
-        
+        state.add_inference(
+            "name", Inference(content="First inference", mutator_id="llm1")
+        )
+
+        state.add_inference(
+            "name", Inference(content="Second inference", mutator_id="llm2")
+        )
+
         field_state = state.get_field("name")
         assert field_state is not None
         assert len(field_state.inference) == 2
@@ -96,9 +102,9 @@ class TestInterpretiveStateAddInference:
         """add_inference should use default mutator_id."""
         state = InterpretiveState()
         inference = Inference(content="Some inference")
-        
+
         state.add_inference("name", inference)
-        
+
         field_state = state.get_field("name")
         assert field_state is not None
         assert field_state.inference[0].mutator_id == "unknown"
@@ -111,9 +117,9 @@ class TestInterpretiveStateGetBestValue:
         """get_best_value should return only value."""
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         best = state.get_best_value("name")
-        
+
         assert best is not None
         assert best.value == "John"
         assert best.confidence == 0.9
@@ -124,9 +130,9 @@ class TestInterpretiveStateGetBestValue:
         state.add_value("name", ValueConfidence(value="John", confidence=0.6))
         state.add_value("name", ValueConfidence(value="Jonathan", confidence=0.9))
         state.add_value("name", ValueConfidence(value="Jon", confidence=0.3))
-        
+
         best = state.get_best_value("name")
-        
+
         assert best is not None
         assert best.value == "Jonathan"
         assert best.confidence == 0.9
@@ -134,9 +140,9 @@ class TestInterpretiveStateGetBestValue:
     def test_get_best_value_nonexistent_field(self) -> None:
         """get_best_value should return None for non-existent field."""
         state = InterpretiveState()
-        
+
         best = state.get_best_value("nonexistent")
-        
+
         assert best is None
 
     def test_get_best_value_empty_values(self) -> None:
@@ -144,9 +150,9 @@ class TestInterpretiveStateGetBestValue:
         state = InterpretiveState()
         # Create field with inference but no values
         state.add_inference("name", Inference(content="test", mutator_id="llm"))
-        
+
         best = state.get_best_value("name")
-        
+
         assert best is None
 
 
@@ -156,13 +162,15 @@ class TestInterpretiveStateNestedPaths:
     def test_nested_object_path(self) -> None:
         """Should handle nested object paths."""
         state = InterpretiveState()
-        
+
         state.add_value("address.city", ValueConfidence(value="NYC", confidence=0.95))
-        state.add_value("address.country", ValueConfidence(value="USA", confidence=0.98))
-        
+        state.add_value(
+            "address.country", ValueConfidence(value="USA", confidence=0.98)
+        )
+
         city_best = state.get_best_value("address.city")
         country_best = state.get_best_value("address.country")
-        
+
         assert city_best is not None
         assert city_best.value == "NYC"
         assert country_best is not None
@@ -171,13 +179,13 @@ class TestInterpretiveStateNestedPaths:
     def test_array_element_path(self) -> None:
         """Should handle array element paths."""
         state = InterpretiveState()
-        
+
         state.add_value("guests.0.name", ValueConfidence(value="Alice", confidence=0.9))
         state.add_value("guests.1.name", ValueConfidence(value="Bob", confidence=0.85))
-        
+
         guest0 = state.get_best_value("guests.0.name")
         guest1 = state.get_best_value("guests.1.name")
-        
+
         assert guest0 is not None
         assert guest0.value == "Alice"
         assert guest1 is not None
@@ -191,9 +199,9 @@ class TestInterpretiveStateCopy:
         """copy should return InterpretiveState instance."""
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         copied = state.copy()
-        
+
         assert isinstance(copied, InterpretiveState)
 
     def test_copy_preserves_values(self) -> None:
@@ -201,9 +209,9 @@ class TestInterpretiveStateCopy:
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
         state.add_value("name", ValueConfidence(value="Jon", confidence=0.6))
-        
+
         copied = state.copy()
-        
+
         field_state = copied.get_field("name")
         assert field_state is not None
         assert len(field_state.values) == 2
@@ -213,9 +221,9 @@ class TestInterpretiveStateCopy:
         state = InterpretiveState()
         state.add_inference("name", Inference(content="inference1", mutator_id="llm"))
         state.add_inference("name", Inference(content="inference2", mutator_id="llm"))
-        
+
         copied = state.copy()
-        
+
         field_state = copied.get_field("name")
         assert field_state is not None
         assert len(field_state.inference) == 2
@@ -224,13 +232,13 @@ class TestInterpretiveStateCopy:
         """copy should be a deep copy."""
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         copied = state.copy()
         copied.add_value("name", ValueConfidence(value="NewValue", confidence=0.5))
-        
+
         original_field = state.get_field("name")
         copied_field = copied.get_field("name")
-        
+
         assert original_field is not None
         assert copied_field is not None
         assert len(original_field.values) == 1
@@ -242,9 +250,9 @@ class TestInterpretiveStateCopy:
         state.add_value("parent", ValueConfidence(value="p", confidence=1.0))
         state.add_value("child", ValueConfidence(value="c", confidence=1.0))
         state.add_field_dependency("parent", "child")
-        
+
         copied = state.copy()
-        
+
         children = copied.get_children("parent")
         assert "child" in children
 
@@ -254,9 +262,9 @@ class TestInterpretiveStateCopy:
         state.add_value("valid", ValueConfidence(value="test", confidence=1.0))
         # Set a field to None directly (edge case)
         state.set_field("empty", None)  # type: ignore[arg-type]
-        
+
         copied = state.copy()
-        
+
         # Valid field should be copied
         assert copied.get_field("valid") is not None
         # None field should be skipped in copy
@@ -266,9 +274,9 @@ class TestInterpretiveStateCopy:
         """copy should handle nested structure with hyperedges."""
         state = InterpretiveState()
         state.add_value("a.b.c", ValueConfidence(value="deep", confidence=0.9))
-        
+
         copied = state.copy()
-        
+
         best = copied.get_best_value("a.b.c")
         assert best is not None
         assert best.value == "deep"
@@ -281,33 +289,31 @@ class TestInterpretiveStateIsFieldFilled:
         """Field with values should be considered filled."""
         state = InterpretiveState()
         field_state = InterpretiveFieldState(
-            inference=[],
-            values=[ValueConfidence(value="test", confidence=0.9)]
+            inference=[], values=[ValueConfidence(value="test", confidence=0.9)]
         )
-        
+
         assert state._is_field_filled(field_state) is True
 
     def test_is_field_filled_empty_values(self) -> None:
         """Field with no values should not be considered filled."""
         state = InterpretiveState()
         field_state = InterpretiveFieldState(inference=[], values=[])
-        
+
         assert state._is_field_filled(field_state) is False
 
     def test_is_field_filled_with_inference_only(self) -> None:
         """Field with only inference (no values) should not be filled."""
         state = InterpretiveState()
         field_state = InterpretiveFieldState(
-            inference=[Inference(content="test", mutator_id="llm")],
-            values=[]
+            inference=[Inference(content="test", mutator_id="llm")], values=[]
         )
-        
+
         assert state._is_field_filled(field_state) is False
 
     def test_is_field_filled_none(self) -> None:
         """None field should not be considered filled."""
         state = InterpretiveState()
-        
+
         assert state._is_field_filled(None) is False
 
 
@@ -319,9 +325,9 @@ class TestInterpretiveStateFilledEmptyFields:
         state = InterpretiveState()
         state.add_value("filled", ValueConfidence(value="test", confidence=0.9))
         state.add_inference("empty", Inference(content="test", mutator_id="llm"))
-        
+
         filled = state.get_filled_fields()
-        
+
         assert "filled" in filled
         assert "empty" not in filled
 
@@ -330,9 +336,9 @@ class TestInterpretiveStateFilledEmptyFields:
         state = InterpretiveState()
         state.add_value("filled", ValueConfidence(value="test", confidence=0.9))
         state.add_inference("empty", Inference(content="test", mutator_id="llm"))
-        
+
         empty = state.get_empty_fields()
-        
+
         assert "empty" in empty
         assert "filled" not in empty
 
@@ -345,18 +351,18 @@ class TestInterpretiveStateIsComplete:
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
         state.add_value("email", ValueConfidence(value="john@test.com", confidence=0.9))
-        
+
         result = state.is_complete(required_fields=["name", "email"])
-        
+
         assert result is True
 
     def test_is_complete_missing_required(self) -> None:
         """Should be incomplete when required field is missing."""
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         result = state.is_complete(required_fields=["name", "email"])
-        
+
         assert result is False
 
     def test_is_complete_no_values_in_required(self) -> None:
@@ -364,9 +370,9 @@ class TestInterpretiveStateIsComplete:
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
         state.add_inference("email", Inference(content="test", mutator_id="llm"))
-        
+
         result = state.is_complete(required_fields=["name", "email"])
-        
+
         assert result is False
 
 
@@ -377,17 +383,17 @@ class TestInterpretiveStateGetOrCreateFieldState:
         """Should return existing field state."""
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         field_state = state._get_or_create_field_state("name")
-        
+
         assert len(field_state.values) == 1
 
     def test_get_or_create_creates_new(self) -> None:
         """Should create new field state if not exists."""
         state = InterpretiveState()
-        
+
         field_state = state._get_or_create_field_state("new_field")
-        
+
         assert isinstance(field_state, InterpretiveFieldState)
         assert len(field_state.inference) == 0
         assert len(field_state.values) == 0
@@ -400,18 +406,18 @@ class TestInterpretiveStateRemoveField:
         """Should remove existing field."""
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        
+
         result = state.remove_field("name")
-        
+
         assert result is True
         assert state.get_field("name") is None
 
     def test_remove_nonexistent_field(self) -> None:
         """Should return False for non-existent field."""
         state = InterpretiveState()
-        
+
         result = state.remove_field("nonexistent")
-        
+
         assert result is False
 
 
@@ -423,9 +429,9 @@ class TestInterpretiveStateIterFields:
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
         state.add_value("email", ValueConfidence(value="john@test.com", confidence=0.8))
-        
+
         fields = dict(state.iter_fields())
-        
+
         assert "name" in fields
         assert "email" in fields
 
@@ -438,9 +444,9 @@ class TestInterpretiveStateGetAllFields:
         state = InterpretiveState()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
         state.add_inference("email", Inference(content="test", mutator_id="llm"))
-        
+
         all_fields = state.get_all_fields()
-        
+
         assert "name" in all_fields
         assert "email" in all_fields
 
@@ -451,9 +457,9 @@ class TestInterpretiveStateEdgeCases:
     def test_value_with_zero_confidence(self) -> None:
         """Should handle zero confidence values."""
         state = InterpretiveState()
-        
+
         state.add_value("name", ValueConfidence(value="John", confidence=0.0))
-        
+
         best = state.get_best_value("name")
         assert best is not None
         assert best.confidence == 0.0
@@ -461,9 +467,9 @@ class TestInterpretiveStateEdgeCases:
     def test_value_with_none_value(self) -> None:
         """Should handle None as actual value."""
         state = InterpretiveState()
-        
+
         state.add_value("optional", ValueConfidence(value=None, confidence=0.9))
-        
+
         best = state.get_best_value("optional")
         assert best is not None
         assert best.value is None
@@ -472,12 +478,12 @@ class TestInterpretiveStateEdgeCases:
     def test_mixed_inferences_and_values(self) -> None:
         """Should handle fields with both inferences and values."""
         state = InterpretiveState()
-        
+
         state.add_inference("name", Inference(content="First hint", mutator_id="llm"))
         state.add_value("name", ValueConfidence(value="John", confidence=0.7))
         state.add_inference("name", Inference(content="Confirmed", mutator_id="llm"))
         state.add_value("name", ValueConfidence(value="John", confidence=0.95))
-        
+
         field_state = state.get_field("name")
         assert field_state is not None
         assert len(field_state.inference) == 2
@@ -486,7 +492,7 @@ class TestInterpretiveStateEdgeCases:
     def test_empty_state_operations(self) -> None:
         """Should handle operations on empty state."""
         state = InterpretiveState()
-        
+
         assert state.get_field("any") is None
         assert state.get_best_value("any") is None
         assert state.get_filled_fields() == []
