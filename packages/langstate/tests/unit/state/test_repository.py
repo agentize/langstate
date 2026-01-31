@@ -1,18 +1,16 @@
 """Unit tests for State Repository implementations.
 
-Tests the IStateRepository interface and InMemoryStateRepository implementation.
+Tests the BaseStateRepository interface and InMemoryStateRepository implementation.
 """
 
 import pytest
 
+from core.state.canonical.base import BaseCanonicalState
 from core.state.canonical.state import CanonicalState
+from core.state.interpretive.base import BaseInterpretiveState
 from core.state.interpretive.schema import ValueConfidence
 from core.state.interpretive.state import InterpretiveState
-from core.state.repository.memory import (
-    InMemoryCanonicalStateRepository,
-    InMemoryInterpretiveStateRepository,
-    InMemoryStateRepository,
-)
+from core.state.repository.memory import InMemoryStateRepository
 
 
 class TestInMemoryStateRepository:
@@ -160,16 +158,16 @@ class TestInMemoryStateRepository:
 
 
 class TestInMemoryCanonicalStateRepository:
-    """Tests for InMemoryCanonicalStateRepository."""
+    """Tests for InMemoryStateRepository with CanonicalState."""
 
     @pytest.fixture
-    def repository(self) -> InMemoryCanonicalStateRepository:
+    def repository(self) -> InMemoryStateRepository[BaseCanonicalState]:
         """Create a fresh repository for each test."""
-        return InMemoryCanonicalStateRepository()
+        return InMemoryStateRepository[BaseCanonicalState]()
 
     @pytest.mark.asyncio
     async def test_save_and_get_canonical_state(
-        self, repository: InMemoryCanonicalStateRepository
+        self, repository: InMemoryStateRepository[BaseCanonicalState]
     ) -> None:
         """Should work with CanonicalState."""
         state = CanonicalState()
@@ -185,7 +183,7 @@ class TestInMemoryCanonicalStateRepository:
 
     @pytest.mark.asyncio
     async def test_multiple_states(
-        self, repository: InMemoryCanonicalStateRepository
+        self, repository: InMemoryStateRepository[BaseCanonicalState]
     ) -> None:
         """Should handle multiple states."""
         state1 = CanonicalState()
@@ -206,16 +204,16 @@ class TestInMemoryCanonicalStateRepository:
 
 
 class TestInMemoryInterpretiveStateRepository:
-    """Tests for InMemoryInterpretiveStateRepository."""
+    """Tests for InMemoryStateRepository with InterpretiveState."""
 
     @pytest.fixture
-    def repository(self) -> InMemoryInterpretiveStateRepository:
+    def repository(self) -> InMemoryStateRepository[BaseInterpretiveState]:
         """Create a fresh repository for each test."""
-        return InMemoryInterpretiveStateRepository()
+        return InMemoryStateRepository[BaseInterpretiveState]()
 
     @pytest.mark.asyncio
     async def test_save_and_get_interpretive_state(
-        self, repository: InMemoryInterpretiveStateRepository
+        self, repository: InMemoryStateRepository[BaseInterpretiveState]
     ) -> None:
         """Should work with InterpretiveState."""
         state = InterpretiveState()
@@ -232,7 +230,7 @@ class TestInMemoryInterpretiveStateRepository:
 
     @pytest.mark.asyncio
     async def test_delete_and_exists(
-        self, repository: InMemoryInterpretiveStateRepository
+        self, repository: InMemoryStateRepository[BaseInterpretiveState]
     ) -> None:
         """delete and exists should work correctly."""
         state = InterpretiveState()
