@@ -4,11 +4,11 @@ from typing import Dict, Union, Any
 import yaml
 import json
 
-from ..base.reader import BaseSchemaReader
+from ..base.extractor import BaseSpecExtractor
 from ..base.schema import Schema, SchemaField
 
 
-class OpenAPIReader(BaseSchemaReader):
+class OpenAPIReader(BaseSpecExtractor):
     """
     Reads and interprets OpenAPI specifications to extract API schema information.
 

@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...schema_reader.base.schema import Schema
+    from ...spec_extractor.base.schema import Schema
 
 from ..canonical.base import BaseCanonicalState
 from ..interpretive.base import BaseInterpretiveState

@@ -1,6 +1,6 @@
-"""Schema Reader interface for LangState.
+"""Spec Extractor interface for LangState.
 
-The Schema Reader is responsible for:
+The Spec Extractor is responsible for:
 - Loading and parsing schema definitions from various sources (YAML, JSON, OpenAPI, etc.)
 - Converting to internal Schema representation
 - Validating schema structure
@@ -13,14 +13,14 @@ from typing import Union
 from .schema import Schema
 
 
-class BaseSchemaReader(ABC):
-    """Abstract base class for schema readers.
+class BaseSpecExtractor(ABC):
+    """Abstract base class for spec extractors.
 
-    Schema readers are responsible for loading and parsing schema definitions
+    Spec extractors are responsible for loading and parsing schema definitions
     from various sources (YAML, JSON, OpenAPI specs, etc.).
 
     Example implementation:
-        class OpenAPIYamlReader(BaseSchemaReader):
+        class OpenAPIYamlExtractor(BaseSpecExtractor):
             def read(self, source: Union[str, Path, Dict[str, object]]) -> Schema:
                 # Load YAML file
                 if isinstance(source, (str, Path)):

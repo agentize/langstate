@@ -18,8 +18,8 @@ from typing import Any, Dict, Set
 import pytest
 
 from core.data_structure.dah.dah import DirectedAcyclicHypergraph
-from core.schema_reader.base.schema import Schema, SchemaField
-from core.schema_reader.openapi.reader import OpenAPIReader
+from core.spec_extractor.base.schema import Schema, SchemaField
+from core.spec_extractor.openapi.extractor import OpenAPIReader
 from core.state.canonical.schema import CanonicalFieldValue
 from core.state.canonical.state import CanonicalState
 from core.state.factory.state_factory import StateFactory

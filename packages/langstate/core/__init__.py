@@ -4,7 +4,7 @@ This module provides the base interfaces and implementations for LangState:
 - Action: Execute business logic when state is complete
 - Mutator: Process user input and update interpretive state
 - Projector: Transform state to external representations (UI, Canonical)
-- SchemaReader: Load and parse schema definitions
+- SpecExtractor: Load and parse schema definitions
 - State: Manage canonical and interpretive state
 - LangState: Main orchestrator coordinating all components
 """
@@ -37,8 +37,8 @@ from .projector import (
     UIProjectionContext,
     UIProjectionResult,
 )
-from .schema_reader import (
-    BaseSchemaReader,
+from .spec_extractor import (
+    BaseSpecExtractor,
     Schema,
     SchemaField,
 )
@@ -85,8 +85,8 @@ __all__ = [
     "UIComponent",
     "UIProjectionContext",
     "UIProjectionResult",
-    # Schema Reader
-    "BaseSchemaReader",
+    # Spec Extractor
+    "BaseSpecExtractor",
     "Schema",
     "SchemaField",
     # State - Base

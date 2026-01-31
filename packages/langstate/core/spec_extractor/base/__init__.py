@@ -1,10 +1,10 @@
-"""Schema Reader base module exports."""
+"""Spec Extractor base module exports."""
 
-from .reader import BaseSchemaReader
+from .extractor import BaseSpecExtractor
 from .schema import Schema, SchemaField, SourceType
 
 __all__ = [
-    "BaseSchemaReader",
+    "BaseSpecExtractor",
     "Schema",
     "SchemaField",
     "SourceType",

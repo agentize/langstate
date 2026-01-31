@@ -2,7 +2,7 @@
 
 from typing import Any, cast
 
-from core.schema_reader.base.schema import Schema, SchemaField
+from core.spec_extractor.base.schema import Schema, SchemaField
 from core.state.canonical.base import BaseCanonicalState
 from core.state.canonical.schema import CanonicalFieldValue
 from core.state.canonical.state import CanonicalState

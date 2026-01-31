@@ -1,5 +1,5 @@
 """
-Comprehensive unit tests for OpenAPI Schema Reader implementation.
+Comprehensive unit tests for OpenAPI Spec Extractor implementation.
 
 Tests cover:
 - OpenAPI specification parsing (YAML and JSON)
@@ -12,7 +12,7 @@ Tests cover:
 - $ref resolution
 - Error handling for invalid inputs
 
-Target: 100% code coverage for schema_reader/openapi/reader.py
+Target: 100% code coverage for spec_extractor/openapi/extractor.py
 """
 
 # pyright: reportPrivateUsage=false
@@ -25,8 +25,8 @@ import pytest
 from pathlib import Path
 from typing import Any, cast
 
-from core.schema_reader.openapi.reader import OpenAPIReader
-from core.schema_reader.base.schema import Schema
+from core.spec_extractor.openapi.extractor import OpenAPIReader
+from core.spec_extractor.base.schema import Schema
 
 # Type aliases for OpenAPI schema dictionaries
 SchemaDict = dict[str, Any]

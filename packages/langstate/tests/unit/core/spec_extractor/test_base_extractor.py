@@ -1,13 +1,13 @@
 """
-Comprehensive unit tests for Schema Reader base module.
+Comprehensive unit tests for Spec Extractor base module.
 
 Tests cover:
 - SchemaField dataclass with all fields
 - Schema (RootModel) functionality
 - SourceType enum
-- BaseSchemaReader abstract interface
+- BaseSpecExtractor abstract interface
 
-Target: 100% code coverage for schema_reader/base/schema.py and reader.py
+Target: 100% code coverage for spec_extractor/base/schema.py and extractor.py
 """
 
 # pyright: reportUnknownMemberType=false
@@ -17,12 +17,12 @@ from __future__ import annotations
 import pytest
 from typing import Any, cast
 
-from core.schema_reader.base.schema import (
+from core.spec_extractor.base.schema import (
     Schema,
     SchemaField,
     SourceType,
 )
-from core.schema_reader.base.reader import BaseSchemaReader
+from core.spec_extractor.base.extractor import BaseSpecExtractor
 
 
 # ============================================================================
@@ -253,25 +253,25 @@ class TestSchema:
 # ============================================================================
 
 
-class TestBaseSchemaReaderInterface:
-    """Tests for BaseSchemaReader abstract interface."""
+class TestBaseSpecExtractorInterface:
+    """Tests for BaseSpecExtractor abstract interface."""
 
-    def test_base_schema_reader_cannot_be_instantiated(self) -> None:
-        """BaseSchemaReader should not be directly instantiable."""
+    def test_base_spec_extractor_cannot_be_instantiated(self) -> None:
+        """BaseSpecExtractor should not be directly instantiable."""
         with pytest.raises(TypeError):
-            BaseSchemaReader()  # type: ignore
+            BaseSpecExtractor()  # type: ignore
 
     def test_concrete_implementation_works(self) -> None:
-        """Concrete implementation of BaseSchemaReader should work."""
+        """Concrete implementation of BaseSpecExtractor should work."""
 
-        class MockSchemaReader(BaseSchemaReader):
+        class MockSpecExtractor(BaseSpecExtractor):
             """Mock implementation for testing."""
 
             def read(self, source: Any) -> Schema:
                 return Schema(root={"test": SchemaField(field_id="test")})
 
-        reader = MockSchemaReader()
-        result = reader.read("mock_source")
+        extractor = MockSpecExtractor()
+        result = extractor.read("mock_source")
 
         assert isinstance(result, Schema)
         assert "test" in result.root
@@ -280,8 +280,8 @@ class TestBaseSchemaReaderInterface:
         """Concrete implementation should accept file path."""
         from pathlib import Path
 
-        class FileSchemaReader(BaseSchemaReader):
-            """File-based schema reader for testing."""
+        class FileSpecExtractor(BaseSpecExtractor):
+            """File-based spec extractor for testing."""
 
             def read(self, source: Any) -> Schema:
                 # Simulate reading from file path
@@ -289,14 +289,14 @@ class TestBaseSchemaReaderInterface:
                     return Schema(root={"from_file": SchemaField(field_id="from_file")})
                 raise ValueError("Invalid source")
 
-        reader = FileSchemaReader()
+        extractor = FileSpecExtractor()
 
         # Test with string path
-        result_str = reader.read("/path/to/schema.yaml")
+        result_str = extractor.read("/path/to/schema.yaml")
         assert "from_file" in result_str.root
 
         # Test with Path object
-        result_path = reader.read(Path("/path/to/schema.yaml"))
+        result_path = extractor.read(Path("/path/to/schema.yaml"))
         assert "from_file" in result_path.root
 
 

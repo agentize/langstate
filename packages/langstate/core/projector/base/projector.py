@@ -14,7 +14,7 @@ PC = TypeVar("PC", bound=ProjectionContext)
 PR = TypeVar("PR", bound=ProjectionResult)
 
 if TYPE_CHECKING:
-    from ...schema_reader.base.schema import Schema
+    from ...spec_extractor.base.schema import Schema
 
 
 class BaseProjector(ABC, Generic[PC, PR]):

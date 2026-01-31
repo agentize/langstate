@@ -6,7 +6,7 @@ instances from schemas.
 
 # pyright: reportPrivateUsage=false
 
-from core.schema_reader.base.schema import Schema, SchemaField
+from core.spec_extractor.base.schema import Schema, SchemaField
 from core.state.canonical.state import CanonicalState
 from core.state.factory.state_factory import StateFactory
 from core.state.interpretive.state import InterpretiveState
