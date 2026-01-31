@@ -14,7 +14,7 @@ from .interpretive import (
     BaseInterpretiveState,
     InterpretiveFieldState,
     InterpretiveStateSchema,
-    SnapshotStore,
+    BaseSnapshotStore,
 )
 from .repository import (
     BaseStateRepository,
@@ -37,7 +37,7 @@ __all__ = [
     "BaseInterpretiveState",
     "InterpretiveFieldState",
     "InterpretiveStateSchema",
-    "SnapshotStore",
+    "BaseSnapshotStore",
     # Repository (SOLID: SRP, DIP)
     "BaseStateRepository",
     "InMemoryStateRepository",

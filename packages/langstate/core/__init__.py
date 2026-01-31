@@ -48,7 +48,7 @@ from .state import (
     BaseInterpretiveState,
     InterpretiveFieldState,
     InterpretiveStateSchema,
-    SnapshotStore,
+    BaseSnapshotStore,
 )
 from .langstate import (
     LangState,
@@ -100,7 +100,7 @@ __all__ = [
     "BaseInterpretiveState",
     "InterpretiveFieldState",
     "InterpretiveStateSchema",
-    "SnapshotStore",
+    "BaseSnapshotStore",
     # State - Factory
     "BaseStateFactory",
     "StateFactory",

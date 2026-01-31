@@ -5,11 +5,11 @@ from .schema import (
     InterpretiveFieldState,
     InterpretiveStateSchema as InterpretiveStateSchema,
 )
-from ..snapshot.store import SnapshotStore
+from ..snapshot.base import BaseSnapshotStore
 
 __all__ = [
     "BaseInterpretiveState",
     "InterpretiveStateSchema",
     "InterpretiveFieldState",
-    "SnapshotStore",
+    "BaseSnapshotStore",
 ]
