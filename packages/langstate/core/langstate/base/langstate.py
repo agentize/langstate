@@ -27,7 +27,6 @@ from ...projector import (
     BaseProjectorUI,
 )
 from ...state import BaseCanonicalState, BaseInterpretiveState
-from ...state.factory import BaseStateFactory
 
 from .schema import (
     AgentInput,
@@ -199,8 +198,8 @@ class LangState(ABC):
             self._projectors_ui = [projectors_ui]
 
         self._schema: Optional[Schema] = None
-        self._canonical_state: Optional[CanonicalState] = None
-        self._interpretive_state: Optional[InterpretiveState] = None
+        self._canonical_state: Optional[BaseCanonicalState] = None
+        self._interpretive_state: Optional[BaseInterpretiveState] = None
         self._conversation_history: List[Dict[str, str]] = []
         self._action_handlers: List[Callable[[ActionResultData], object]] = []
 

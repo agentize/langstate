@@ -9,7 +9,7 @@ through duck typing (structural subtyping).
 
 from dataclasses import dataclass, field
 from typing import Dict, Generic, Optional, Set, TypeVar
-from uuid import UUID, uuid4
+from uuid import UUID
 import weakref
 
 V = TypeVar("V")  # Node value

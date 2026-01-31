@@ -11,7 +11,7 @@ This module provides the base interfaces and implementations for LangState:
 
 from .state.base.base import BaseState
 from .state.interpretive.schema import Inference, ValueConfidence
-from .state.factory.state_factory import StateFactory
+from .state.factory import BaseStateFactory, StateFactory
 from .action import (
     BaseAction,
     ActionStatus,
@@ -41,7 +41,6 @@ from .schema_reader import (
     BaseSchemaReader,
     Schema,
     SchemaField,
-    SchemaReadResult,
 )
 from .state import (
     BaseCanonicalState,
@@ -90,7 +89,6 @@ __all__ = [
     "BaseSchemaReader",
     "Schema",
     "SchemaField",
-    "SchemaReadResult",
     # State - Base
     "BaseState",
     "Inference",

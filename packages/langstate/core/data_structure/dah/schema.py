@@ -6,7 +6,7 @@ Schema definitions (dataclasses) for Directed Acyclic Hypergraph structures.
 
 from dataclasses import dataclass, field
 from typing import Dict, Generic, List, Optional, Set, TypeVar
-from uuid import UUID, uuid4
+from uuid import UUID
 import weakref
 
 V = TypeVar("V")  # Node value

@@ -4,6 +4,7 @@ from typing import Any, cast
 
 from core.schema_reader.base.schema import Schema, SchemaField
 from core.state.canonical.base import BaseCanonicalState
+from core.state.canonical.schema import CanonicalFieldValue
 from core.state.canonical.state import CanonicalState
 from core.state.factory.base import BaseStateFactory
 from core.state.interpretive.base import BaseInterpretiveState
@@ -74,7 +75,7 @@ class StateFactory(BaseStateFactory):
             if not is_nested_schema:
                 # For leaf fields, use the value from the SchemaField's default_value
                 # If default_value is None, that's a valid primitive value
-                state.set_field(full_path, default_value)
+                state.set_field(full_path, cast(CanonicalFieldValue, default_value))
 
     def create_interpretive_state(
         self,
