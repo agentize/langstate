@@ -4,11 +4,14 @@ This module provides the base interfaces and implementations for LangState:
 - Action: Execute business logic when state is complete
 - Mutator: Process user input and update interpretive state
 - Projector: Transform state to external representations (UI, Canonical)
-- SchemaReader: Load and parse schema definitions
+- SpecExtractor: Load and parse schema definitions
 - State: Manage canonical and interpretive state
 - LangState: Main orchestrator coordinating all components
 """
 
+from .state.base.base import BaseState
+from .state.interpretive.schema import Inference, ValueConfidence
+from .state.factory import BaseStateFactory, StateFactory
 from .action import (
     BaseAction,
     ActionStatus,
@@ -34,22 +37,18 @@ from .projector import (
     UIProjectionContext,
     UIProjectionResult,
 )
-from .schema_reader import (
-    BaseSchemaReader,
+from .spec_extractor import (
+    BaseSpecExtractor,
     Schema,
     SchemaField,
-    SchemaReadResult,
 )
 from .state import (
-    BaseState,
-    Inference,
-    ValueConfidence,
-    CanonicalState,
+    BaseCanonicalState,
     CanonicalStateSchema,
-    InterpretiveState,
+    BaseInterpretiveState,
     InterpretiveFieldState,
     InterpretiveStateSchema,
-    SnapshotStore,
+    BaseSnapshotStore,
 )
 from .langstate import (
     LangState,
@@ -86,23 +85,25 @@ __all__ = [
     "UIComponent",
     "UIProjectionContext",
     "UIProjectionResult",
-    # Schema Reader
-    "BaseSchemaReader",
+    # Spec Extractor
+    "BaseSpecExtractor",
     "Schema",
     "SchemaField",
-    "SchemaReadResult",
     # State - Base
     "BaseState",
     "Inference",
     "ValueConfidence",
     # State - Canonical
-    "CanonicalState",
+    "BaseCanonicalState",
     "CanonicalStateSchema",
     # State - Interpretive
-    "InterpretiveState",
+    "BaseInterpretiveState",
     "InterpretiveFieldState",
     "InterpretiveStateSchema",
-    "SnapshotStore",
+    "BaseSnapshotStore",
+    # State - Factory
+    "BaseStateFactory",
+    "StateFactory",
     # LangState Orchestrator
     "LangState",
     "InputType",

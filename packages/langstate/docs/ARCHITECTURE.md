@@ -27,10 +27,10 @@ langstate/
 │   │   └── ui/
 │   │       ├── projector.py    # BaseProjectorUI
 │   │       └── schema.py       # UIComponent, UIProjectionContext, UIProjectionResult
-│   ├── schema_reader/
+│   ├── spec_extractor/
 │   │   └── base/
-│   │       ├── reader.py       # BaseSchemaReader abstract class
-│   │       └── schema.py       # Schema, SchemaField, SchemaReadResult
+│   │       ├── extractor.py    # BaseSpecExtractor abstract class
+│   │       └── schema.py       # Schema, SchemaField
 │   ├── state/
 │   │   ├── base/
 │   │   │   ├── state.py        # BaseState abstract class
@@ -76,7 +76,7 @@ The `LangState` class is the main entry point that coordinates all components:
 
 ### Component Management
 
-- `set_schema_reader()`: Configure schema reader
+- `set_spec_extractor()`: Configure spec extractor
 - `set_mutator()`: Configure mutator
 - `set_projector_canonical()`: Configure canonical projector
 - `set_projector_ui()`: Replace all UI projectors
@@ -155,11 +155,11 @@ The `LangState` class is the main entry point that coordinates all components:
 
 ## Component Responsibilities
 
-### SchemaReaders
+### SpecExtractors
 
 - Read schema definitions (YAML, JSON, OpenAPI)
 - Convert to internal Schema DAG
-- Implementation: `OpenAPIYamlReader` in `langstate.state.readers`
+- Implementation: `OpenAPIYamlExtractor` in `langstate.state.readers`
 
 ### schema_to_init_state()
 
@@ -236,7 +236,7 @@ class MyLangState(LangState):
     def __init__(self):
         # Single UI projector
         super().__init__(
-            schema_reader=OpenAPIYamlReader(),
+            spec_extractor=OpenAPIYamlExtractor(),
             mutator=MyCustomMutator(),
             projector_canonical=MyLLMProjectorCanonical(),
             projectors_ui=MyUIProjector()
@@ -244,16 +244,16 @@ class MyLangState(LangState):
 
         # Or with multiple UI projectors
         super().__init__(
-            schema_reader=OpenAPIYamlReader(),
+            spec_extractor=OpenAPIYamlExtractor(),
             mutator=MyCustomMutator(),
             projector_canonical=MyLLMProjectorCanonical(),
             projectors_ui=[MyUIProjector(), MyUIProjectorA()]
         )
 
     async def initialize(self, config: LangStateConfig) -> InteractionRequest:
-        # 1. Load schema using configured reader
-        if self._schema_reader and config.schema_source:
-            self._schema = self._schema_reader.read(config.schema_source)
+        # 1. Load schema using configured extractor
+        if self._spec_extractor and config.schema_source:
+            self._schema = self._spec_extractor.read(config.schema_source)
 
         # 2. Create canonical state (key: value)
         self._canonical_state = schema_to_init_state(self._schema)
@@ -376,7 +376,7 @@ from langstate.core import (
     LangState,
     LangStateConfig,
     AgentInput,
-    BaseSchemaReader,
+    BaseSpecExtractor,
     BaseMutator,
     BaseProjectorCanonicalState,
     BaseProjectorUI,
@@ -385,8 +385,8 @@ from langstate.core import (
 class MyLangState(LangState):
     async def initialize(self, config: LangStateConfig) -> None:
         # Load schema
-        if self._schema_reader and config.schema_source:
-            self._schema = self._schema_reader.read(config.schema_source)
+        if self._spec_extractor and config.schema_source:
+            self._schema = self._spec_extractor.read(config.schema_source)
 
         # Initialize components
         if self._mutator:
@@ -407,7 +407,7 @@ class MyLangState(LangState):
 
 # Usage
 langstate = MyLangState(
-    schema_reader=MySchemaReader(),
+    spec_extractor=MySpecExtractor(),
     mutator=MyMutator(),
     projector_canonical=MyCanonicalProjector(),
     projectors_ui=[MyUIProjector()]
@@ -422,15 +422,15 @@ interaction = await langstate.invoke()
 result = await langstate.invoke(AgentInput.from_text("John Doe"))
 ```
 
-## SchemaReader Interface
+## SpecExtractor Interface
 
-The `BaseSchemaReader` interface allows custom schema loading implementations:
+The `BaseSpecExtractor` interface allows custom schema loading implementations:
 
 ```python
-from langstate.core import BaseSchemaReader, Schema
+from langstate.core import BaseSpecExtractor, Schema
 
-class BaseSchemaReader(ABC):
-    """Abstract base class for schema readers."""
+class BaseSpecExtractor(ABC):
+    """Abstract base class for spec extractors."""
 
     @abstractmethod
     def read(self, source: Union[str, Path, Dict[str, object]]) -> Schema:
@@ -438,12 +438,12 @@ class BaseSchemaReader(ABC):
         pass
 
 # Example implementations:
-class OpenAPIYamlReader(BaseSchemaReader):
+class OpenAPIYamlExtractor(BaseSpecExtractor):
     def read(self, source):
         # Load YAML and convert to Schema
         pass
 
-class JSONSchemaReader(BaseSchemaReader):
+class JSONSchemaExtractor(BaseSpecExtractor):
     def read(self, source):
         # Custom JSON schema loading
         pass

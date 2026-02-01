@@ -1,114 +1,54 @@
-"""Canonical State interface for LangState.
+"""Canonical State implementation using DAH storage."""
 
-The Canonical State represents the resolved business state with simple key-value pairs.
-Format: {key: value}
+from typing import Optional
 
-This is the state used for executing actions and represents the final resolved values.
-"""
-
-from abc import abstractmethod
-from typing import Dict, List, Optional
-
-from ..base.state import BaseState
+from core.state.base.state import State
+from core.state.canonical.base import BaseCanonicalState
+from core.state.canonical.schema import CanonicalFieldValue
 
 
-class CanonicalState(BaseState[object]):
-    """Canonical State interface.
+class CanonicalState(State[CanonicalFieldValue], BaseCanonicalState):
+    """Canonical State implementation with DAH-based storage.
 
-    The Canonical State stores resolved field values in a simple key-value format.
-    This is the business state used for executing actions.
+    Inherits DAH-based storage from State and specialized interface from BaseCanonicalState.
+    Field values are stored directly as primitives in DAH nodes with paths like:
+    - "name" for simple fields
+    - "address.city" for nested objects
+    - "guests.0.email" for array elements
 
-    Format:
-        {field_id: value}
-
-    Example:
-        state = CanonicalStateImpl()
-        state.set_field("name", "John Doe")
-        state.set_field("email", "john@example.com")
-
-        # Get value
-        name = state.get_field("name")  # "John Doe"
-
-        # Convert to dict
-        data = state.to_dict()  # {"name": "John Doe", "email": "john@example.com"}
+    Values are primitives: None, str, int, float, bool
     """
 
-    @abstractmethod
-    def get_field(self, field_id: str) -> Optional[object]:
-        """Get the value for a specific field.
-
-        Args:
-            field_id: The field identifier
-
-        Returns:
-            Field value, None if not found
-        """
-        pass
-
-    @abstractmethod
-    def set_field(self, field_id: str, value: object) -> None:
-        """Set the value for a specific field.
-
-        Args:
-            field_id: The field identifier
-            value: The value to set
-        """
-        pass
-
-    @abstractmethod
-    def get_all_fields(self) -> Dict[str, object]:
-        """Get all fields and their values.
-
-        Returns:
-            Dictionary of field_id to value
-        """
-        pass
-
-    @abstractmethod
-    def get_filled_fields(self) -> List[str]:
-        """Get list of fields that have been filled.
-
-        Returns:
-            List of field identifiers that have non-None values
-        """
-        pass
-
-    @abstractmethod
-    def get_empty_fields(self) -> List[str]:
-        """Get list of fields that are still empty.
-
-        Returns:
-            List of field identifiers that have None values
-        """
-        pass
-
-    @abstractmethod
-    def is_complete(self, required_fields: Optional[List[str]] = None) -> bool:
-        """Check if the state is complete.
-
-        Args:
-            required_fields: Optional list of required field IDs.
-                If None, checks all fields.
-
-        Returns:
-            True if all required fields have values
-        """
-        pass
-
-    @abstractmethod
     def copy(self) -> "CanonicalState":
-        """Create a copy of the state.
+        """Create a deep copy of the state.
 
         Returns:
-            A new CanonicalState instance with copied data
+            A new CanonicalState instance with deep copied data
         """
-        pass
+        new_state = CanonicalState()
 
-    @abstractmethod
-    def to_dict(self) -> Dict[str, object]:
-        """Convert state to dictionary representation.
+        # Copy all field values
+        for path, value in self.iter_fields():
+            new_state._dah.add_node(path, value)
+
+        # Copy all hyperedges
+        for sources, target, metadata, _edge_id in self._dah.iter_hyperedges():
+            try:
+                new_state._dah.add_hyperedge(
+                    sources, target, metadata=metadata, check_cycle=False
+                )
+            except ValueError:
+                pass
+
+        return new_state
+
+    def _is_field_filled(self, value: Optional[CanonicalFieldValue]) -> bool:
+        """Check if a field value is considered filled.
+
+        Args:
+            value: The field value to check
 
         Returns:
-            Dictionary of field_id to value
+            True if the field has a value
         """
-        pass
+        return value is not None

@@ -1,170 +1,120 @@
-"""Interpretive State interface for LangState.
+"""Interpretive State implementation using DAH storage."""
 
-The Interpretive State represents the reasoning process with inferences and confidence scores.
-Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
+from typing import Optional
 
-This state tracks how values were derived and maintains multiple candidate values.
-"""
-
-from abc import abstractmethod
-from typing import Dict, List, Optional
-
-from ..base.state import BaseState
-from ..base.schema import Inference, ValueConfidence
-from .schema import InterpretiveFieldState
+from core.state.base.state import State
+from core.state.interpretive.base import BaseInterpretiveState
+from core.state.interpretive.schema import (
+    Inference,
+    InterpretiveFieldState,
+    ValueConfidence,
+)
 
 
-class InterpretiveState(BaseState[InterpretiveFieldState]):
-    """Interpretive State interface.
+class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
+    """Interpretive State implementation with DAH-based storage and inference tracking.
 
-    The Interpretive State stores field values with inference chains and confidence scores.
-    This is the state used during conversation to track reasoning and multiple candidates.
+    Implements BaseInterpretiveState interface using InterpretiveFieldState as node values.
+    Field values are stored directly in DAH nodes with paths like:
+    - "name" for simple fields
+    - "address.city" for nested objects
+    - "guests.0.email" for array elements
 
-    Format:
-        {
-            field_id: {
-                inference: [{content, mutator_id, timestamp}],
-                values: [{value, confidence}]
-            }
-        }
-
-    Example:
-        state = InterpretiveStateImpl()
-
-        # Add inference and value
-        state.add_inference("name", Inference(
-            content="User said 'my name is John'",
-            mutator_id="llm_mutator"
-        ))
-        state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-        state.add_value("name", ValueConfidence(value="Jon", confidence=0.3))
-
-        # Get best value
-        best = state.get_best_value("name")  # ValueConfidence(value="John", confidence=0.9)
+    Values are InterpretiveFieldState objects with:
+    - inference: List of inferences about the field
+    - values: List of value-confidence pairs
     """
 
-    @abstractmethod
-    def get_field(self, field_id: str) -> Optional[InterpretiveFieldState]:
-        """Get the full state for a specific field.
+    def _is_field_filled(self, value: Optional[InterpretiveFieldState]) -> bool:
+        """Check if a field value is considered filled.
 
         Args:
-            field_id: The field identifier
+            value: The field value to check
 
         Returns:
-            InterpretiveFieldState, None if not found
+            True if the field has values
         """
-        pass
+        if value is None:
+            return False
+        return len(value.values) > 0
 
-    @abstractmethod
-    def set_field(self, field_id: str, value: InterpretiveFieldState) -> None:
-        """Set the value for a specific field.
+    def copy(self) -> "InterpretiveState":
+        """Create a deep copy of the state.
 
-        For interpretive state, this creates/updates the field with the given data.
-
-        Args:
-            field_id: The field identifier
-            value: The InterpretiveFieldState to set
+        Returns:
+            A new InterpretiveState instance with deep copied data
         """
-        pass
+        new_state = InterpretiveState()
 
-    @abstractmethod
-    def add_inference(self, field_id: str, inference: Inference) -> None:
+        # Copy all field values
+        for path, value in self.iter_fields():
+            if value is not None:
+                new_state._dah.add_node(path, value.model_copy(deep=True))
+
+        # Copy all hyperedges
+        for sources, target, metadata, _edge_id in self._dah.iter_hyperedges():
+            try:
+                new_state._dah.add_hyperedge(
+                    sources, target, metadata=metadata, check_cycle=False
+                )
+            except ValueError:
+                pass
+
+        return new_state
+
+    def add_inference(self, path: str, inference: Inference) -> None:
         """Add an inference to a field.
 
         Args:
-            field_id: The field identifier
+            path: The field path (e.g., "name" or "guests.0.email")
             inference: The inference to add
         """
-        pass
+        field_state = self._get_or_create_field_state(path)
+        field_state.inference.append(inference)
 
-    @abstractmethod
-    def add_value(self, field_id: str, value_confidence: ValueConfidence) -> None:
+    def add_value(self, path: str, value_confidence: ValueConfidence) -> None:
         """Add a value-confidence pair to a field.
 
         Args:
-            field_id: The field identifier
+            path: The field path (e.g., "name" or "guests.0.email")
             value_confidence: The value with confidence
         """
-        pass
+        field_state = self._get_or_create_field_state(path)
+        field_state.values.append(value_confidence)
 
-    @abstractmethod
-    def get_best_value(self, field_id: str) -> Optional[ValueConfidence]:
+    def get_best_value(self, path: str) -> Optional[ValueConfidence]:
         """Get the value with highest confidence for a field.
 
         Args:
-            field_id: The field identifier
+            path: The field path (e.g., "name" or "guests.0.email")
 
         Returns:
             ValueConfidence with highest confidence, None if no values
         """
-        pass
+        value = self.get_field(path)
+        if value is None:
+            return None
+        if not value.values:
+            return None
 
-    @abstractmethod
-    def get_all_fields(self) -> Dict[str, InterpretiveFieldState]:
-        """Get all fields and their states.
+        return max(value.values, key=lambda vc: vc.confidence)
 
-        Returns:
-            Dictionary of field_id to InterpretiveFieldState
-        """
-        pass
-
-    @abstractmethod
-    def get_filled_fields(self) -> List[str]:
-        """Get list of fields that have values.
-
-        Returns:
-            List of field identifiers that have at least one value
-        """
-        pass
-
-    @abstractmethod
-    def get_empty_fields(self) -> List[str]:
-        """Get list of fields that have no values.
-
-        Returns:
-            List of field identifiers that have no values
-        """
-        pass
-
-    @abstractmethod
-    def is_complete(
-        self, required_fields: Optional[List[str]] = None, min_confidence: float = 0.0
-    ) -> bool:
-        """Check if the state is complete.
+    def _get_or_create_field_state(self, path: str) -> InterpretiveFieldState:
+        """Get or create field state for a field path.
 
         Args:
-            required_fields: Optional list of required field IDs.
-                If None, checks all fields.
-            min_confidence: Minimum confidence threshold for a value to count
+            path: The field path
 
         Returns:
-            True if all required fields have values above threshold
+            The InterpretiveFieldState for this field
         """
-        pass
+        value = self.get_field(path)
 
-    @abstractmethod
-    def copy(self) -> "InterpretiveState":
-        """Create a copy of the state.
+        if value is not None:
+            return value
 
-        Returns:
-            A new InterpretiveState instance with copied data
-        """
-        pass
+        # Create new field state
+        new_field_state = InterpretiveFieldState(inference=[], values=[])
+        self.set_field(path, new_field_state)
 
-    @abstractmethod
-    def to_dict(self) -> Dict[str, object]:
-        """Convert state to dictionary representation.
-
-        Returns:
-            Dictionary in interpretive state format
-        """
-        pass
-
-    @abstractmethod
-    def to_canonical_dict(self) -> Dict[str, object]:
-        """Convert to canonical state format (best values only).
-
-        Returns:
-            Dictionary in canonical format {field_id: value}
-        """
-        pass
+        return new_field_state

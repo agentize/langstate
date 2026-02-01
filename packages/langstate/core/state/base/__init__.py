@@ -1,10 +1,13 @@
 """State base module exports."""
 
-from .state import BaseState
-from .schema import Inference, ValueConfidence
+from .base import BaseState
+from ..interpretive.schema import Inference
+from .state import State
+from ..interpretive.schema import ValueConfidence
 
 __all__ = [
     "BaseState",
     "Inference",
+    "State",
     "ValueConfidence",
 ]

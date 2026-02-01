@@ -8,8 +8,8 @@ from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from ...state.interpretive.schema import InterpretiveState
-from ...state.canonical.schema import CanonicalState
+from ...state.interpretive.schema import InterpretiveStateSchema
+from ...state.canonical.schema import CanonicalStateSchema
 
 
 class InputType(str, Enum):
@@ -65,7 +65,7 @@ class AgentInput(BaseModel):
             default=None,
             description="Text content (for TEXT type or accompanying other types)",
         ),
-    ] = None
+    ]
 
     action: Annotated[
         Optional[str],
@@ -73,22 +73,20 @@ class AgentInput(BaseModel):
             default=None,
             description="Action identifier (for ACTION type, e.g., button_id, form_name)",
         ),
-    ] = None
+    ]
 
     action_data: Annotated[
-        Dict[str, object],
+        Optional[Dict[str, object]],
         Field(
-            default_factory=dict,
+            default=None,
             description="Additional data for the action (form fields, parameters)",
         ),
-    ] = {}
+    ]
 
     selection: Annotated[
-        List[object],
-        Field(
-            default_factory=list, description="Selected option(s) for SELECTION type"
-        ),
-    ] = []
+        Optional[List[object]],
+        Field(default=None, description="Selected option(s) for SELECTION type"),
+    ]
 
     field_id: Annotated[
         Optional[str],
@@ -96,24 +94,22 @@ class AgentInput(BaseModel):
             default=None,
             description="Target field identifier (if input is for a specific field)",
         ),
-    ] = None
+    ]
 
     confirmed: Annotated[
         Optional[bool],
         Field(default=None, description="Confirmation status for CONFIRMATION type"),
-    ] = None
+    ]
 
     files: Annotated[
-        List[Dict[str, object]],
-        Field(
-            default_factory=list, description="List of file references for FILE type"
-        ),
-    ] = []
+        Optional[List[Dict[str, object]]],
+        Field(default=None, description="List of file references for FILE type"),
+    ]
 
     metadata: Annotated[
-        Dict[str, object],
-        Field(default_factory=dict, description="Additional context or metadata"),
-    ] = {}
+        Optional[Dict[str, object]],
+        Field(default=None, description="Additional context or metadata"),
+    ]
 
     @classmethod
     def from_text(cls, text: str) -> "AgentInput":
@@ -125,7 +121,17 @@ class AgentInput(BaseModel):
         Returns:
             AgentInput instance with TEXT type
         """
-        return cls(input_type=InputType.TEXT, text=text)
+        return cls(
+            input_type=InputType.TEXT,
+            text=text,
+            action=None,
+            action_data=None,
+            selection=None,
+            field_id=None,
+            confirmed=None,
+            files=None,
+            metadata=None,
+        )
 
     @classmethod
     def from_action(
@@ -142,8 +148,14 @@ class AgentInput(BaseModel):
         """
         return cls(
             input_type=InputType.ACTION,
+            text=None,
             action=action,
-            action_data=data or {},
+            action_data=data,
+            selection=None,
+            field_id=None,
+            confirmed=None,
+            files=None,
+            metadata=None,
         )
 
     @classmethod
@@ -161,8 +173,14 @@ class AgentInput(BaseModel):
         """
         return cls(
             input_type=InputType.SELECTION,
+            text=None,
+            action=None,
+            action_data=None,
             selection=selection,
             field_id=field_id,
+            confirmed=None,
+            files=None,
+            metadata=None,
         )
 
     @classmethod
@@ -178,8 +196,14 @@ class AgentInput(BaseModel):
         """
         return cls(
             input_type=InputType.CONFIRMATION,
+            text=None,
+            action=None,
+            action_data=None,
+            selection=None,
             field_id=field_id,
             confirmed=confirmed,
+            files=None,
+            metadata=None,
         )
 
     def is_empty(self) -> bool:
@@ -191,9 +215,9 @@ class AgentInput(BaseModel):
         return (
             self.text is None
             and self.action is None
-            and not self.selection
+            and (self.selection is None or len(self.selection) == 0)
             and self.confirmed is None
-            and not self.files
+            and (self.files is None or len(self.files) == 0)
         )
 
 
@@ -233,11 +257,11 @@ class InteractionRequest(BaseModel):
         ),
     ]
     state: Annotated[
-        Optional[InterpretiveState],
+        Optional[InterpretiveStateSchema],
         Field(default=None, description="Current interpretive state"),
     ]
     canonical_state: Annotated[
-        Optional[CanonicalState],
+        Optional[CanonicalStateSchema],
         Field(
             default=None,
             description="Canonical state with resolved values (business state)",
@@ -257,11 +281,11 @@ class ActionResultData(BaseModel):
     """Result returned when the flow is complete and action can be taken."""
 
     state: Annotated[
-        InterpretiveState,
+        InterpretiveStateSchema,
         Field(description="Final interpretive state with all field snapshots"),
     ]
     canonical_state: Annotated[
-        CanonicalState,
+        CanonicalStateSchema,
         Field(description="Final canonical state with resolved values for action"),
     ]
     success: Annotated[

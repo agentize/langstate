@@ -1,6 +1,6 @@
-"""Schema Reader interface for LangState.
+"""Spec Extractor interface for LangState.
 
-The Schema Reader is responsible for:
+The Spec Extractor is responsible for:
 - Loading and parsing schema definitions from various sources (YAML, JSON, OpenAPI, etc.)
 - Converting to internal Schema representation
 - Validating schema structure
@@ -8,19 +8,19 @@ The Schema Reader is responsible for:
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Union
+from typing import Union
 
 from .schema import Schema
 
 
-class BaseSchemaReader(ABC):
-    """Abstract base class for schema readers.
+class BaseSpecExtractor(ABC):
+    """Abstract base class for spec extractors.
 
-    Schema readers are responsible for loading and parsing schema definitions
+    Spec extractors are responsible for loading and parsing schema definitions
     from various sources (YAML, JSON, OpenAPI specs, etc.).
 
     Example implementation:
-        class OpenAPIYamlReader(BaseSchemaReader):
+        class OpenAPIYamlExtractor(BaseSpecExtractor):
             def read(self, source: Union[str, Path, Dict[str, object]]) -> Schema:
                 # Load YAML file
                 if isinstance(source, (str, Path)):
@@ -45,7 +45,7 @@ class BaseSchemaReader(ABC):
     """
 
     @abstractmethod
-    def read(self, source: Union[str, Path, Dict[str, object]]) -> Schema:
+    def read(self, source: Union[str, Path]) -> Schema:
         """Read and parse schema from the given source.
 
         Args:
@@ -59,20 +59,3 @@ class BaseSchemaReader(ABC):
             FileNotFoundError: If the source file doesn't exist
         """
         pass
-
-    def validate(self, schema: Schema) -> bool:
-        """Validate the parsed schema.
-
-        Override this method to add custom validation logic.
-
-        Args:
-            schema: The schema to validate
-
-        Returns:
-            True if valid, raises exception otherwise
-        """
-        return True
-
-
-# TODO: `CustomSchemaRead('./schema.yml', root_entity: "Registration")`
-# TODO: It also can be set in runtime. `SchemaReader.set_schema_root_entity("Registration")`

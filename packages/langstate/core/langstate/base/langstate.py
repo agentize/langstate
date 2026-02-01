@@ -20,13 +20,13 @@ This module follows agent SDK conventions (similar to OpenAI Agents SDK):
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, List, Optional, Union
 
-from ...schema_reader import BaseSchemaReader, Schema
+from ...spec_extractor import BaseSpecExtractor, Schema
 from ...mutator import BaseMutator
 from ...projector import (
     BaseProjectorCanonicalState,
     BaseProjectorUI,
 )
-from ...state import CanonicalState, InterpretiveState
+from ...state import BaseCanonicalState, BaseInterpretiveState
 
 from .schema import (
     AgentInput,
@@ -60,9 +60,9 @@ class LangState(ABC):
     Example usage:
         class MyLangState(LangState):
             async def initialize(self, config: LangStateConfig) -> None:
-                # Load schema using the configured schema reader
-                if self._schema_reader and config.schema_source:
-                    self._schema = self._schema_reader.read(config.schema_source)
+                # Load schema using the configured spec extractor
+                if self._spec_extractor and config.schema_source:
+                    self._schema = self._spec_extractor.read(config.schema_source)
 
                 # Initialize components
                 if self._mutator:
@@ -115,7 +115,7 @@ class LangState(ABC):
                 return await self._create_interaction_request()
 
     Constructor Parameters:
-        schema_reader: Optional BaseSchemaReader for loading schemas
+        spec_extractor: Optional BaseSpecExtractor for loading schemas
         mutator: Optional BaseMutator for input processing
         projector_canonical: Optional BaseProjectorCanonicalState for validation
         projectors_ui: Optional BaseProjectorUI or List[BaseProjectorUI] for UI generation
@@ -128,7 +128,7 @@ class LangState(ABC):
 
         # Setup with constructor parameters (single projector)
         langstate = MyLangState(
-            schema_reader=OpenAPIYamlReader(),
+            spec_extractor=OpenAPIYamlExtractor(),
             mutator=MyCustomMutator(),
             projector_canonical=MyLLMProjectorCanonical(),
             projectors_ui=MyUIProjector()
@@ -136,7 +136,7 @@ class LangState(ABC):
 
         # Setup with multiple projectors
         langstate = MyLangState(
-            schema_reader=OpenAPIYamlReader(),
+            spec_extractor=OpenAPIYamlExtractor(),
             mutator=MyCustomMutator(),
             projector_canonical=MyLLMProjectorCanonical(),
             projectors_ui=[MyUIProjector(), MyUIInterpreterA()]
@@ -144,7 +144,7 @@ class LangState(ABC):
 
         # Or use setters
         langstate = MyLangState()
-        langstate.set_schema_reader(OpenAPIYamlReader())
+        langstate.set_spec_extractor(OpenAPIYamlExtractor())
         langstate.set_mutator(MyCustomMutator())
         langstate.set_projector_canonical(MyLLMProjectorCanonical())
         langstate.set_projector_ui(MyUIProjector())
@@ -171,7 +171,7 @@ class LangState(ABC):
 
     def __init__(
         self,
-        schema_reader: Optional[BaseSchemaReader] = None,
+        spec_extractor: Optional[BaseSpecExtractor] = None,
         mutator: Optional[BaseMutator] = None,
         projector_canonical: Optional[BaseProjectorCanonicalState] = None,
         projectors_ui: Optional[Union[BaseProjectorUI, List[BaseProjectorUI]]] = None,
@@ -179,13 +179,13 @@ class LangState(ABC):
         """Initialize LangState with optional components.
 
         Args:
-            schema_reader: Schema reader for loading schema definitions
+            spec_extractor: Spec extractor for loading schema definitions
             mutator: Mutator for processing user input
             projector_canonical: Canonical state projector for validation
             projectors_ui: UI projector(s) for generating prompts/components.
                           Can be a single projector or a list of projectors.
         """
-        self._schema_reader = schema_reader
+        self._spec_extractor = spec_extractor
         self._mutator = mutator
         self._projector_canonical = projector_canonical
 
@@ -198,8 +198,8 @@ class LangState(ABC):
             self._projectors_ui = [projectors_ui]
 
         self._schema: Optional[Schema] = None
-        self._canonical_state: Optional[CanonicalState] = None
-        self._interpretive_state: Optional[InterpretiveState] = None
+        self._canonical_state: Optional[BaseCanonicalState] = None
+        self._interpretive_state: Optional[BaseInterpretiveState] = None
         self._conversation_history: List[Dict[str, str]] = []
         self._action_handlers: List[Callable[[ActionResultData], object]] = []
 
@@ -251,7 +251,7 @@ class LangState(ABC):
         pass
 
     @abstractmethod
-    async def get_current_state(self) -> InterpretiveState:
+    async def get_current_state(self) -> BaseInterpretiveState:
         """Get the current interpretive state.
 
         Returns:
@@ -260,7 +260,7 @@ class LangState(ABC):
         pass
 
     @abstractmethod
-    async def get_canonical_state(self) -> CanonicalState:
+    async def get_canonical_state(self) -> BaseCanonicalState:
         """Get the current canonical state.
 
         Returns:
@@ -268,13 +268,13 @@ class LangState(ABC):
         """
         pass
 
-    def set_schema_reader(self, schema_reader: BaseSchemaReader) -> None:
-        """Set a custom SchemaReader implementation.
+    def set_spec_extractor(self, spec_extractor: BaseSpecExtractor) -> None:
+        """Set a custom SpecExtractor implementation.
 
         Args:
-            schema_reader: Custom SchemaReader instance
+            spec_extractor: Custom SpecExtractor instance
         """
-        self._schema_reader = schema_reader
+        self._spec_extractor = spec_extractor
 
     def set_schema(self, schema: Schema) -> None:
         """Set the schema directly.
@@ -348,9 +348,9 @@ class LangState(ABC):
 
     # Property accessors for components
     @property
-    def schema_reader(self) -> Optional[BaseSchemaReader]:
-        """Get the current schema reader."""
-        return self._schema_reader
+    def spec_extractor(self) -> Optional[BaseSpecExtractor]:
+        """Get the current spec extractor."""
+        return self._spec_extractor
 
     @property
     def mutator(self) -> Optional[BaseMutator]:

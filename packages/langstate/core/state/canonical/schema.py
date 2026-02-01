@@ -8,8 +8,10 @@ from typing import Dict
 
 from pydantic import RootModel
 
+CanonicalFieldValue = object
 
-class CanonicalState(RootModel[Dict[str, object]]):
+
+class CanonicalStateSchema(RootModel[Dict[str, CanonicalFieldValue]]):
     """Canonical state representation: simple key-value mapping.
 
     Format: {key: value}

@@ -12,7 +12,7 @@ from typing import Optional, TYPE_CHECKING
 from .schema import MutationContext, MutationResult
 
 if TYPE_CHECKING:
-    from ...schema_reader.base.schema import Schema
+    from ...spec_extractor.base.schema import Schema
     from ...langstate.base.schema import AgentInput
 
 

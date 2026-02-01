@@ -9,7 +9,7 @@ from typing import Annotated, Dict, List
 from pydantic import Field
 
 from ..base.schema import ProjectionContext, ProjectionResult
-from ...state.canonical.schema import CanonicalState
+from ...state.canonical.schema import CanonicalStateSchema
 
 
 class CanonicalProjectionStrategy(str, Enum):
@@ -45,7 +45,7 @@ class CanonicalProjectionResult(ProjectionResult):
     """Result of a canonical state projection operation."""
 
     updated_state: Annotated[
-        CanonicalState,
+        CanonicalStateSchema,
         Field(
             description="The updated canonical state with resolved values (key: value format)"
         ),

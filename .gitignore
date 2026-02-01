@@ -1,6 +1,10 @@
 # Python
 __pycache__/
+.coverage
 
 # Environments
 .env
 .venv
+
+# Project:
+packages/langstate/tests/integration/core/test_outputs

@@ -8,7 +8,24 @@ from typing import Annotated, Dict, List
 
 from pydantic import BaseModel, Field, RootModel
 
-from ..base.schema import Inference, ValueConfidence
+
+class Inference(BaseModel):
+    """Inference step that led to a value."""
+
+    content: Annotated[str, Field(description="Description of the inference/reasoning")]
+    mutator_id: Annotated[
+        str,
+        Field(description="Identifier of the mutator that generated this inference"),
+    ] = "unknown"
+
+
+class ValueConfidence(BaseModel):
+    """Value with associated confidence score."""
+
+    value: Annotated[object, Field(description="The actual value")]
+    confidence: Annotated[float, Field(description="Confidence score (0.0 to 1.0)")] = (
+        0.0
+    )
 
 
 class InterpretiveFieldState(BaseModel):
@@ -16,18 +33,15 @@ class InterpretiveFieldState(BaseModel):
 
     inference: Annotated[
         List[Inference],
-        Field(default_factory=list, description="List of inference/reasoning steps"),
-    ]
+        Field(description="List of inference/reasoning steps"),
+    ] = []
     values: Annotated[
         List[ValueConfidence],
-        Field(
-            default_factory=list,
-            description="List of candidate values with confidence scores",
-        ),
-    ]
+        Field(description="List of candidate values with confidence scores"),
+    ] = []
 
 
-class InterpretiveState(RootModel[Dict[str, InterpretiveFieldState]]):
+class InterpretiveStateSchema(RootModel[Dict[str, InterpretiveFieldState]]):
     """Interpretive state representation: rich format with inference and values.
 
     Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
