@@ -23,7 +23,7 @@ langstate/
 │   │   │   └── schema.py       # ProjectionContext, ProjectionResult
 │   │   ├── canonical/
 │   │   │   ├── projector.py    # BaseProjectorCanonicalState
-│   │   │   └── schema.py       # CanonicalProjectionContext, CanonicalProjectionResult
+│   │   │   └── schema.py       # CanonicalProjectionContext, 
 │   │   └── ui/
 │   │       ├── projector.py    # BaseProjectorUI
 │   │       └── schema.py       # UIComponent, UIProjectionContext, UIProjectionResult
