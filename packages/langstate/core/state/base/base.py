@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Generic, Iterator, List, Optional, Tuple
+from typing_extensions import Self
 from core.typing.generic import TFieldData
 
 
@@ -98,7 +99,16 @@ class BaseState(ABC, Generic[TFieldData]):
         pass
 
     @abstractmethod
-    def copy(self) -> "BaseState[TFieldData]":
+    def to_json(self) -> str:
+        """Export the state to a JSON string.
+
+        Returns:
+            JSON string representation of the state
+        """
+        pass
+
+    @abstractmethod
+    def copy(self) -> Self:
         """Create a copy of the state.
 
         Returns:

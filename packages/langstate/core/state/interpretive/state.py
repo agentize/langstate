@@ -1,6 +1,7 @@
 """Interpretive State implementation using DAH storage."""
 
 from typing import Optional
+from typing_extensions import Self
 
 from core.state.base.state import State
 from core.state.interpretive.base import BaseInterpretiveState
@@ -38,13 +39,13 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
             return False
         return len(value.values) > 0
 
-    def copy(self) -> "InterpretiveState":
+    def copy(self) -> Self:
         """Create a deep copy of the state.
 
         Returns:
             A new InterpretiveState instance with deep copied data
         """
-        new_state = InterpretiveState()
+        new_state = self.__class__()
 
         # Copy all field values
         for path, value in self.iter_fields():
