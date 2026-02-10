@@ -5,10 +5,6 @@ from pydantic import BaseModel, Field
 
 class FieldExtraction(BaseModel):
     """Schema for a single field extraction from LLM response.
-
-    Fields are declared using `typing.Annotated[...]` with `Field(...)`
-    metadata so Pydantic validates and retains the original field
-    constraints while making type annotations explicit.
     """
 
     path: Annotated[
