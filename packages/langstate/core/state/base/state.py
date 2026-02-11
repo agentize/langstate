@@ -12,6 +12,7 @@ State uses DAH (Directed Acyclic Hypergraph) for internal storage where:
 """
 
 from typing import Dict, Iterator, List, Optional, Tuple
+from typing_extensions import Self
 from uuid import UUID
 
 from core.data_structure.dah.dah import DirectedAcyclicHypergraph
@@ -206,7 +207,15 @@ class State(BaseState[TFieldData]):
 
         return True
 
-    def copy(self) -> "State[TFieldData]":
+    def to_json(self) -> str:
+        """Export the state to a JSON string.
+
+        Returns:
+            JSON string representation of the state
+        """
+        return self._dah.to_json()
+
+    def copy(self) -> Self:
         """Create a copy of the state.
 
         Returns:

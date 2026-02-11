@@ -1,6 +1,6 @@
 """Mutator base module exports."""
 
-from .mutator import BaseMutator
+from .base import BaseMutator
 from .schema import MutationContext, MutationResult
 
 __all__ = [
