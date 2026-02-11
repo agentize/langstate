@@ -1,6 +1,7 @@
 """Canonical State implementation using DAH storage."""
 
 from typing import Optional
+from typing_extensions import Self
 
 from core.state.base.state import State
 from core.state.canonical.base import BaseCanonicalState
@@ -19,13 +20,13 @@ class CanonicalState(State[CanonicalFieldValue], BaseCanonicalState):
     Values are primitives: None, str, int, float, bool
     """
 
-    def copy(self) -> "CanonicalState":
+    def copy(self) -> Self:
         """Create a deep copy of the state.
 
         Returns:
             A new CanonicalState instance with deep copied data
         """
-        new_state = CanonicalState()
+        new_state = self.__class__()
 
         # Copy all field values
         for path, value in self.iter_fields():
