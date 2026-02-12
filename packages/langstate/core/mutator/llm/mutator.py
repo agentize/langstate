@@ -78,6 +78,7 @@ class LLMMutator(BaseMutator):
             inference = Inference(
                 content=extraction.inference,
                 mutator_id=self._mutator_id,
+                message_id=context.input.message_id,
             )
             state.add_inference(extraction.path, inference)
 

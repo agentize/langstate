@@ -1,7 +1,7 @@
 """Interpretive State interface for LangState.
 
 The Interpretive State represents the reasoning process with inferences and confidence scores.
-Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
+Format: {key: {inference: {content, mutator_id, message_id} | null, values: [{value, confidence}]}}
 
 This state tracks how values were derived and maintains multiple candidate values.
 Uses DAH for internal storage with field paths as node identifiers.
@@ -18,14 +18,14 @@ from .schema import Inference, InterpretiveFieldState
 class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
     """Interpretive State interface.
 
-    The Interpretive State stores field values with inference chains and confidence scores.
+    The Interpretive State stores field values with optional inference and confidence scores.
     This is the state used during conversation to track reasoning and multiple candidates.
     Uses DAH internally with path-based field addressing.
 
     Format:
         {
             field_path: {
-                inference: [{content, mutator_id, timestamp}],
+                inference: {content, mutator_id, message_id} | null,
                 values: [{value, confidence}]
             }
         }
@@ -36,7 +36,8 @@ class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
         # Add inference and value
         state.add_inference("name", Inference(
             content="User said 'my name is John'",
-            mutator_id="llm_mutator"
+            mutator_id="llm_mutator",
+            message_id="msg_123"
         ))
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
         state.add_value("name", ValueConfidence(value="Jon", confidence=0.3))

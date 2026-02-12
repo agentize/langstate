@@ -3,7 +3,7 @@
 This module contains all data models used by the Mutator interface.
 """
 
-from typing import Annotated, Any, Dict
+from typing import Annotated, Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +20,13 @@ class StructuredInput(BaseModel):
         ),
     ]
 
+    message_id: Annotated[
+        Optional[str],
+        Field(
+            description="Unique identifier for the message associated with this input."
+        ),
+    ] = None
+
 
 class MutationContext(BaseModel):
     """Context provided to the mutator for processing."""
@@ -34,7 +41,7 @@ class MutationContext(BaseModel):
         InterpretiveState,
         Field(
             description="Current interpretive state implementation instance."
-            "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"
+            "Format: {key: {inference: {content, mutator_id, message_id} | null, values: [{value, confidence}]}}"
         ),
     ]
     metadata: Annotated[
