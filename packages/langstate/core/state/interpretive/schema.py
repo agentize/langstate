@@ -27,9 +27,14 @@ class ValueConfidence(BaseModel):
     """Value with associated confidence score."""
 
     value: Annotated[object, Field(description="The actual value")]
-    confidence: Annotated[float, Field(description="Confidence score (0.0 to 1.0)")] = (
-        0.0
-    )
+    confidence: Annotated[
+        float,
+        Field(
+            ge=-1.0,
+            le=1.0,
+            description="Confidence score from -1.0 to 1.0",
+        ),
+    ] = 0.0
 
 
 class InterpretiveFieldState(BaseModel):

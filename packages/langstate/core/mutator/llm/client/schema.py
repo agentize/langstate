@@ -10,7 +10,7 @@ class FieldExtraction(BaseModel):
     value: Annotated[str, Field(description="The extracted value")]
     confidence: Annotated[
         float,
-        Field(ge=0.0, le=1.0, description="Confidence score from 0.0 to 1.0"),
+        Field(ge=-1.0, le=1.0, description="Confidence score from -1.0 to 1.0"),
     ]
     inference: Annotated[
         str,
