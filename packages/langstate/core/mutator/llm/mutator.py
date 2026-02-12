@@ -1,26 +1,28 @@
 import json
+from uuid import uuid4
 
 from core.mutator.base.base import BaseMutator
 from core.mutator.base.schema import MutationContext, MutationResult
 from core.mutator.llm.client.base import BaseLLMClient
 from core.mutator.llm.client.schema import FieldExtraction
-from core.state.interpretive.schema import ValueConfidence
+from core.state.interpretive.schema import Inference, ValueConfidence
 
 _EXTRACTION_PROMPT = """You are a structured data extraction assistant.
 
 Here is the current state (JSON):
 {state_json}
 
-User prompt:
-{user_prompt}
+Prompt:
+{prompt}
 
-Analyze the user prompt and extract field updates. Return a JSON array where each element has:
+Analyze the prompt and extract field updates. Return a JSON array where each element has:
 - "path": field path (e.g. "name", "address.city")
 - "value": the extracted value
 - "confidence": confidence score from 0.0 to 1.0
+- "inference": brief reasoning for this extraction
 
 Return ONLY a JSON array, no other text. Example:
-[{{"path": "name", "value": "John", "confidence": 0.95}}]
+[{{"path": "name", "value": "John", "confidence": 0.95, "inference": "Extracted from user's introduction"}}]
 """
 
 
@@ -29,6 +31,7 @@ class LLMMutator(BaseMutator):
 
     def __init__(self, llm_client: BaseLLMClient) -> None:
         self._llm_client = llm_client
+        self._mutator_id: str = str(uuid4())
 
     async def mutate(self, context: MutationContext) -> MutationResult:
         """Process user input and update the interpretive state via LLM extraction.
@@ -44,10 +47,10 @@ class LLMMutator(BaseMutator):
         state_json = state.to_json()
 
         # Build prompt for the LLM
-        user_prompt: str = str(context.input.get("user_prompt", ""))
+        prompt_str: str = str(context.input.prompt)
         prompt = _EXTRACTION_PROMPT.format(
             state_json=state_json,
-            user_prompt=user_prompt,
+            prompt=prompt_str,
         )
 
         raw_response = await self._llm_client.generate(prompt)
@@ -70,5 +73,12 @@ class LLMMutator(BaseMutator):
                 value=extraction.value, confidence=extraction.confidence
             )
             state.add_value(extraction.path, vc)
+
+            # Add inference tracking with LLM-generated reasoning
+            inference = Inference(
+                content=extraction.inference,
+                mutator_id=self._mutator_id,
+            )
+            state.add_inference(extraction.path, inference)
 
         return MutationResult(updated_state=state)
