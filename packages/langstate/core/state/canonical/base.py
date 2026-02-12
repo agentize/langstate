@@ -7,8 +7,11 @@ This is the state used for executing actions and represents the final resolved v
 Uses DAH for internal storage with field paths as node identifiers.
 """
 
+from typing import Optional
+
 from core.state.canonical.schema import CanonicalFieldValue
-from ..base.base import BaseState
+from ..base import BaseState
+from ..interpretive.schema import Inference, ValueConfidence
 
 
 class BaseCanonicalState(BaseState[CanonicalFieldValue]):
@@ -35,4 +38,22 @@ class BaseCanonicalState(BaseState[CanonicalFieldValue]):
         data = state.get_all_fields()
     """
 
-    pass
+    def add_inference(self, path: str, inference: Inference) -> None:
+        """Canonical state does not support interpretive inference tracking."""
+        raise NotImplementedError(
+            "CanonicalState does not support add_inference; "
+            "use interpretive State instead."
+        )
+
+    def add_value(self, path: str, value_confidence: ValueConfidence) -> None:
+        """Canonical state does not support interpretive values."""
+        raise NotImplementedError(
+            "CanonicalState does not support add_value; use interpretive State instead."
+        )
+
+    def get_best_value(self, path: str) -> Optional[ValueConfidence]:
+        """Canonical state does not support interpretive values."""
+        raise NotImplementedError(
+            "CanonicalState does not support get_best_value; "
+            "use interpretive State instead."
+        )

@@ -6,7 +6,7 @@ for single-session or testing scenarios.
 
 from typing import Any, Dict, Optional, TypeVar
 
-from ..base.base import BaseState
+from ..base import BaseState
 from .base import BaseStateRepository
 
 TState = TypeVar("TState", bound=BaseState[Any])

@@ -1,18 +1,28 @@
+"""Unified State interface for LangState.
+
+This module merges the generic State interface with interpretive operations.
+The State holds field values in a DAH (Directed Acyclic Hypergraph) and may
+optionally support interpretive behaviors such as inferences and confidence
+scores.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Dict, Generic, Iterator, List, Optional, Tuple
 from typing_extensions import Self
+
 from core.typing.generic import TFieldData
+from .interpretive.schema import Inference, ValueConfidence
 
 
 class BaseState(ABC, Generic[TFieldData]):
-    """Abstract base class for State implementations.
+    """Base interface for all State implementations.
 
     The State holds the current values directly in DAH.
     Uses DAH for internal storage where path is the key.
 
-    Specialized implementations:
-    - CanonicalState: Simple key-value state for business logic (values are primitives)
-    - InterpretiveState: Rich state with inferences and confidence scores (values are InterpretiveFieldState)
+    Specialized behaviors:
+    - Canonical-style: simple key-value state for business logic (values are primitives)
+    - Interpretive-style: rich state with inferences and confidence scores
     """
 
     @abstractmethod
@@ -135,5 +145,37 @@ class BaseState(ABC, Generic[TFieldData]):
 
         Returns:
             List of child field paths
+        """
+        pass
+
+    @abstractmethod
+    def add_inference(self, path: str, inference: Inference) -> None:
+        """Add an inference to a field.
+
+        Args:
+            path: The field path (e.g., "name" or "guests.0.email")
+            inference: The inference to add
+        """
+        pass
+
+    @abstractmethod
+    def add_value(self, path: str, value_confidence: ValueConfidence) -> None:
+        """Add a value-confidence pair to a field.
+
+        Args:
+            path: The field path (e.g., "name" or "guests.0.email")
+            value_confidence: The value with confidence
+        """
+        pass
+
+    @abstractmethod
+    def get_best_value(self, path: str) -> Optional[ValueConfidence]:
+        """Get the value with highest confidence for a field.
+
+        Args:
+            path: The field path (e.g., "name" or "guests.0.email")
+
+        Returns:
+            ValueConfidence with highest confidence, None if no values
         """
         pass

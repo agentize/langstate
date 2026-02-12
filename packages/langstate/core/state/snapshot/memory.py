@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, List, Optional, TypeVar
 
-from core.state.base.base import BaseState
+from core.state.base import BaseState
 from core.state.snapshot.base import BaseSnapshotStore
 from core.state.snapshot.schema import Snapshot
 

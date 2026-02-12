@@ -9,9 +9,8 @@ This module provides the base interfaces and implementations for LangState:
 - LangState: Main orchestrator coordinating all components
 """
 
-from .state.base.base import BaseState
+from .state.base import BaseState
 from .state.interpretive.schema import Inference, ValueConfidence
-from .state.factory import BaseStateFactory, StateFactory
 from .action import (
     BaseAction,
     ActionStatus,
@@ -101,9 +100,6 @@ __all__ = [
     "InterpretiveFieldState",
     "InterpretiveStateSchema",
     "BaseSnapshotStore",
-    # State - Factory
-    "BaseStateFactory",
-    "StateFactory",
     # LangState Orchestrator
     "LangState",
     "InputType",

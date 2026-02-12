@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic, List, Optional, TypeVar
 if TYPE_CHECKING:
     from core.state.snapshot.schema import Snapshot
 
-from core.state.base.base import BaseState
+from core.state.base import BaseState
 
 TState = TypeVar("TState", bound=BaseState[Any])
 

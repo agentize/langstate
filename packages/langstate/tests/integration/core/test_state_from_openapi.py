@@ -2,7 +2,7 @@
 
 This module tests the complete workflow:
 1. Loading an OpenAPI schema via OpenAPIReader
-2. Creating canonical and interpretive states via StateFactory
+2. Creating canonical and interpretive states via state helpers
 3. Verifying graph structure contains all schema fields
 4. Populating states with test data
 5. Validating all graph export methods (to_ascii_tree, to_json, to_json_dict, to_mermaid, to_dot)
@@ -22,7 +22,6 @@ from core.spec_extractor.base.schema import Schema, SchemaField
 from core.spec_extractor.openapi.extractor import OpenAPIReader
 from core.state.canonical.schema import CanonicalFieldValue
 from core.state.canonical.state import CanonicalState
-from core.state.factory.state_factory import StateFactory
 from core.state.interpretive.schema import (
     Inference,
     InterpretiveFieldState,
@@ -57,25 +56,17 @@ def schema(schema_path: Path, openapi_reader: OpenAPIReader) -> Schema:
 
 
 @pytest.fixture
-def state_factory() -> StateFactory:
-    """Create a StateFactory instance."""
-    return StateFactory()
-
-
-@pytest.fixture
-def canonical_state(schema: Schema, state_factory: StateFactory) -> CanonicalState:
+def canonical_state(schema: Schema) -> CanonicalState:
     """Create canonical state from schema."""
-    state = state_factory.create_canonical_state(schema)
+    state = CanonicalState.from_schema(schema)
     assert isinstance(state, CanonicalState)
     return state
 
 
 @pytest.fixture
-def interpretive_state(
-    canonical_state: CanonicalState, state_factory: StateFactory
-) -> InterpretiveState:
+def interpretive_state(canonical_state: CanonicalState) -> InterpretiveState:
     """Create interpretive state from canonical state."""
-    state = state_factory.create_interpretive_state(canonical_state)
+    state = InterpretiveState.from_canonical(canonical_state)
     assert isinstance(state, InterpretiveState)
     return state
 
@@ -255,7 +246,7 @@ class TestSchemaParsing:
 
         # Note: For allOf arrays (like Guest = Person + invitation),
         # the default_value may be None if allOf isn't fully resolved.
-        # The state factory handles array element creation dynamically.
+        # The state initializer handles array element creation dynamically.
 
     def test_invitation_structure_in_schema(self, schema: Schema) -> None:
         """Verify Invitation is parsed as a referenced type.
@@ -480,7 +471,7 @@ class TestCanonicalStatePopulation:
 class TestInterpretiveStatePopulation:
     """Tests for populating interpretive state with data."""
 
-    def test_add_value_with_confidence(self, state_factory: StateFactory) -> None:
+    def test_add_value_with_confidence(self) -> None:
         """Verify values can be added with confidence scores."""
         # Create fresh interpretive state without pre-existing values
         interpretive = InterpretiveState()
@@ -496,7 +487,7 @@ class TestInterpretiveStatePopulation:
         assert best.confidence == 0.95
 
     def test_add_multiple_values_different_confidence(
-        self, state_factory: StateFactory
+        self
     ) -> None:
         """Verify multiple values can be added and best is selected by confidence."""
         # Create fresh interpretive state without pre-existing values
@@ -940,10 +931,10 @@ class TestExportConsistency:
         assert json_dict["hyperedge_count"] == parsed_json["hyperedge_count"]
 
     def test_export_methods_non_empty_for_empty_state(
-        self, state_factory: StateFactory, schema: Schema
+        self, schema: Schema
     ) -> None:
         """Verify export methods work even with fresh state (no data populated)."""
-        fresh_canonical = state_factory.create_canonical_state(schema)
+        fresh_canonical = CanonicalState.from_schema(schema)
 
         # Cast to concrete type for type safety
         assert isinstance(fresh_canonical, CanonicalState)
@@ -959,10 +950,9 @@ class TestExportConsistency:
     def test_canonical_and_interpretive_have_same_structure(
         self,
         populated_canonical_state: CanonicalState,
-        state_factory: StateFactory,
     ) -> None:
         """Verify canonical and derived interpretive states have same field paths."""
-        interpretive = state_factory.create_interpretive_state(
+        interpretive = InterpretiveState.from_canonical(
             populated_canonical_state
         )
 
@@ -994,8 +984,7 @@ class TestFullWorkflow:
         assert "id" in schema.root
 
         # Step 2: Create states
-        factory = StateFactory()
-        canonical = factory.create_canonical_state(schema)
+        canonical = CanonicalState.from_schema(schema)
 
         # Step 3: Populate canonical state
         full_data = _create_full_registration_data()
@@ -1003,7 +992,7 @@ class TestFullWorkflow:
             canonical.set_field(path, value)
 
         # Step 4: Create interpretive state from populated canonical
-        interpretive = factory.create_interpretive_state(canonical)
+        interpretive = InterpretiveState.from_canonical(canonical)
 
         # Step 5: Add additional data with higher confidence to interpretive
         interpretive.add_value(
@@ -1018,12 +1007,12 @@ class TestFullWorkflow:
         # Verify data retrieval
         assert canonical.get_field("registrant.name") == "John Doe"
 
-        # The best value should be Jane Doe (0.99) vs John Doe (1.0 from factory)
-        # Note: factory creates values with confidence 1.0, so we need higher
+        # The best value should be Jane Doe (0.99) vs John Doe (1.0 from init)
+        # Note: initialization creates values with confidence 1.0, so we need higher
         best_name = interpretive.get_best_value("registrant.name")
         assert best_name is not None
-        # With confidence 1.0 from factory and 0.99 from our addition,
-        # the factory value (John Doe) wins. This is expected behavior.
+        # With confidence 1.0 from init and 0.99 from our addition,
+        # the init value (John Doe) wins. This is expected behavior.
         # The original None value from schema with conf=1.0 is highest.
         # Let's verify the inference was added instead
         field_state = interpretive.get_field("registrant.name")
@@ -1046,9 +1035,8 @@ class TestFullWorkflow:
         """Test workflow with complex nested array data."""
         reader = OpenAPIReader(root_entity="Registration")
         schema = reader.read(schema_path)
-        factory = StateFactory()
 
-        canonical_base = factory.create_canonical_state(schema)
+        canonical_base = CanonicalState.from_schema(schema)
         assert isinstance(canonical_base, CanonicalState)
         canonical = canonical_base
 
@@ -1093,9 +1081,8 @@ class TestFullWorkflow:
         """Test state iteration and query methods."""
         reader = OpenAPIReader(root_entity="Registration")
         schema = reader.read(schema_path)
-        factory = StateFactory()
 
-        canonical_base = factory.create_canonical_state(schema)
+        canonical_base = CanonicalState.from_schema(schema)
         assert isinstance(canonical_base, CanonicalState)
         canonical = canonical_base
 

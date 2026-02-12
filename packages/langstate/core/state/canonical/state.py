@@ -1,14 +1,15 @@
 """Canonical State implementation using DAH storage."""
 
-from typing import Optional
+from typing import Any, Optional, cast
 from typing_extensions import Self
 
-from core.state.base.state import State
+from core.spec_extractor.base.schema import Schema, SchemaField
+from core.state.state import State
 from core.state.canonical.base import BaseCanonicalState
 from core.state.canonical.schema import CanonicalFieldValue
 
 
-class CanonicalState(State[CanonicalFieldValue], BaseCanonicalState):
+class CanonicalState(BaseCanonicalState, State[CanonicalFieldValue]):
     """Canonical State implementation with DAH-based storage.
 
     Inherits DAH-based storage from State and specialized interface from BaseCanonicalState.
@@ -19,6 +20,13 @@ class CanonicalState(State[CanonicalFieldValue], BaseCanonicalState):
 
     Values are primitives: None, str, int, float, bool
     """
+
+    @classmethod
+    def from_schema(cls, schema: Schema) -> "CanonicalState":
+        """Create a canonical state initialized from a Schema."""
+        state = cls()
+        _initialize_leaf_fields(state, schema.root, prefix="")
+        return state
 
     def copy(self) -> Self:
         """Create a deep copy of the state.
@@ -53,3 +61,25 @@ class CanonicalState(State[CanonicalFieldValue], BaseCanonicalState):
             True if the field has a value
         """
         return value is not None
+
+
+def _initialize_leaf_fields(
+    state: CanonicalState, fields: dict[str, SchemaField], prefix: str
+) -> None:
+    """Recursively initialize only leaf fields with primitive values."""
+    for field_id, field in fields.items():
+        full_path = f"{prefix}{field_id}" if prefix else field_id
+        default_value = field.default_value
+
+        is_nested_schema = False
+        if isinstance(default_value, dict) and default_value:
+            dict_value = cast(dict[str, Any], default_value)
+            first_value = next(iter(dict_value.values()), None)
+
+            if isinstance(first_value, SchemaField):
+                nested_fields = cast(dict[str, SchemaField], dict_value)
+                _initialize_leaf_fields(state, nested_fields, prefix=f"{full_path}.")
+                is_nested_schema = True
+
+        if not is_nested_schema:
+            state.set_field(full_path, cast(CanonicalFieldValue, default_value))

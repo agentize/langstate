@@ -8,7 +8,7 @@ storage backends without changing the core logic.
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Generic, Optional, TypeVar
 
-from ..base.base import BaseState
+from ..base import BaseState
 
 
 TState = TypeVar("TState", bound=BaseState[Any])

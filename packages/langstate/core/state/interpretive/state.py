@@ -3,7 +3,10 @@
 from typing import Optional
 from typing_extensions import Self
 
-from core.state.base.state import State
+from core.spec_extractor.base.schema import Schema
+from core.state.canonical.base import BaseCanonicalState
+from core.state.canonical.state import CanonicalState
+from core.state.state import State
 from core.state.interpretive.base import BaseInterpretiveState
 from core.state.interpretive.schema import (
     Inference,
@@ -25,6 +28,22 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
     - inference: List of inferences about the field
     - values: List of value-confidence pairs
     """
+
+    @classmethod
+    def from_canonical(cls, canonical_state: BaseCanonicalState) -> "InterpretiveState":
+        """Create an interpretive state from a canonical state."""
+        interpretive_state = cls()
+        for path, value in canonical_state.iter_fields():
+            interpretive_state.add_value(
+                path, ValueConfidence(value=value, confidence=1.0)
+            )
+        return interpretive_state
+
+    @classmethod
+    def from_schema(cls, schema: Schema) -> "InterpretiveState":
+        """Create an interpretive state directly from a Schema."""
+        canonical_state = CanonicalState.from_schema(schema)
+        return cls.from_canonical(canonical_state)
 
     def _is_field_filled(self, value: Optional[InterpretiveFieldState]) -> bool:
         """Check if a field value is considered filled.

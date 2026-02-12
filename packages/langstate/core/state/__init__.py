@@ -1,11 +1,8 @@
 """State module exports."""
 
-from .base.base import BaseState
+from .base import BaseState
 from .interpretive.schema import Inference, ValueConfidence
-from .factory.state_factory import StateFactory
-from .base import (
-    State,
-)
+from .state import State
 from .canonical import (
     BaseCanonicalState,
     CanonicalStateSchema,
@@ -19,9 +16,6 @@ from .interpretive import (
 from .repository import (
     BaseStateRepository,
     InMemoryStateRepository,
-)
-from .factory import (
-    BaseStateFactory,
 )
 
 __all__ = [
@@ -41,7 +35,4 @@ __all__ = [
     # Repository (SOLID: SRP, DIP)
     "BaseStateRepository",
     "InMemoryStateRepository",
-    # Factory (SOLID: SRP)
-    "BaseStateFactory",
-    "StateFactory",
 ]

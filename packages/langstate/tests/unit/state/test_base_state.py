@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 
-from core.state.base.state import State
+from core.state.state import State
 
 
 class ConcreteState(State[str]):

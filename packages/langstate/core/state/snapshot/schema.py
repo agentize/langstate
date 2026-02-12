@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Generic, TypeVar
 
-from core.state.base.base import BaseState
+from core.state.base import BaseState
 
 TState = TypeVar("TState", bound=BaseState[Any])
 
