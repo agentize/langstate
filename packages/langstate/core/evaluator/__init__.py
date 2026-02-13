@@ -1,7 +1,7 @@
 """Evaluator module exports."""
 
 from .base import BaseEvaluator
-from .evaluator import Evaluator
+from .llm.evaluator import LLMEvaluator
 from .schema import (
     EvaluationContext,
     EvaluationResult,
@@ -11,7 +11,7 @@ from .schema import (
 
 __all__ = [
     "BaseEvaluator",
-    "Evaluator",
+    "LLMEvaluator",
     "EvaluationContext",
     "EvaluationResult",
     "FieldComparison",

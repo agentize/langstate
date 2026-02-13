@@ -121,6 +121,17 @@ class EvaluationResult(BaseModel):
         BaseInterpretiveState,
         Field(description="The actual interpretive state produced by the mutator."),
     ]
+    accuracy_score: Annotated[
+        float,
+        Field(
+            description="Ratio of matching fields to expected fields (0.0 to 1.0). "
+            "Returns 0.0 if no expected fields exist."
+        ),
+    ]
+    time_used: Annotated[
+        float,
+        Field(description="Time elapsed during mutation in seconds."),
+    ]
     metadata: Annotated[
         Dict[str, Any] | None,
         Field(description="Additional metadata about the evaluation result."),

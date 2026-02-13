@@ -26,7 +26,7 @@ from .mutator import (
 )
 from .evaluator import (
     BaseEvaluator,
-    Evaluator,
+    LLMEvaluator,
     EvaluationContext,
     EvaluationResult,
     FieldComparison,
@@ -82,7 +82,7 @@ __all__ = [
     "StructuredInput",
     # Evaluator
     "BaseEvaluator",
-    "Evaluator",
+    "LLMEvaluator",
     "EvaluationContext",
     "EvaluationResult",
     "FieldComparison",

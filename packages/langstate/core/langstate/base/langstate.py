@@ -37,6 +37,7 @@ from .schema import (
     LangStateConfig,
 )
 
+
 class LangState(ABC, Generic[TContext]):
     """Abstract base class for the main LangState orchestrator (Agent).
 
