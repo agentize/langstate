@@ -5,7 +5,7 @@ This module contains all data models used by the Mutator interface.
 
 from typing import Annotated, Any, Dict, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from ...state.interpretive.state import InterpretiveState
 
@@ -52,8 +52,6 @@ class MutationContext(BaseModel):
 
 class MutationResult(BaseModel):
     """Result of a mutation operation."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     updated_state: Annotated[
         InterpretiveState,

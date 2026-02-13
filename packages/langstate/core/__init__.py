@@ -23,6 +23,14 @@ from .mutator import (
     MutationContext,
     MutationResult,
 )
+from .evaluator import (
+    BaseEvaluator,
+    Evaluator,
+    EvaluationContext,
+    EvaluationResult,
+    FieldComparison,
+    StateComparison,
+)
 from .projector import (
     BaseProjector,
     ProjectionContext,
@@ -70,6 +78,13 @@ __all__ = [
     "BaseMutator",
     "MutationContext",
     "MutationResult",
+    # Evaluator
+    "BaseEvaluator",
+    "Evaluator",
+    "EvaluationContext",
+    "EvaluationResult",
+    "FieldComparison",
+    "StateComparison",
     # Projector - Base
     "BaseProjector",
     "ProjectionContext",
