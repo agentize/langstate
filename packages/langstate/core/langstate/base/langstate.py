@@ -18,7 +18,9 @@ This module follows agent SDK conventions (similar to OpenAI Agents SDK):
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, Generic, List, Optional, Union
+
+from ...mutator.base.base import TContext
 
 from ...spec_extractor import BaseSpecExtractor, Schema
 from ...mutator import BaseMutator
@@ -35,8 +37,7 @@ from .schema import (
     LangStateConfig,
 )
 
-
-class LangState(ABC):
+class LangState(ABC, Generic[TContext]):
     """Abstract base class for the main LangState orchestrator (Agent).
 
     LangState is the main entry point for developers using this library.
@@ -172,7 +173,7 @@ class LangState(ABC):
     def __init__(
         self,
         spec_extractor: Optional[BaseSpecExtractor] = None,
-        mutator: Optional[BaseMutator] = None,
+        mutator: Optional[BaseMutator[TContext]] = None,
         projector_canonical: Optional[BaseProjectorCanonicalState] = None,
         projectors_ui: Optional[Union[BaseProjectorUI, List[BaseProjectorUI]]] = None,
     ) -> None:
@@ -284,7 +285,7 @@ class LangState(ABC):
         """
         self._schema = schema
 
-    def set_mutator(self, mutator: BaseMutator) -> None:
+    def set_mutator(self, mutator: BaseMutator[TContext]) -> None:
         """Set a custom Mutator implementation.
 
         Args:
@@ -353,7 +354,7 @@ class LangState(ABC):
         return self._spec_extractor
 
     @property
-    def mutator(self) -> Optional[BaseMutator]:
+    def mutator(self) -> Optional[BaseMutator[TContext]]:
         """Get the current mutator."""
         return self._mutator
 

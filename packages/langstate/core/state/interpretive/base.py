@@ -8,7 +8,9 @@ Uses DAH for internal storage with field paths as node identifiers.
 """
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Any, Optional
+
+from pydantic_core import core_schema
 
 from ..base.base import BaseState
 from .schema import ValueConfidence
@@ -48,6 +50,19 @@ class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
         # Get best value
         best = state.get_best_value("name")  # ValueConfidence(value="John", confidence=0.9)
     """
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        _source_type: Any,
+        _handler: Any,
+    ) -> core_schema.CoreSchema:
+        """Generate Pydantic core schema for BaseInterpretiveState.
+
+        Returns an is-instance schema that validates the value is an instance
+        of BaseInterpretiveState without inspecting its generic type parameters.
+        """
+        return core_schema.is_instance_schema(cls)
 
     @abstractmethod
     def add_inference(self, path: str, inference: Inference) -> None:

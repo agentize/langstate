@@ -22,6 +22,7 @@ from .mutator import (
     BaseMutator,
     MutationContext,
     MutationResult,
+    StructuredInput,
 )
 from .evaluator import (
     BaseEvaluator,
@@ -78,6 +79,7 @@ __all__ = [
     "BaseMutator",
     "MutationContext",
     "MutationResult",
+    "StructuredInput",
     # Evaluator
     "BaseEvaluator",
     "Evaluator",

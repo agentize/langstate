@@ -13,7 +13,7 @@ from .schema import (
     FieldComparison,
     StateComparison,
 )
-from ..mutator.base.schema import MutationContext
+from ..mutator.llm.schema import MutationContext
 from ..state.interpretive.base import BaseInterpretiveState
 from ..state.interpretive.state import InterpretiveState
 from ..state.interpretive.schema import ValueConfidence

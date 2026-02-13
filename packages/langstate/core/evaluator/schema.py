@@ -11,7 +11,7 @@ from typing import Annotated, Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from ..mutator.base.base import BaseMutator
-from ..mutator.base.schema import StructuredInput
+from ..mutator.llm.schema import MutationContext, StructuredInput
 from ..state.interpretive.base import BaseInterpretiveState
 from ..state.interpretive.schema import ValueConfidence
 
@@ -25,7 +25,7 @@ class EvaluationContext(BaseModel):
     """
 
     mutator: Annotated[
-        BaseMutator,
+        BaseMutator[MutationContext],
         Field(description="The mutator instance to evaluate."),
     ]
     pre_state: Annotated[
