@@ -7,6 +7,9 @@ from core.spec_extractor.base.schema import Schema
 from core.state.canonical.base import BaseCanonicalState
 from core.state.canonical.state import CanonicalState
 from core.state.state import State
+from pydantic_core import core_schema as _core_schema
+
+from core.state.base.state import State
 from core.state.interpretive.base import BaseInterpretiveState
 from core.state.interpretive.schema import (
     Inference,
@@ -25,7 +28,7 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
     - "guests.0.email" for array elements
 
     Values are InterpretiveFieldState objects with:
-    - inference: List of inferences about the field
+    - inference: Optional single inference about the field (latest overwrites)
     - values: List of value-confidence pairs
     """
 
@@ -90,7 +93,7 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
             inference: The inference to add
         """
         field_state = self._get_or_create_field_state(path)
-        field_state.inference.append(inference)
+        field_state.inference = inference
 
     def add_value(self, path: str, value_confidence: ValueConfidence) -> None:
         """Add a value-confidence pair to a field.
@@ -134,7 +137,16 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
             return value
 
         # Create new field state
-        new_field_state = InterpretiveFieldState(inference=[], values=[])
+        new_field_state = InterpretiveFieldState(inference=None, values=[])
         self.set_field(path, new_field_state)
 
         return new_field_state
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):  # type: ignore
+        """Provide a pydantic-core schema so Pydantic can accept this custom type.
+
+        We treat the class as an opaque instance type — pydantic will accept instances
+        of `InterpretiveState` without attempting to generate a detailed schema.
+        """
+        return _core_schema.is_instance_schema(cls)
