@@ -2,7 +2,8 @@ import json
 from uuid import uuid4
 
 from core.mutator.base.base import BaseMutator
-from core.mutator.base.schema import MutationContext, MutationResult
+from core.mutator.base.schema import MutationResult
+from core.mutator.llm.schema import MutationContext
 from core.mutator.llm.client.base import BaseLLMClient
 from core.mutator.llm.client.schema import FieldExtraction
 from core.state.interpretive.schema import Inference, ValueConfidence
@@ -26,7 +27,7 @@ Return ONLY a JSON array, no other text. Example:
 """
 
 
-class LLMMutator(BaseMutator):
+class LLMMutator(BaseMutator[MutationContext]):
     """Mutator that uses an LLM to extract field values from user input."""
 
     def __init__(self, llm_client: BaseLLMClient) -> None:
