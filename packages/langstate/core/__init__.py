@@ -2,15 +2,15 @@
 
 This module provides the base interfaces and implementations for LangState:
 - Action: Execute business logic when state is complete
-- Mutator: Process user input and update interpretive state
+- Mutator: Process user input and update state
 - Projector: Transform state to external representations (UI, Canonical)
 - SpecExtractor: Load and parse schema definitions
-- State: Manage canonical and interpretive state
+- State: Manage structured state
 - LangState: Main orchestrator coordinating all components
 """
 
 from .state.base import BaseState
-from .state.interpretive.schema import Inference, ValueConfidence
+from .state.schema import Inference, ValueConfidence, StateField, StateSchema
 from .action import (
     BaseAction,
     ActionStatus,
@@ -44,9 +44,7 @@ from .spec_extractor import (
 from .state import (
     BaseCanonicalState,
     CanonicalStateSchema,
-    BaseInterpretiveState,
-    InterpretiveFieldState,
-    InterpretiveStateSchema,
+    State,
     BaseSnapshotStore,
 )
 from .langstate import (
@@ -55,7 +53,7 @@ from .langstate import (
     AgentInput,
     InteractionType,
     InteractionRequest,
-    ActionResultData,
+    StateResultData,
     LangStateConfig,
 )
 
@@ -90,15 +88,15 @@ __all__ = [
     "SchemaField",
     # State - Base
     "BaseState",
+    "State",
+    "StateSchema",
+    "StateField",
     "Inference",
     "ValueConfidence",
     # State - Canonical
     "BaseCanonicalState",
     "CanonicalStateSchema",
-    # State - Interpretive
-    "BaseInterpretiveState",
-    "InterpretiveFieldState",
-    "InterpretiveStateSchema",
+    # State - Snapshot
     "BaseSnapshotStore",
     # LangState Orchestrator
     "LangState",
@@ -106,6 +104,6 @@ __all__ = [
     "AgentInput",
     "InteractionType",
     "InteractionRequest",
-    "ActionResultData",
+    "StateResultData",
     "LangStateConfig",
 ]

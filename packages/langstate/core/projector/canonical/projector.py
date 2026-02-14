@@ -1,10 +1,9 @@
 """Canonical State Projector interface for LangState.
 
 The Canonical State Projector is responsible for:
-- Receiving the interpretive state from the Mutator
+- Receiving the current state from the Mutator
 - Validating constraints
 - Resolving value-confidence pairs to single values
-- Triggering actions when validation passes
 - Updating canonical state
 """
 
@@ -23,10 +22,9 @@ class BaseProjectorCanonicalState(
 ):
     """Abstract base class for Canonical State Projector implementations.
 
-    The Canonical State Projector receives the interpretive state (with inference
+    The Canonical State Projector receives current state (with inference
     and value-confidence pairs) from the Mutator, validates constraints, and
-    produces the canonical state (with resolved values). It can also trigger
-    actions when validation passes.
+    produces a canonical projection (with resolved values).
 
     This can be implemented as:
     - A conventional function (rule-based, highest confidence, etc.)
@@ -39,18 +37,13 @@ class BaseProjectorCanonicalState(
                 self,
                 context: CanonicalProjectionContext
             ) -> CanonicalProjectionResult:
-                # Start with current canonical state or create new one
-                new_canonical_state = (
-                    context.canonical_state.copy()
-                    if context.canonical_state
-                    else {}
-                )
+                # Build a new canonical projection from current state
+                new_canonical_state = {}
                 resolved = {}
                 pending = []
-                actions = []
 
-                # Iterate through interpretive state fields
-                for field_id, field_data in context.interpretive_state.items():
+                # Iterate through state fields
+                for field_id, field_data in context.state.items():
                     values = field_data.get("values", [])
                     if not values:
                         pending.append(field_id)
@@ -68,9 +61,6 @@ class BaseProjectorCanonicalState(
                         if is_valid:
                             resolved[field_id] = top_value["value"]
                             new_canonical_state[field_id] = top_value["value"]
-                            # Check if action should be triggered
-                            if self._should_trigger_action(context, field_id):
-                                actions.append(f"action_{field_id}")
                         else:
                             pending.append(field_id)
                     else:
@@ -79,8 +69,7 @@ class BaseProjectorCanonicalState(
                 return CanonicalProjectionResult(
                     updated_state=new_canonical_state,
                     resolved_fields=resolved,
-                    pending_fields=pending,
-                    actions_triggered=actions
+                    pending_fields=pending
                 )
     """
 
@@ -88,29 +77,16 @@ class BaseProjectorCanonicalState(
     async def project(
         self, context: CanonicalProjectionContext
     ) -> CanonicalProjectionResult:
-        """Resolve interpretive state to canonical state and validate.
+        """Resolve current state to canonical projection and validate.
 
-        This method analyzes the interpretive state with value-confidence pairs,
-        validates constraints, and produces a canonical state with resolved values.
-        Can also trigger actions when validation passes.
-
-        Args:
-            context: CanonicalProjectionContext with interpretive state and current canonical state
-
-        Returns:
-            CanonicalProjectionResult with updated canonical state and any triggered actions
-        """
-        pass
-
-    @abstractmethod
-    async def can_trigger_action(self, context: CanonicalProjectionContext) -> bool:
-        """Check if current state allows triggering an action.
+        This method analyzes state with value-confidence pairs, validates
+        constraints, and produces a canonical projection with resolved values.
 
         Args:
-            context: CanonicalProjectionContext with current states
+            context: CanonicalProjectionContext with current state and projection hints
 
         Returns:
-            Boolean indicating whether an action can be triggered
+            CanonicalProjectionResult with updated canonical state
         """
         pass
 

@@ -5,7 +5,7 @@ Abstract base classes for a generic observer pattern.
 """
 
 from abc import ABC, abstractmethod
-from typing import Generic, Tuple, TypeVar, List
+from typing import Generic, List, Tuple, TypeVar
 
 E = TypeVar("E")  # Event payload type
 
@@ -14,7 +14,7 @@ class BaseObserver(Generic[E], ABC):
     """Interface for observers that react to subject notifications."""
 
     @abstractmethod
-    def notified(self, subject: "BaseSubject[E]", event: E) -> None:
+    async def notified(self, subject: "BaseSubject[E]", event: E) -> object:
         """Receive a notification from a subject."""
         pass
 
@@ -39,11 +39,9 @@ class BaseSubject(Generic[E], ABC):
         pass
 
     @abstractmethod
-    def notify(self, event: E) -> None:
+    async def notify(self, event: E) -> List[object]:
         """Notify all observers about an event."""
         pass
-
-
 
 class Subject(BaseSubject[E], Generic[E]):
     """Simple subject that manages a list of observers."""
@@ -74,7 +72,9 @@ class Subject(BaseSubject[E], Generic[E]):
                 del self._observers[index]
                 break
 
-    def notify(self, event: E) -> None:
+    async def notify(self, event: E) -> List[object]:
         """Notify all observers in registration order."""
+        results: List[object] = []
         for observer in tuple(self._observers):
-            observer.notified(self, event)
+            results.append(await observer.notified(self, event))
+        return results

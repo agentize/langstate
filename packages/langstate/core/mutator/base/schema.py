@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...state.interpretive.state import InterpretiveState
+from ...state.state import State
 
 
 class MutationContext(BaseModel):
@@ -23,11 +23,8 @@ class MutationContext(BaseModel):
         ),
     ]
     state: Annotated[
-        InterpretiveState,
-        Field(
-            description="Current interpretive state implementation instance. "
-            "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"
-        ),
+        State,
+        Field(description="Current state implementation instance"),
     ]
     metadata: Annotated[
         Dict[str, Any] | None,
@@ -40,12 +37,9 @@ class MutationResult(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    updated_state: Annotated[
-        InterpretiveState,
-        Field(
-            description="The updated interpretive state implementation instance after mutation. "
-            "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"
-        ),
+    state: Annotated[
+        State,
+        Field(description="The updated state implementation instance after mutation"),
     ]
     metadata: Annotated[
         Dict[str, Any] | None,

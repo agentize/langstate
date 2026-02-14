@@ -6,7 +6,7 @@ from .base import (
     AgentInput,
     InteractionType,
     InteractionRequest,
-    ActionResultData,
+    StateResultData,
     LangStateConfig,
 )
 
@@ -16,6 +16,6 @@ __all__ = [
     "AgentInput",
     "InteractionType",
     "InteractionRequest",
-    "ActionResultData",
+    "StateResultData",
     "LangStateConfig",
 ]

@@ -8,8 +8,7 @@ from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from ...state.interpretive.schema import InterpretiveStateSchema
-from ...state.canonical.schema import CanonicalStateSchema
+from ...state.schema import StateSchema
 
 
 class InputType(str, Enum):
@@ -257,15 +256,8 @@ class InteractionRequest(BaseModel):
         ),
     ]
     state: Annotated[
-        Optional[InterpretiveStateSchema],
-        Field(default=None, description="Current interpretive state"),
-    ]
-    canonical_state: Annotated[
-        Optional[CanonicalStateSchema],
-        Field(
-            default=None,
-            description="Canonical state with resolved values (business state)",
-        ),
+        Optional[StateSchema],
+        Field(default=None, description="Current state snapshot"),
     ]
     pending_fields: Annotated[
         List[str],
@@ -277,24 +269,20 @@ class InteractionRequest(BaseModel):
     ]
 
 
-class ActionResultData(BaseModel):
-    """Result returned when the flow is complete and action can be taken."""
+class StateResultData(BaseModel):
+    """Result returned when the flow is complete."""
 
     state: Annotated[
-        InterpretiveStateSchema,
-        Field(description="Final interpretive state with all field snapshots"),
-    ]
-    canonical_state: Annotated[
-        CanonicalStateSchema,
-        Field(description="Final canonical state with resolved values for action"),
+        StateSchema,
+        Field(description="Final state with all field snapshots"),
     ]
     success: Annotated[
         bool,
         Field(default=True, description="Whether the flow completed successfully"),
     ]
-    action_data: Annotated[
+    data: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Data to be used for the action"),
+        Field(default_factory=dict, description="Additional output data"),
     ]
     metadata: Annotated[
         Dict[str, object],
@@ -311,7 +299,7 @@ class LangStateConfig(BaseModel):
     ]
     confidence_threshold: Annotated[
         float,
-        Field(default=0.7, description="Minimum confidence for auto-canonicalization"),
+        Field(default=0.7, description="Default confidence threshold for projection"),
     ]
     require_confirmation: Annotated[
         bool,

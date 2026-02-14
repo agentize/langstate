@@ -54,7 +54,7 @@ class CanonicalProjectionResult(ProjectionResult):
         Dict[str, object],
         Field(
             default_factory=dict,
-            description="Fields that were successfully resolved from interpretive state",
+            description="Fields that were successfully resolved from current state",
         ),
     ]
     pending_fields: Annotated[
@@ -72,12 +72,5 @@ class CanonicalProjectionResult(ProjectionResult):
         Dict[str, object],
         Field(
             default_factory=dict, description="Fields that require user confirmation"
-        ),
-    ]
-    actions_triggered: Annotated[
-        List[str],
-        Field(
-            default_factory=list,
-            description="List of actions that were triggered based on validation",
         ),
     ]

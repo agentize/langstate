@@ -1,7 +1,12 @@
 """State module exports."""
 
 from .base import BaseState
-from .interpretive.schema import Inference, ValueConfidence
+from .schema import (
+    Inference,
+    ValueConfidence,
+    StateField,
+    StateSchema,
+)
 from .state import State
 from .canonical import (
     BaseCanonicalState,
@@ -23,6 +28,8 @@ __all__ = [
     "BaseState",
     "Inference",
     "State",
+    "StateSchema",
+    "StateField",
     "ValueConfidence",
     # Canonical
     "BaseCanonicalState",
