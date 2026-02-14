@@ -142,7 +142,7 @@ class TestInMemorySnapshotStoreWithInterpretiveState:
         state.set_field(
             "name",
             InterpretiveFieldState(
-                values=[ValueConfidence(value="John", confidence=0.9)]
+                inference=None, values=[ValueConfidence(value="John", confidence=0.9)]
             ),
         )
         return state
@@ -162,7 +162,7 @@ class TestInMemorySnapshotStoreWithInterpretiveState:
         sample_state.set_field(
             "name",
             InterpretiveFieldState(
-                values=[ValueConfidence(value="Jane", confidence=0.8)]
+                inference=None, values=[ValueConfidence(value="Jane", confidence=0.8)]
             ),
         )
 

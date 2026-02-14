@@ -4,7 +4,7 @@ This module contains all data models used by the Interpretive State.
 Interpretive State uses rich format with inferences and value-confidence pairs.
 """
 
-from typing import Annotated, Dict, List
+from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field, RootModel
 
@@ -14,27 +14,36 @@ class Inference(BaseModel):
 
     content: Annotated[str, Field(description="Description of the inference/reasoning")]
     mutator_id: Annotated[
-        str,
+        Optional[str],
         Field(description="Identifier of the mutator that generated this inference"),
-    ] = "unknown"
+    ] = None
+    message_id: Annotated[
+        Optional[str],
+        Field(description="Message ID associated with this inference"),
+    ] = None
 
 
 class ValueConfidence(BaseModel):
     """Value with associated confidence score."""
 
     value: Annotated[object, Field(description="The actual value")]
-    confidence: Annotated[float, Field(description="Confidence score (0.0 to 1.0)")] = (
-        0.0
-    )
+    confidence: Annotated[
+        float,
+        Field(
+            ge=-1.0,
+            le=1.0,
+            description="Confidence score from -1.0 to 1.0",
+        ),
+    ] = 0.0
 
 
 class InterpretiveFieldState(BaseModel):
     """Rich state for a single field with inference and values."""
 
     inference: Annotated[
-        List[Inference],
-        Field(description="List of inference/reasoning steps"),
-    ] = []
+        Optional[Inference],
+        Field(description="Latest inference/reasoning step"),
+    ] = None
     values: Annotated[
         List[ValueConfidence],
         Field(description="List of candidate values with confidence scores"),
@@ -44,14 +53,16 @@ class InterpretiveFieldState(BaseModel):
 class InterpretiveStateSchema(RootModel[Dict[str, InterpretiveFieldState]]):
     """Interpretive state representation: rich format with inference and values.
 
-    Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
+    Format: {key: {inference: {content, mutator_id, message_id} | null, values: [{value, confidence}]}}
 
     Example:
         {
             "name": {
-                "inference": [
-                    {"content": "Extracted from input", "mutator_id": "extractor_1"}
-                ],
+                "inference": {
+                    "content": "Extracted from input",
+                    "mutator_id": "extractor_1",
+                    "message_id": "msg_123"
+                },
                 "values": [
                     {"value": "John Doe", "confidence": 0.95}
                 ]

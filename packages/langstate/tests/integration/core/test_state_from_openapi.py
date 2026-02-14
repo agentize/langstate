@@ -521,7 +521,7 @@ class TestInterpretiveStatePopulation:
         assert best.confidence == 0.95
 
     def test_add_inference(self, interpretive_state: InterpretiveState) -> None:
-        """Verify inferences can be added to fields."""
+        """Verify inferences can be added to fields and latest overwrites previous."""
         interpretive_state.add_inference(
             "event.name",
             Inference(
@@ -539,9 +539,9 @@ class TestInterpretiveStatePopulation:
 
         field_state = interpretive_state.get_field("event.name")
         assert field_state is not None
-        assert len(field_state.inference) == 2
-        assert field_state.inference[0].content == "Extracted from form submission"
-        assert field_state.inference[1].mutator_id == "event_validator_v1"
+        assert field_state.inference is not None
+        assert field_state.inference.content == "Validated against event database"
+        assert field_state.inference.mutator_id == "event_validator_v1"
 
     def test_populate_guests_with_values_and_inferences(
         self, interpretive_state: InterpretiveState
@@ -1029,7 +1029,8 @@ class TestFullWorkflow:
         field_state = interpretive.get_field("registrant.name")
         assert field_state is not None
         assert len(field_state.values) >= 2  # Original + our addition
-        assert len(field_state.inference) >= 1  # Our inference
+        assert field_state.inference is not None  # Our inference
+        assert field_state.inference.content == "Updated from user edit"
 
         # Step 6: Verify exports work - cast to concrete types for type safety
         assert isinstance(canonical, CanonicalState)

@@ -81,12 +81,12 @@ class TestInterpretiveStateAddInference:
 
         field_state = state.get_field("name")
         assert field_state is not None
-        assert len(field_state.inference) == 1
-        assert field_state.inference[0].content == "User said 'my name is John'"
-        assert field_state.inference[0].mutator_id == "llm"
+        assert field_state.inference is not None
+        assert field_state.inference.content == "User said 'my name is John'"
+        assert field_state.inference.mutator_id == "llm"
 
     def test_add_inference_existing_field(self) -> None:
-        """add_inference should append to existing field."""
+        """add_inference should overwrite existing inference."""
         state = InterpretiveState()
         state.add_inference(
             "name", Inference(content="First inference", mutator_id="llm1")
@@ -98,7 +98,9 @@ class TestInterpretiveStateAddInference:
 
         field_state = state.get_field("name")
         assert field_state is not None
-        assert len(field_state.inference) == 2
+        assert field_state.inference is not None
+        assert field_state.inference.content == "Second inference"
+        assert field_state.inference.mutator_id == "llm2"
 
     def test_add_inference_with_default_mutator_id(self) -> None:
         """add_inference should use default mutator_id."""
@@ -109,7 +111,8 @@ class TestInterpretiveStateAddInference:
 
         field_state = state.get_field("name")
         assert field_state is not None
-        assert field_state.inference[0].mutator_id == "unknown"
+        assert field_state.inference is not None
+        assert field_state.inference.mutator_id == "unknown"
 
 
 class TestInterpretiveStateGetBestValue:
@@ -219,7 +222,7 @@ class TestInterpretiveStateCopy:
         assert len(field_state.values) == 2
 
     def test_copy_preserves_inferences(self) -> None:
-        """copy should preserve all inferences."""
+        """copy should preserve inference."""
         state = InterpretiveState()
         state.add_inference("name", Inference(content="inference1", mutator_id="llm"))
         state.add_inference("name", Inference(content="inference2", mutator_id="llm"))
@@ -228,7 +231,9 @@ class TestInterpretiveStateCopy:
 
         field_state = copied.get_field("name")
         assert field_state is not None
-        assert len(field_state.inference) == 2
+        assert field_state.inference is not None
+        assert field_state.inference.content == "inference2"
+        assert field_state.inference.mutator_id == "llm"
 
     def test_copy_is_deep(self) -> None:
         """copy should be a deep copy."""
@@ -291,7 +296,7 @@ class TestInterpretiveStateIsFieldFilled:
         """Field with values should be considered filled."""
         state = InterpretiveState()
         field_state = InterpretiveFieldState(
-            inference=[], values=[ValueConfidence(value="test", confidence=0.9)]
+            inference=None, values=[ValueConfidence(value="test", confidence=0.9)]
         )
 
         assert state._is_field_filled(field_state) is True
@@ -299,7 +304,7 @@ class TestInterpretiveStateIsFieldFilled:
     def test_is_field_filled_empty_values(self) -> None:
         """Field with no values should not be considered filled."""
         state = InterpretiveState()
-        field_state = InterpretiveFieldState(inference=[], values=[])
+        field_state = InterpretiveFieldState(inference=None, values=[])
 
         assert state._is_field_filled(field_state) is False
 
@@ -307,7 +312,7 @@ class TestInterpretiveStateIsFieldFilled:
         """Field with only inference (no values) should not be filled."""
         state = InterpretiveState()
         field_state = InterpretiveFieldState(
-            inference=[Inference(content="test", mutator_id="llm")], values=[]
+            inference=Inference(content="test", mutator_id="llm"), values=[]
         )
 
         assert state._is_field_filled(field_state) is False
@@ -397,7 +402,7 @@ class TestInterpretiveStateGetOrCreateFieldState:
         field_state = state._get_or_create_field_state("new_field")
 
         assert isinstance(field_state, InterpretiveFieldState)
-        assert len(field_state.inference) == 0
+        assert field_state.inference is None
         assert len(field_state.values) == 0
 
 
@@ -488,7 +493,8 @@ class TestInterpretiveStateEdgeCases:
 
         field_state = state.get_field("name")
         assert field_state is not None
-        assert len(field_state.inference) == 2
+        assert field_state.inference is not None
+        assert field_state.inference.content == "Confirmed"
         assert len(field_state.values) == 2
 
     def test_empty_state_operations(self) -> None:
