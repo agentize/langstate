@@ -6,6 +6,9 @@ notification using the observer pattern.
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union, cast
+from typing import Callable, Dict, Generic, List, Optional, Union
+
+from ...mutator.base.base import TContext
 
 from ...data_structure.observer.base import Subject
 from ...mutator import BaseMutator
@@ -21,8 +24,8 @@ from .schema import (
 )
 
 
-class LangState(Subject, ABC):
-    """Abstract base class for the LangState orchestrator.
+class LangState(ABC, Generic[TContext]):
+    """Abstract base class for the main LangState orchestrator (Agent).
 
     LangState is intentionally state-type agnostic at the top level:
     it manages one current state object and notifies all projector observers
@@ -87,8 +90,12 @@ class LangState(Subject, ABC):
         """Set the schema directly."""
         self._schema = schema
 
-    def set_mutator(self, mutator: BaseMutator) -> None:
-        """Set a custom Mutator implementation."""
+    def set_mutator(self, mutator: BaseMutator[TContext]) -> None:
+        """Set a custom Mutator implementation.
+
+        Args:
+            mutator: Custom Mutator instance
+        """
         self._mutator = mutator
 
     def remove_mutator(self) -> None:
@@ -142,7 +149,7 @@ class LangState(Subject, ABC):
         return self._spec_extractor
 
     @property
-    def mutator(self) -> Optional[BaseMutator]:
+    def mutator(self) -> Optional[BaseMutator[TContext]]:
         """Get the current mutator."""
         return self._mutator
 

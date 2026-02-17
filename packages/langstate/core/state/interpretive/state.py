@@ -1,6 +1,6 @@
 """Interpretive State implementation using DAH storage."""
 
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Self
 
 from core.spec_extractor.base.schema import Schema
@@ -9,7 +9,6 @@ from core.state.canonical.state import CanonicalState
 from core.state.state import State
 from pydantic_core import core_schema as _core_schema
 
-from core.state.base.state import State
 from core.state.interpretive.base import BaseInterpretiveState
 from core.state.interpretive.schema import (
     Inference,
@@ -143,10 +142,12 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
         return new_field_state
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, source_type, handler):  # type: ignore
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Any
+    ) -> core_schema.CoreSchema:
         """Provide a pydantic-core schema so Pydantic can accept this custom type.
 
         We treat the class as an opaque instance type — pydantic will accept instances
         of `InterpretiveState` without attempting to generate a detailed schema.
         """
-        return _core_schema.is_instance_schema(cls)
+        return core_schema.is_instance_schema(cls)

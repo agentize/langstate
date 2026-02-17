@@ -9,6 +9,13 @@ Uses DAH for internal storage with field paths as node identifiers.
 
 from ..base import BaseState
 from .schema import InterpretiveFieldState
+from abc import abstractmethod
+from typing import Any, Optional
+
+from pydantic_core import core_schema
+
+from .schema import ValueConfidence
+from .schema import Inference, InterpretiveFieldState
 
 
 class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
@@ -45,4 +52,47 @@ class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
         best = state.get_best_value("name")  # ValueConfidence(value="John", confidence=0.9)
     """
 
-    pass
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        _source_type: Any,
+        _handler: Any,
+    ) -> core_schema.CoreSchema:
+        """Generate Pydantic core schema for BaseInterpretiveState.
+
+        Returns an is-instance schema that validates the value is an instance
+        of BaseInterpretiveState without inspecting its generic type parameters.
+        """
+        return core_schema.is_instance_schema(cls)
+
+    @abstractmethod
+    def add_inference(self, path: str, inference: Inference) -> None:
+        """Add an inference to a field.
+
+        Args:
+            path: The field path (e.g., "name" or "guests.0.email")
+            inference: The inference to add
+        """
+        pass
+
+    @abstractmethod
+    def add_value(self, path: str, value_confidence: ValueConfidence) -> None:
+        """Add a value-confidence pair to a field.
+
+        Args:
+            path: The field path (e.g., "name" or "guests.0.email")
+            value_confidence: The value with confidence
+        """
+        pass
+
+    @abstractmethod
+    def get_best_value(self, path: str) -> Optional[ValueConfidence]:
+        """Get the value with highest confidence for a field.
+
+        Args:
+            path: The field path (e.g., "name" or "guests.0.email")
+
+        Returns:
+            ValueConfidence with highest confidence, None if no values
+        """
+        pass
