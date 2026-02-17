@@ -3,15 +3,15 @@
 from .llm.client.base import BaseLLMClient
 from .base import (
     BaseMutator,
-    MutationContext,
     MutationResult,
 )
-from .llm import LLMMutator
+from .llm import LLMMutator, MutationContext, StructuredInput
 
 __all__ = [
     "BaseMutator",
     "MutationContext",
     "MutationResult",
+    "StructuredInput",
     "BaseLLMClient",
     "LLMMutator",
 ]
