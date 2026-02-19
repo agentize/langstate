@@ -5,11 +5,9 @@ Tests the BaseStateRepository interface and InMemoryStateRepository implementati
 
 import pytest
 
-from core.state.canonical.base import BaseCanonicalState
-from core.state.canonical.state import CanonicalState
-from core.state.interpretive.base import BaseInterpretiveState
-from core.state.interpretive.schema import ValueConfidence
-from core.state.interpretive.state import InterpretiveState
+from core.state.state.base import BaseState
+from core.state.state.state import State
+from core.state.state.schema import ValueConfidence
 from core.state.repository.memory import InMemoryStateRepository
 
 
@@ -17,13 +15,13 @@ class TestInMemoryStateRepository:
     """Tests for InMemoryStateRepository base implementation."""
 
     @pytest.fixture
-    def repository(self) -> InMemoryStateRepository[CanonicalState]:
+    def repository(self) -> InMemoryStateRepository[State]:
         """Create a fresh repository for each test."""
-        return InMemoryStateRepository[CanonicalState]()
+        return InMemoryStateRepository[State]()
 
     @pytest.mark.asyncio
     async def test_get_nonexistent_returns_none(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """get should return None for non-existent state_id."""
         result = await repository.get("nonexistent")
@@ -32,41 +30,45 @@ class TestInMemoryStateRepository:
 
     @pytest.mark.asyncio
     async def test_save_and_get(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """save and get should work together."""
-        state = CanonicalState()
-        state.set_field("name", "John")
+        state = State()
+        state.add_value("name", ValueConfidence(value="John", confidence=0.9))
 
         await repository.save("test_id", state)
         result = await repository.get("test_id")
 
         assert result is not None
-        assert result.get_field("name") == "John"
+        best = result.get_best_value("name")
+        assert best is not None
+        assert best.value == "John"
 
     @pytest.mark.asyncio
     async def test_save_overwrites_existing(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """save should overwrite existing state."""
-        state1 = CanonicalState()
-        state1.set_field("name", "John")
-        state2 = CanonicalState()
-        state2.set_field("name", "Jane")
+        state1 = State()
+        state1.add_value("name", ValueConfidence(value="John", confidence=0.9))
+        state2 = State()
+        state2.add_value("name", ValueConfidence(value="Jane", confidence=0.9))
 
         await repository.save("test_id", state1)
         await repository.save("test_id", state2)
         result = await repository.get("test_id")
 
         assert result is not None
-        assert result.get_field("name") == "Jane"
+        best = result.get_best_value("name")
+        assert best is not None
+        assert best.value == "Jane"
 
     @pytest.mark.asyncio
     async def test_delete_existing(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """delete should remove existing state and return True."""
-        state = CanonicalState()
+        state = State()
         await repository.save("test_id", state)
 
         result = await repository.delete("test_id")
@@ -76,7 +78,7 @@ class TestInMemoryStateRepository:
 
     @pytest.mark.asyncio
     async def test_delete_nonexistent(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """delete should return False for non-existent state_id."""
         result = await repository.delete("nonexistent")
@@ -85,10 +87,10 @@ class TestInMemoryStateRepository:
 
     @pytest.mark.asyncio
     async def test_exists_true(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """exists should return True for existing state."""
-        state = CanonicalState()
+        state = State()
         await repository.save("test_id", state)
 
         result = await repository.exists("test_id")
@@ -97,7 +99,7 @@ class TestInMemoryStateRepository:
 
     @pytest.mark.asyncio
     async def test_exists_false(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """exists should return False for non-existent state."""
         result = await repository.exists("nonexistent")
@@ -105,12 +107,10 @@ class TestInMemoryStateRepository:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_clear(
-        self, repository: InMemoryStateRepository[CanonicalState]
-    ) -> None:
+    async def test_clear(self, repository: InMemoryStateRepository[State]) -> None:
         """clear should remove all states."""
-        state1 = CanonicalState()
-        state2 = CanonicalState()
+        state1 = State()
+        state2 = State()
         await repository.save("id1", state1)
         await repository.save("id2", state2)
 
@@ -121,75 +121,82 @@ class TestInMemoryStateRepository:
 
     @pytest.mark.asyncio
     async def test_get_or_create_existing(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """get_or_create should return existing state."""
-        existing = CanonicalState()
-        existing.set_field("source", "existing")
+        existing = State()
+        existing.add_value("source", ValueConfidence(value="existing", confidence=0.9))
         await repository.save("test_id", existing)
 
-        def factory() -> CanonicalState:
-            new = CanonicalState()
-            new.set_field("source", "factory")
+        def factory() -> State:
+            new = State()
+            new.add_value("source", ValueConfidence(value="factory", confidence=0.9))
             return new
 
         result = await repository.get_or_create("test_id", factory)
 
-        assert result.get_field("source") == "existing"
+        best = result.get_best_value("source")
+        assert best is not None
+        assert best.value == "existing"
 
     @pytest.mark.asyncio
     async def test_get_or_create_new(
-        self, repository: InMemoryStateRepository[CanonicalState]
+        self, repository: InMemoryStateRepository[State]
     ) -> None:
         """get_or_create should create and save new state."""
 
-        def factory() -> CanonicalState:
-            state = CanonicalState()
-            state.set_field("source", "factory")
+        def factory() -> State:
+            state = State()
+            state.add_value("source", ValueConfidence(value="factory", confidence=0.9))
             return state
 
         result = await repository.get_or_create("new_id", factory)
 
-        assert result.get_field("source") == "factory"
+        best = result.get_best_value("source")
+        assert best is not None
+        assert best.value == "factory"
         # Should also be saved
         saved = await repository.get("new_id")
         assert saved is not None
-        assert saved.get_field("source") == "factory"
+        best_saved = saved.get_best_value("source")
+        assert best_saved is not None
+        assert best_saved.value == "factory"
 
 
-class TestInMemoryCanonicalStateRepository:
-    """Tests for InMemoryStateRepository with CanonicalState."""
+class TestInMemoryStateRepositoryWithBaseState:
+    """Tests for InMemoryStateRepository with BaseState."""
 
     @pytest.fixture
-    def repository(self) -> InMemoryStateRepository[BaseCanonicalState]:
+    def repository(self) -> InMemoryStateRepository[BaseState]:
         """Create a fresh repository for each test."""
-        return InMemoryStateRepository[BaseCanonicalState]()
+        return InMemoryStateRepository[BaseState]()
 
     @pytest.mark.asyncio
-    async def test_save_and_get_canonical_state(
-        self, repository: InMemoryStateRepository[BaseCanonicalState]
+    async def test_save_and_get_state(
+        self, repository: InMemoryStateRepository[BaseState]
     ) -> None:
-        """Should work with CanonicalState."""
-        state = CanonicalState()
-        state.set_field("name", "John")
-        state.set_field("age", 30)
+        """Should work with State."""
+        state = State()
+        state.add_value("name", ValueConfidence(value="John", confidence=0.9))
+        state.add_value("age", ValueConfidence(value=30, confidence=0.85))
 
-        await repository.save("canonical_1", state)
-        result = await repository.get("canonical_1")
+        await repository.save("state_1", state)
+        result = await repository.get("state_1")
 
         assert result is not None
-        assert result.get_field("name") == "John"
-        assert result.get_field("age") == 30
+        best_name = result.get_best_value("name")
+        assert best_name is not None
+        assert best_name.value == "John"
 
     @pytest.mark.asyncio
     async def test_multiple_states(
-        self, repository: InMemoryStateRepository[BaseCanonicalState]
+        self, repository: InMemoryStateRepository[BaseState]
     ) -> None:
         """Should handle multiple states."""
-        state1 = CanonicalState()
-        state1.set_field("id", "1")
-        state2 = CanonicalState()
-        state2.set_field("id", "2")
+        state1 = State()
+        state1.add_value("id", ValueConfidence(value="1", confidence=0.9))
+        state2 = State()
+        state2.add_value("id", ValueConfidence(value="2", confidence=0.9))
 
         await repository.save("state_1", state1)
         await repository.save("state_2", state2)
@@ -198,29 +205,33 @@ class TestInMemoryCanonicalStateRepository:
         result2 = await repository.get("state_2")
 
         assert result1 is not None
-        assert result1.get_field("id") == "1"
+        best1 = result1.get_best_value("id")
+        assert best1 is not None
+        assert best1.value == "1"
         assert result2 is not None
-        assert result2.get_field("id") == "2"
+        best2 = result2.get_best_value("id")
+        assert best2 is not None
+        assert best2.value == "2"
 
 
-class TestInMemoryInterpretiveStateRepository:
-    """Tests for InMemoryStateRepository with InterpretiveState."""
+class TestInMemoryStateRepositoryVariant:
+    """Tests for InMemoryStateRepository with State (additional)."""
 
     @pytest.fixture
-    def repository(self) -> InMemoryStateRepository[BaseInterpretiveState]:
+    def repository(self) -> InMemoryStateRepository[BaseState]:
         """Create a fresh repository for each test."""
-        return InMemoryStateRepository[BaseInterpretiveState]()
+        return InMemoryStateRepository[BaseState]()
 
     @pytest.mark.asyncio
-    async def test_save_and_get_interpretive_state(
-        self, repository: InMemoryStateRepository[BaseInterpretiveState]
+    async def test_save_and_get_state_with_values(
+        self, repository: InMemoryStateRepository[BaseState]
     ) -> None:
-        """Should work with InterpretiveState."""
-        state = InterpretiveState()
+        """Should work with State."""
+        state = State()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
 
-        await repository.save("interpretive_1", state)
-        result = await repository.get("interpretive_1")
+        await repository.save("state_1", state)
+        result = await repository.get("state_1")
 
         assert result is not None
         best = result.get_best_value("name")
@@ -230,10 +241,10 @@ class TestInMemoryInterpretiveStateRepository:
 
     @pytest.mark.asyncio
     async def test_delete_and_exists(
-        self, repository: InMemoryStateRepository[BaseInterpretiveState]
+        self, repository: InMemoryStateRepository[BaseState]
     ) -> None:
         """delete and exists should work correctly."""
-        state = InterpretiveState()
+        state = State()
         await repository.save("test_id", state)
 
         assert await repository.exists("test_id") is True
@@ -250,8 +261,8 @@ class TestRepositoryEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_state_id(self) -> None:
         """Should handle empty state_id."""
-        repository: InMemoryStateRepository[CanonicalState] = InMemoryStateRepository()
-        state = CanonicalState()
+        repository: InMemoryStateRepository[State] = InMemoryStateRepository()
+        state = State()
 
         await repository.save("", state)
         result = await repository.get("")
@@ -261,8 +272,8 @@ class TestRepositoryEdgeCases:
     @pytest.mark.asyncio
     async def test_special_characters_in_state_id(self) -> None:
         """Should handle special characters in state_id."""
-        repository: InMemoryStateRepository[CanonicalState] = InMemoryStateRepository()
-        state = CanonicalState()
+        repository: InMemoryStateRepository[State] = InMemoryStateRepository()
+        state = State()
 
         special_id = "state/with:special@chars#!"
         await repository.save(special_id, state)
@@ -273,22 +284,24 @@ class TestRepositoryEdgeCases:
     @pytest.mark.asyncio
     async def test_multiple_operations_sequence(self) -> None:
         """Should handle sequence of operations correctly."""
-        repository: InMemoryStateRepository[CanonicalState] = InMemoryStateRepository()
+        repository: InMemoryStateRepository[State] = InMemoryStateRepository()
 
         # Save
-        state1 = CanonicalState()
-        state1.set_field("version", "1")
+        state1 = State()
+        state1.add_value("version", ValueConfidence(value="1", confidence=0.9))
         await repository.save("id", state1)
 
         # Update
-        state2 = CanonicalState()
-        state2.set_field("version", "2")
+        state2 = State()
+        state2.add_value("version", ValueConfidence(value="2", confidence=0.9))
         await repository.save("id", state2)
 
         # Verify
         result = await repository.get("id")
         assert result is not None
-        assert result.get_field("version") == "2"
+        best = result.get_best_value("version")
+        assert best is not None
+        assert best.value == "2"
 
         # Delete
         assert await repository.delete("id") is True

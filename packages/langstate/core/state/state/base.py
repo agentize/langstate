@@ -1,27 +1,26 @@
-"""Interpretive State interface for LangState.
+"""State interface for LangState.
 
-The Interpretive State represents the reasoning process with inferences and confidence scores.
+The State represents the reasoning process with inferences and confidence scores.
 Format: {key: {inference: {content, mutator_id, message_id} | null, values: [{value, confidence}]}}
 
 This state tracks how values were derived and maintains multiple candidate values.
 Uses DAH for internal storage with field paths as node identifiers.
 """
 
-from ..base import BaseState
-from .schema import InterpretiveFieldState
 from abc import abstractmethod
 from typing import Any, Optional
 
 from pydantic_core import core_schema
 
+from ..base.base import BaseBasicState
 from .schema import ValueConfidence
-from .schema import Inference, InterpretiveFieldState
+from .schema import Inference, StateField
 
 
-class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
-    """Interpretive State interface.
+class BaseState(BaseBasicState[StateField]):
+    """State interface.
 
-    The Interpretive State stores field values with optional inference and confidence scores.
+    The State stores field values with optional inference and confidence scores.
     This is the state used during conversation to track reasoning and multiple candidates.
     Uses DAH internally with path-based field addressing.
 
@@ -34,7 +33,7 @@ class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
         }
 
     Example:
-        state = InterpretiveStateImpl()
+        state = State()
 
         # Add inference and value
         state.add_inference("name", Inference(
@@ -58,10 +57,10 @@ class BaseInterpretiveState(BaseState[InterpretiveFieldState]):
         _source_type: Any,
         _handler: Any,
     ) -> core_schema.CoreSchema:
-        """Generate Pydantic core schema for BaseInterpretiveState.
+        """Generate Pydantic core schema for BaseState.
 
         Returns an is-instance schema that validates the value is an instance
-        of BaseInterpretiveState without inspecting its generic type parameters.
+        of BaseState without inspecting its generic type parameters.
         """
         return core_schema.is_instance_schema(cls)
 

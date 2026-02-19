@@ -3,23 +3,13 @@
 This module contains all data models used by the Canonical State Projector interface.
 """
 
-from enum import Enum
 from typing import Annotated, Dict, List
 
 from pydantic import Field
 
+from core.state.state.base import BaseState
+
 from ..base.schema import ProjectionContext, ProjectionResult
-from ...state.canonical.schema import CanonicalStateSchema
-
-
-class CanonicalProjectionStrategy(str, Enum):
-    """Strategy for resolving multiple candidate values to canonical state."""
-
-    HIGHEST_CONFIDENCE = "highest_confidence"
-    THRESHOLD = "threshold"
-    LLM_RESOLVE = "llm_resolve"
-    MANUAL = "manual"
-    CUSTOM = "custom"
 
 
 class CanonicalProjectionContext(ProjectionContext):
@@ -28,13 +18,6 @@ class CanonicalProjectionContext(ProjectionContext):
     Extends ProjectionContext with canonical projection-specific fields.
     """
 
-    strategy: Annotated[
-        CanonicalProjectionStrategy,
-        Field(
-            default=CanonicalProjectionStrategy.HIGHEST_CONFIDENCE,
-            description="Resolution strategy to use",
-        ),
-    ]
     confidence_threshold: Annotated[
         float,
         Field(default=0.7, description="Minimum confidence for automatic resolution"),
@@ -45,7 +28,7 @@ class CanonicalProjectionResult(ProjectionResult):
     """Result of a canonical state projection operation."""
 
     updated_state: Annotated[
-        CanonicalStateSchema,
+        BaseState,
         Field(
             description="The updated canonical state with resolved values (key: value format)"
         ),

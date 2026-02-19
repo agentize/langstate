@@ -9,8 +9,8 @@ This module provides the base interfaces and implementations for LangState:
 - LangState: Main orchestrator coordinating all components
 """
 
-from .state.base import BaseState
-from .state.schema import Inference, ValueConfidence, StateField, StateSchema
+from .state import BaseBasicState, BasicState
+from .state.state.schema import Inference, ValueConfidence, StateField, StateSchema
 from .action import (
     BaseAction,
     ActionStatus,
@@ -36,7 +36,6 @@ from .projector import (
     ProjectionContext,
     ProjectionResult,
     BaseProjectorCanonicalState,
-    CanonicalProjectionStrategy,
     CanonicalProjectionContext,
     CanonicalProjectionResult,
     BaseProjectorUI,
@@ -51,8 +50,7 @@ from .spec_extractor import (
     SchemaField,
 )
 from .state import (
-    BaseCanonicalState,
-    CanonicalStateSchema,
+    BaseState,
     State,
     BaseSnapshotStore,
 )
@@ -90,7 +88,6 @@ __all__ = [
     "ProjectionResult",
     # Projector - Canonical
     "BaseProjectorCanonicalState",
-    "CanonicalProjectionStrategy",
     "CanonicalProjectionContext",
     "CanonicalProjectionResult",
     # Projector - UI
@@ -104,15 +101,14 @@ __all__ = [
     "Schema",
     "SchemaField",
     # State - Base
+    "BaseBasicState",
+    "BasicState",
     "BaseState",
     "State",
     "StateSchema",
     "StateField",
     "Inference",
     "ValueConfidence",
-    # State - Canonical
-    "BaseCanonicalState",
-    "CanonicalStateSchema",
     # State - Snapshot
     "BaseSnapshotStore",
     # LangState Orchestrator

@@ -1,53 +1,34 @@
-"""Interpretive State implementation using DAH storage."""
+"""State implementation using DAH storage."""
 
 from typing import Any, Optional
 from typing_extensions import Self
 
-from core.spec_extractor.base.schema import Schema
-from core.state.canonical.base import BaseCanonicalState
-from core.state.canonical.state import CanonicalState
-from core.state.state import State
-from pydantic_core import core_schema as _core_schema
+from pydantic_core import core_schema
 
-from core.state.interpretive.base import BaseInterpretiveState
-from core.state.interpretive.schema import (
+from core.state.base.state import BasicState
+from core.state.state.base import BaseState
+from core.state.state.schema import (
     Inference,
-    InterpretiveFieldState,
+    StateField,
     ValueConfidence,
 )
 
 
-class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
-    """Interpretive State implementation with DAH-based storage and inference tracking.
+class State(BasicState[StateField], BaseState):
+    """State implementation with DAH-based storage and inference tracking.
 
-    Implements BaseInterpretiveState interface using InterpretiveFieldState as node values.
+    Implements BaseState interface using StateField as node values.
     Field values are stored directly in DAH nodes with paths like:
     - "name" for simple fields
     - "address.city" for nested objects
     - "guests.0.email" for array elements
 
-    Values are InterpretiveFieldState objects with:
+    Values are StateField objects with:
     - inference: Optional single inference about the field (latest overwrites)
     - values: List of value-confidence pairs
     """
 
-    @classmethod
-    def from_canonical(cls, canonical_state: BaseCanonicalState) -> "InterpretiveState":
-        """Create an interpretive state from a canonical state."""
-        interpretive_state = cls()
-        for path, value in canonical_state.iter_fields():
-            interpretive_state.add_value(
-                path, ValueConfidence(value=value, confidence=1.0)
-            )
-        return interpretive_state
-
-    @classmethod
-    def from_schema(cls, schema: Schema) -> "InterpretiveState":
-        """Create an interpretive state directly from a Schema."""
-        canonical_state = CanonicalState.from_schema(schema)
-        return cls.from_canonical(canonical_state)
-
-    def _is_field_filled(self, value: Optional[InterpretiveFieldState]) -> bool:
+    def _is_field_filled(self, value: Optional[StateField]) -> bool:
         """Check if a field value is considered filled.
 
         Args:
@@ -64,7 +45,7 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
         """Create a deep copy of the state.
 
         Returns:
-            A new InterpretiveState instance with deep copied data
+            A new State instance with deep copied data
         """
         new_state = self.__class__()
 
@@ -121,14 +102,14 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
 
         return max(value.values, key=lambda vc: vc.confidence)
 
-    def _get_or_create_field_state(self, path: str) -> InterpretiveFieldState:
+    def _get_or_create_field_state(self, path: str) -> StateField:
         """Get or create field state for a field path.
 
         Args:
             path: The field path
 
         Returns:
-            The InterpretiveFieldState for this field
+            The StateField for this field
         """
         value = self.get_field(path)
 
@@ -136,7 +117,7 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
             return value
 
         # Create new field state
-        new_field_state = InterpretiveFieldState(inference=None, values=[])
+        new_field_state = StateField(inference=None, values=[])
         self.set_field(path, new_field_state)
 
         return new_field_state
@@ -148,6 +129,6 @@ class InterpretiveState(State[InterpretiveFieldState], BaseInterpretiveState):
         """Provide a pydantic-core schema so Pydantic can accept this custom type.
 
         We treat the class as an opaque instance type — pydantic will accept instances
-        of `InterpretiveState` without attempting to generate a detailed schema.
+        of `State` without attempting to generate a detailed schema.
         """
         return core_schema.is_instance_schema(cls)

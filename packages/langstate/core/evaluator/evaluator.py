@@ -1,35 +1,35 @@
 """Base Evaluator implementation for LangState.
 
-Provides shared functionality for comparing interpretive states.
+Provides shared functionality for comparing states.
 """
 
 from typing import Optional, Set
 
 from .base import BaseEvaluator
 from .schema import FieldComparison, StateComparison
-from ..state.interpretive.base import BaseInterpretiveState
-from ..state.interpretive.schema import ValueConfidence
+from ..state.state.base import BaseState
+from ..state.state.schema import ValueConfidence
 
 
 class Evaluator(BaseEvaluator):
     """Base evaluator with state comparison logic.
 
     This class provides common functionality for comparing expected
-    and actual interpretive states field by field. Concrete evaluator
+    and actual states field by field. Concrete evaluator
     implementations should inherit from this class and implement the
     ``evaluate`` method.
     """
 
     async def _compare_states(
         self,
-        expected: BaseInterpretiveState,
-        actual: BaseInterpretiveState,
+        expected: BaseState,
+        actual: BaseState,
     ) -> StateComparison:
-        """Compare two interpretive states field by field.
+        """Compare two states field by field.
 
         Args:
-            expected: The expected interpretive state.
-            actual:   The actual interpretive state produced by the mutator.
+            expected: The expected state.
+            actual:   The actual state produced by the mutator.
 
         Returns:
             StateComparison with per-field details and aggregate counters.

@@ -13,7 +13,6 @@ from ..base.projector import BaseProjector
 from .schema import (
     CanonicalProjectionContext,
     CanonicalProjectionResult,
-    CanonicalProjectionStrategy,
 )
 
 
@@ -89,13 +88,3 @@ class BaseProjectorCanonicalState(
             CanonicalProjectionResult with updated canonical state
         """
         pass
-
-    def get_strategy(self) -> CanonicalProjectionStrategy:
-        """Get the current canonical projection strategy.
-
-        Override this method to return the appropriate strategy.
-
-        Returns:
-            The canonical projection strategy being used
-        """
-        return CanonicalProjectionStrategy.HIGHEST_CONFIDENCE

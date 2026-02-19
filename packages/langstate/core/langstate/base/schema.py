@@ -8,7 +8,7 @@ from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from ...state.schema import StateSchema
+from ...state.state.schema import StateSchema
 
 
 class InputType(str, Enum):

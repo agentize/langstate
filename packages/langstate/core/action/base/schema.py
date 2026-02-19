@@ -8,7 +8,8 @@ from typing import Annotated, Dict, Optional
 
 from pydantic import BaseModel, Field
 
-from ...state.canonical.schema import CanonicalStateSchema
+from core.state.state.base import BaseState
+
 
 
 class ActionStatus(str, Enum):
@@ -25,7 +26,7 @@ class ActionContext(BaseModel):
     """Context provided to an action for execution."""
 
     canonical_state: Annotated[
-        CanonicalStateSchema,
+        BaseState,
         Field(
             description="The canonical state with resolved field values (key: value)"
         ),

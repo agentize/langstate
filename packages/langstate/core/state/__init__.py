@@ -1,23 +1,11 @@
 """State module exports."""
 
-from .base import BaseState
-from .schema import (
-    Inference,
-    ValueConfidence,
-    StateField,
-    StateSchema,
-)
-from .state import State
-from .canonical import (
-    BaseCanonicalState,
-    CanonicalStateSchema,
-)
-from .interpretive import (
-    BaseInterpretiveState,
-    InterpretiveFieldState,
-    InterpretiveStateSchema,
-    BaseSnapshotStore,
-)
+from .base.base import BaseBasicState
+from .base.state import BasicState
+from .state.schema import Inference, ValueConfidence, StateField, StateSchema
+from .state.base import BaseState
+from .state.state import State
+from .state import BaseSnapshotStore
 from .repository import (
     BaseStateRepository,
     InMemoryStateRepository,
@@ -25,19 +13,15 @@ from .repository import (
 
 __all__ = [
     # Base
+    "BaseBasicState",
+    "BasicState",
     "BaseState",
-    "Inference",
     "State",
-    "StateSchema",
     "StateField",
+    "StateSchema",
+    "Inference",
     "ValueConfidence",
-    # Canonical
-    "BaseCanonicalState",
-    "CanonicalStateSchema",
-    # Interpretive
-    "BaseInterpretiveState",
-    "InterpretiveFieldState",
-    "InterpretiveStateSchema",
+    # Snapshot
     "BaseSnapshotStore",
     # Repository (SOLID: SRP, DIP)
     "BaseStateRepository",

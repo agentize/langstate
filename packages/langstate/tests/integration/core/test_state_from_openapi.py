@@ -2,10 +2,9 @@
 
 This module tests the complete workflow:
 1. Loading an OpenAPI schema via OpenAPIReader
-2. Creating canonical and interpretive states via state helpers
+2. Creating states and populating them with data
 3. Verifying graph structure contains all schema fields
-4. Populating states with test data
-5. Validating all graph export methods (to_ascii_tree, to_json, to_json_dict, to_mermaid, to_dot)
+4. Validating all graph export methods (to_ascii_tree, to_json, to_json_dict, to_mermaid, to_dot)
 """
 
 from __future__ import annotations
@@ -20,14 +19,11 @@ import pytest
 from core.data_structure.dah.dah import DirectedAcyclicHypergraph
 from core.spec_extractor.base.schema import Schema, SchemaField
 from core.spec_extractor.openapi.extractor import OpenAPIReader
-from core.state.canonical.schema import CanonicalFieldValue
-from core.state.canonical.state import CanonicalState
-from core.state.interpretive.schema import (
+from core.state.state.schema import (
     Inference,
-    InterpretiveFieldState,
     ValueConfidence,
 )
-from core.state.interpretive.state import InterpretiveState
+from core.state.state.state import State
 
 
 # -----------------------------------------------------------------------------
@@ -53,22 +49,6 @@ def openapi_reader() -> OpenAPIReader:
 def schema(schema_path: Path, openapi_reader: OpenAPIReader) -> Schema:
     """Load and parse the registration schema."""
     return openapi_reader.read(schema_path)
-
-
-@pytest.fixture
-def canonical_state(schema: Schema) -> CanonicalState:
-    """Create canonical state from schema."""
-    state = CanonicalState.from_schema(schema)
-    assert isinstance(state, CanonicalState)
-    return state
-
-
-@pytest.fixture
-def interpretive_state(canonical_state: CanonicalState) -> InterpretiveState:
-    """Create interpretive state from canonical state."""
-    state = InterpretiveState.from_canonical(canonical_state)
-    assert isinstance(state, InterpretiveState)
-    return state
 
 
 @pytest.fixture
@@ -108,54 +88,66 @@ def _get_expected_event_fields() -> Set[str]:
     return {"id", "name", "description", "schedule", "capacity", "remaining", "pricing"}
 
 
-def _create_sample_registrant_data() -> Dict[str, CanonicalFieldValue]:
+def _create_sample_registrant_data() -> Dict[str, ValueConfidence]:
     """Generate sample data for a registrant."""
     return {
-        "registrant.id": "REG-2026-001",
-        "registrant.name": "John Doe",
-        "registrant.email": "john.doe@example.com",
+        "registrant.id": ValueConfidence(value="REG-2026-001", confidence=0.9),
+        "registrant.name": ValueConfidence(value="John Doe", confidence=0.9),
+        "registrant.email": ValueConfidence(
+            value="john.doe@example.com", confidence=0.9
+        ),
     }
 
 
-def _create_sample_event_data() -> Dict[str, CanonicalFieldValue]:
+def _create_sample_event_data() -> Dict[str, ValueConfidence]:
     """Generate sample data for an event."""
     return {
-        "event.id": "EVT-PYTHON-2026",
-        "event.name": "PyCon 2026",
-        "event.description": "Annual Python conference with workshops and talks.",
-        "event.schedule": "2026-05-15T09:00:00Z",
-        "event.capacity": 500,
-        "event.remaining": 350,
-        "event.pricing": 299.99,
+        "event.id": ValueConfidence(value="EVT-PYTHON-2026", confidence=0.9),
+        "event.name": ValueConfidence(value="PyCon 2026", confidence=0.9),
+        "event.description": ValueConfidence(
+            value="Annual Python conference with workshops and talks.", confidence=0.9
+        ),
+        "event.schedule": ValueConfidence(value="2026-05-15T09:00:00Z", confidence=0.9),
+        "event.capacity": ValueConfidence(value=500, confidence=0.9),
+        "event.remaining": ValueConfidence(value=350, confidence=0.9),
+        "event.pricing": ValueConfidence(value=299.99, confidence=0.9),
     }
 
 
 def _create_sample_guest_data(
     index: int, name: str, email: str
-) -> Dict[str, CanonicalFieldValue]:
+) -> Dict[str, ValueConfidence]:
     """Generate sample data for a guest at a specific index."""
     return {
-        f"guests.{index}.id": f"GUEST-{index:03d}",
-        f"guests.{index}.name": name,
-        f"guests.{index}.email": email,
+        f"guests.{index}.id": ValueConfidence(
+            value=f"GUEST-{index:03d}", confidence=0.9
+        ),
+        f"guests.{index}.name": ValueConfidence(value=name, confidence=0.9),
+        f"guests.{index}.email": ValueConfidence(value=email, confidence=0.9),
     }
 
 
-def _create_sample_invitation_data(guest_index: int) -> Dict[str, CanonicalFieldValue]:
+def _create_sample_invitation_data(guest_index: int) -> Dict[str, ValueConfidence]:
     """Generate sample invitation data for a guest."""
     return {
-        f"guests.{guest_index}.invitation.subject": f"You're invited to PyCon 2026!",
-        f"guests.{guest_index}.invitation.body": "Join us for an amazing conference experience.",
-        f"guests.{guest_index}.invitation.send_at": "2026-04-01T10:00:00Z",
+        f"guests.{guest_index}.invitation.subject": ValueConfidence(
+            value=f"You're invited to PyCon 2026!", confidence=0.9
+        ),
+        f"guests.{guest_index}.invitation.body": ValueConfidence(
+            value="Join us for an amazing conference experience.", confidence=0.9
+        ),
+        f"guests.{guest_index}.invitation.send_at": ValueConfidence(
+            value="2026-04-01T10:00:00Z", confidence=0.9
+        ),
     }
 
 
-def _create_full_registration_data() -> Dict[str, CanonicalFieldValue]:
+def _create_full_registration_data() -> Dict[str, ValueConfidence]:
     """Generate complete registration data with 2 guests."""
-    data: Dict[str, CanonicalFieldValue] = {
-        "id": "REG-MAIN-2026-001",
-        "status": "confirmed",
-        "total_price": 899.97,
+    data: Dict[str, ValueConfidence] = {
+        "id": ValueConfidence(value="REG-MAIN-2026-001", confidence=0.9),
+        "status": ValueConfidence(value="confirmed", confidence=0.9),
+        "total_price": ValueConfidence(value=899.97, confidence=0.9),
     }
 
     # Add registrant
@@ -172,6 +164,14 @@ def _create_full_registration_data() -> Dict[str, CanonicalFieldValue]:
     data.update(_create_sample_guest_data(1, "Bob Johnson", "bob.johnson@example.com"))
 
     return data
+
+
+def _create_state_from_data(data: Dict[str, ValueConfidence]) -> State:
+    """Create a State and populate it with data."""
+    state = State()
+    for path, vc in data.items():
+        state.add_value(path, vc)
+    return state
 
 
 # -----------------------------------------------------------------------------
@@ -244,10 +244,6 @@ class TestSchemaParsing:
         assert isinstance(guests_field, SchemaField)
         assert "array" in guests_field.field_type
 
-        # Note: For allOf arrays (like Guest = Person + invitation),
-        # the default_value may be None if allOf isn't fully resolved.
-        # The state initializer handles array element creation dynamically.
-
     def test_invitation_structure_in_schema(self, schema: Schema) -> None:
         """Verify Invitation is parsed as a referenced type.
 
@@ -262,265 +258,95 @@ class TestSchemaParsing:
         assert "array" in guests_field.field_type
 
 
-class TestCanonicalStateCreation:
-    """Tests for canonical state creation from schema."""
+# -----------------------------------------------------------------------------
+# Stage 2: Creating and Populating States
+# -----------------------------------------------------------------------------
 
-    def test_canonical_state_created_successfully(
-        self, canonical_state: CanonicalState
-    ) -> None:
-        """Verify canonical state is created from schema."""
-        assert canonical_state is not None
-        assert isinstance(canonical_state, CanonicalState)
 
-    def test_canonical_state_has_all_leaf_fields(
-        self, canonical_state: CanonicalState
-    ) -> None:
-        """Verify all leaf fields from schema are present in canonical state."""
-        all_fields = canonical_state.get_all_fields()
-        field_paths = set(all_fields.keys())
+class TestStateCreation:
+    """Tests for State creation and population."""
 
-        # Check top-level primitive fields exist
-        assert "id" in field_paths
-        assert "status" in field_paths
-        assert "total_price" in field_paths
+    def test_state_created_successfully(self) -> None:
+        """Verify State can be created."""
+        state = State()
+        assert state is not None
+        assert isinstance(state, State)
 
-        # Check registrant nested fields
-        assert "registrant.id" in field_paths
-        assert "registrant.name" in field_paths
-        assert "registrant.email" in field_paths
+    def test_state_add_and_retrieve_values(self) -> None:
+        """Verify values can be added and retrieved."""
+        state = State()
+        state.add_value("name", ValueConfidence(value="John", confidence=0.9))
 
-        # Check event nested fields
-        assert "event.id" in field_paths
-        assert "event.name" in field_paths
-        assert "event.description" in field_paths
-        assert "event.schedule" in field_paths
-        assert "event.capacity" in field_paths
-        assert "event.remaining" in field_paths
-        assert "event.pricing" in field_paths
+        best = state.get_best_value("name")
+        assert best is not None
+        assert best.value == "John"
+        assert best.confidence == 0.9
 
-    def test_canonical_state_initial_values_are_none(
-        self, canonical_state: CanonicalState
-    ) -> None:
-        """Verify initial field values are None (from schema defaults)."""
-        assert canonical_state.get_field("id") is None
-        assert canonical_state.get_field("status") is None
-        assert canonical_state.get_field("registrant.name") is None
-        assert canonical_state.get_field("event.name") is None
-
-    def test_canonical_state_dah_structure(
-        self, canonical_state: CanonicalState
-    ) -> None:
+    def test_state_dah_structure(self) -> None:
         """Verify underlying DAH structure is valid."""
-        dah = canonical_state.get_dah()
+        state = State()
+        state.add_value("field1", ValueConfidence(value="val1", confidence=0.9))
+
+        dah = state.get_dah()
         assert dah is not None
         assert isinstance(dah, DirectedAcyclicHypergraph)
         assert len(dah.nodes) > 0
 
 
-class TestInterpretiveStateCreation:
-    """Tests for interpretive state creation from canonical state."""
-
-    def test_interpretive_state_created_successfully(
-        self, interpretive_state: InterpretiveState
-    ) -> None:
-        """Verify interpretive state is created from canonical state."""
-        assert interpretive_state is not None
-        assert isinstance(interpretive_state, InterpretiveState)
-
-    def test_interpretive_state_has_all_fields(
-        self, interpretive_state: InterpretiveState
-    ) -> None:
-        """Verify all fields from canonical state are present in interpretive state."""
-        all_fields = dict(interpretive_state.iter_fields())
-        field_paths = set(all_fields.keys())
-
-        # Check presence of key fields
-        assert "id" in field_paths
-        assert "status" in field_paths
-        assert "registrant.name" in field_paths
-        assert "event.name" in field_paths
-
-    def test_interpretive_state_values_have_confidence(
-        self, interpretive_state: InterpretiveState
-    ) -> None:
-        """Verify interpretive state values have confidence scores."""
-        field_state = interpretive_state.get_field("id")
-        assert field_state is not None
-        assert isinstance(field_state, InterpretiveFieldState)
-        assert len(field_state.values) > 0
-
-        # From canonical state, confidence should be 1.0
-        best_value = interpretive_state.get_best_value("id")
-        assert best_value is not None
-        assert best_value.confidence == 1.0
-
-    def test_interpretive_state_dah_structure(
-        self, interpretive_state: InterpretiveState
-    ) -> None:
-        """Verify underlying DAH structure is valid."""
-        dah = interpretive_state.get_dah()
-        assert dah is not None
-        assert isinstance(dah, DirectedAcyclicHypergraph)
-        assert len(dah.nodes) > 0
-
-
-# -----------------------------------------------------------------------------
-# Stage 2: Populating States with Test Data
-# -----------------------------------------------------------------------------
-
-
-class TestCanonicalStatePopulation:
-    """Tests for populating canonical state with data."""
-
-    def test_set_simple_fields(self, canonical_state: CanonicalState) -> None:
-        """Verify simple field values can be set and retrieved."""
-        canonical_state.set_field("id", "REG-001")
-        canonical_state.set_field("status", "draft")
-        canonical_state.set_field("total_price", 599.99)
-
-        assert canonical_state.get_field("id") == "REG-001"
-        assert canonical_state.get_field("status") == "draft"
-        assert canonical_state.get_field("total_price") == 599.99
-
-    def test_set_nested_registrant_fields(
-        self, canonical_state: CanonicalState
-    ) -> None:
-        """Verify nested registrant fields can be set."""
-        data = _create_sample_registrant_data()
-        for path, value in data.items():
-            canonical_state.set_field(path, value)
-
-        assert canonical_state.get_field("registrant.id") == "REG-2026-001"
-        assert canonical_state.get_field("registrant.name") == "John Doe"
-        assert canonical_state.get_field("registrant.email") == "john.doe@example.com"
-
-    def test_set_nested_event_fields(self, canonical_state: CanonicalState) -> None:
-        """Verify nested event fields can be set."""
-        data = _create_sample_event_data()
-        for path, value in data.items():
-            canonical_state.set_field(path, value)
-
-        assert canonical_state.get_field("event.id") == "EVT-PYTHON-2026"
-        assert canonical_state.get_field("event.name") == "PyCon 2026"
-        assert canonical_state.get_field("event.capacity") == 500
-        assert canonical_state.get_field("event.pricing") == 299.99
-
-    def test_set_array_element_fields(self, canonical_state: CanonicalState) -> None:
-        """Verify array element fields can be set with indexed paths."""
-        # Add two guests
-        guest0_data = _create_sample_guest_data(0, "Alice Smith", "alice@example.com")
-        guest1_data = _create_sample_guest_data(1, "Bob Johnson", "bob@example.com")
-
-        for path, value in guest0_data.items():
-            canonical_state.set_field(path, value)
-        for path, value in guest1_data.items():
-            canonical_state.set_field(path, value)
-
-        assert canonical_state.get_field("guests.0.name") == "Alice Smith"
-        assert canonical_state.get_field("guests.0.email") == "alice@example.com"
-        assert canonical_state.get_field("guests.1.name") == "Bob Johnson"
-        assert canonical_state.get_field("guests.1.email") == "bob@example.com"
-
-    def test_set_deeply_nested_invitation_fields(
-        self, canonical_state: CanonicalState
-    ) -> None:
-        """Verify deeply nested invitation fields within guest array."""
-        invitation_data = _create_sample_invitation_data(0)
-        for path, value in invitation_data.items():
-            canonical_state.set_field(path, value)
-
-        assert (
-            canonical_state.get_field("guests.0.invitation.subject")
-            == "You're invited to PyCon 2026!"
-        )
-        assert canonical_state.get_field("guests.0.invitation.send_at") is not None
-
-    def test_populate_full_registration(self, canonical_state: CanonicalState) -> None:
-        """Verify complete registration data can be populated."""
-        full_data = _create_full_registration_data()
-        for path, value in full_data.items():
-            canonical_state.set_field(path, value)
-
-        # Verify all data was set correctly
-        assert canonical_state.get_field("id") == "REG-MAIN-2026-001"
-        assert canonical_state.get_field("status") == "confirmed"
-        assert canonical_state.get_field("registrant.name") == "John Doe"
-        assert canonical_state.get_field("event.name") == "PyCon 2026"
-        assert canonical_state.get_field("guests.0.name") == "Alice Smith"
-        assert canonical_state.get_field("guests.1.name") == "Bob Johnson"
-        assert (
-            canonical_state.get_field("guests.0.invitation.subject")
-            == "You're invited to PyCon 2026!"
-        )
-
-    def test_canonical_state_copy(self, canonical_state: CanonicalState) -> None:
-        """Verify canonical state can be copied."""
-        canonical_state.set_field("id", "COPY-TEST-001")
-        canonical_state.set_field("registrant.name", "Original Name")
-
-        copied = canonical_state.copy()
-
-        assert copied.get_field("id") == "COPY-TEST-001"
-        assert copied.get_field("registrant.name") == "Original Name"
-
-        # Modify original and verify copy is independent
-        canonical_state.set_field("registrant.name", "Modified Name")
-        assert copied.get_field("registrant.name") == "Original Name"
-
-
-class TestInterpretiveStatePopulation:
-    """Tests for populating interpretive state with data."""
+class TestStatePopulation:
+    """Tests for populating state with data."""
 
     def test_add_value_with_confidence(self) -> None:
         """Verify values can be added with confidence scores."""
-        # Create fresh interpretive state without pre-existing values
-        interpretive = InterpretiveState()
+        state = State()
 
-        interpretive.add_value(
+        state.add_value(
             "registrant.name",
             ValueConfidence(value="John Doe", confidence=0.95),
         )
 
-        best = interpretive.get_best_value("registrant.name")
+        best = state.get_best_value("registrant.name")
         assert best is not None
         assert best.value == "John Doe"
         assert best.confidence == 0.95
 
-    def test_add_multiple_values_different_confidence(
-        self
-    ) -> None:
+    def test_add_multiple_values_different_confidence(self) -> None:
         """Verify multiple values can be added and best is selected by confidence."""
-        # Create fresh interpretive state without pre-existing values
-        interpretive = InterpretiveState()
+        state = State()
 
-        interpretive.add_value(
+        state.add_value(
             "registrant.email",
             ValueConfidence(value="john@example.com", confidence=0.8),
         )
-        interpretive.add_value(
+        state.add_value(
             "registrant.email",
             ValueConfidence(value="johndoe@example.com", confidence=0.95),
         )
-        interpretive.add_value(
+        state.add_value(
             "registrant.email",
             ValueConfidence(value="j.doe@example.com", confidence=0.6),
         )
 
-        best = interpretive.get_best_value("registrant.email")
+        best = state.get_best_value("registrant.email")
         assert best is not None
         assert best.value == "johndoe@example.com"
         assert best.confidence == 0.95
 
-    def test_add_inference(self, interpretive_state: InterpretiveState) -> None:
+    def test_add_inference(self) -> None:
         """Verify inferences can be added to fields and latest overwrites previous."""
-        interpretive_state.add_inference(
+        state = State()
+        state.add_value(
+            "event.name", ValueConfidence(value="PyCon 2026", confidence=0.9)
+        )
+
+        state.add_inference(
             "event.name",
             Inference(
                 content="Extracted from form submission",
                 mutator_id="form_extractor_v1",
             ),
         )
-        interpretive_state.add_inference(
+        state.add_inference(
             "event.name",
             Inference(
                 content="Validated against event database",
@@ -528,57 +354,123 @@ class TestInterpretiveStatePopulation:
             ),
         )
 
-        field_state = interpretive_state.get_field("event.name")
+        field_state = state.get_field("event.name")
         assert field_state is not None
         assert field_state.inference is not None
         assert field_state.inference.content == "Validated against event database"
         assert field_state.inference.mutator_id == "event_validator_v1"
 
-    def test_populate_guests_with_values_and_inferences(
-        self, interpretive_state: InterpretiveState
-    ) -> None:
+    def test_populate_guests_with_values_and_inferences(self) -> None:
         """Verify array elements can have values and inferences."""
+        state = State()
+
         # Add guest 0
-        interpretive_state.add_value(
+        state.add_value(
             "guests.0.name",
             ValueConfidence(value="Alice Smith", confidence=0.9),
         )
-        interpretive_state.add_inference(
+        state.add_inference(
             "guests.0.name",
             Inference(content="Parsed from guest list", mutator_id="guest_parser"),
         )
 
         # Add guest 1
-        interpretive_state.add_value(
+        state.add_value(
             "guests.1.name",
             ValueConfidence(value="Bob Johnson", confidence=0.85),
         )
 
-        assert interpretive_state.get_best_value("guests.0.name") is not None
-        assert interpretive_state.get_best_value("guests.0.name").value == "Alice Smith"  # type: ignore[union-attr]
-        assert interpretive_state.get_best_value("guests.1.name").value == "Bob Johnson"  # type: ignore[union-attr]
+        assert state.get_best_value("guests.0.name") is not None
+        assert state.get_best_value("guests.0.name").value == "Alice Smith"  # type: ignore[union-attr]
+        assert state.get_best_value("guests.1.name").value == "Bob Johnson"  # type: ignore[union-attr]
 
-    def test_interpretive_state_copy(
-        self, interpretive_state: InterpretiveState
-    ) -> None:
-        """Verify interpretive state can be copied."""
-        interpretive_state.add_value(
+    def test_state_copy(self) -> None:
+        """Verify state can be copied."""
+        state = State()
+        state.add_value(
             "id",
             ValueConfidence(value="COPY-TEST", confidence=0.99),
         )
-        interpretive_state.add_inference(
+        state.add_inference(
             "id",
             Inference(content="Test inference", mutator_id="test"),
         )
 
-        copied = interpretive_state.copy()
+        copied = state.copy()
 
-        best_original = interpretive_state.get_best_value("id")
+        best_original = state.get_best_value("id")
         best_copied = copied.get_best_value("id")
 
         assert best_original is not None
         assert best_copied is not None
         assert best_original.value == best_copied.value
+
+    def test_populate_full_registration(self) -> None:
+        """Verify complete registration data can be populated."""
+        full_data = _create_full_registration_data()
+        state = _create_state_from_data(full_data)
+
+        # Verify all data was set correctly
+        assert state.get_best_value("id") is not None
+        assert state.get_best_value("id").value == "REG-MAIN-2026-001"  # type: ignore[union-attr]
+        assert state.get_best_value("status").value == "confirmed"  # type: ignore[union-attr]
+        assert state.get_best_value("registrant.name").value == "John Doe"  # type: ignore[union-attr]
+        assert state.get_best_value("event.name").value == "PyCon 2026"  # type: ignore[union-attr]
+        assert state.get_best_value("guests.0.name").value == "Alice Smith"  # type: ignore[union-attr]
+        assert state.get_best_value("guests.1.name").value == "Bob Johnson"  # type: ignore[union-attr]
+        assert (
+            state.get_best_value("guests.0.invitation.subject").value  # type: ignore[union-attr]
+            == "You're invited to PyCon 2026!"
+        )
+
+    def test_set_nested_registrant_fields(self) -> None:
+        """Verify nested registrant fields can be added."""
+        data = _create_sample_registrant_data()
+        state = _create_state_from_data(data)
+
+        assert state.get_best_value("registrant.id").value == "REG-2026-001"  # type: ignore[union-attr]
+        assert state.get_best_value("registrant.name").value == "John Doe"  # type: ignore[union-attr]
+        assert state.get_best_value("registrant.email").value == "john.doe@example.com"  # type: ignore[union-attr]
+
+    def test_set_nested_event_fields(self) -> None:
+        """Verify nested event fields can be added."""
+        data = _create_sample_event_data()
+        state = _create_state_from_data(data)
+
+        assert state.get_best_value("event.id").value == "EVT-PYTHON-2026"  # type: ignore[union-attr]
+        assert state.get_best_value("event.name").value == "PyCon 2026"  # type: ignore[union-attr]
+        assert state.get_best_value("event.capacity").value == 500  # type: ignore[union-attr]
+        assert state.get_best_value("event.pricing").value == 299.99  # type: ignore[union-attr]
+
+    def test_set_array_element_fields(self) -> None:
+        """Verify array element fields can be set with indexed paths."""
+        state = State()
+
+        # Add two guests
+        guest0_data = _create_sample_guest_data(0, "Alice Smith", "alice@example.com")
+        guest1_data = _create_sample_guest_data(1, "Bob Johnson", "bob@example.com")
+
+        for path, vc in guest0_data.items():
+            state.add_value(path, vc)
+        for path, vc in guest1_data.items():
+            state.add_value(path, vc)
+
+        assert state.get_best_value("guests.0.name").value == "Alice Smith"  # type: ignore[union-attr]
+        assert state.get_best_value("guests.0.email").value == "alice@example.com"  # type: ignore[union-attr]
+        assert state.get_best_value("guests.1.name").value == "Bob Johnson"  # type: ignore[union-attr]
+        assert state.get_best_value("guests.1.email").value == "bob@example.com"  # type: ignore[union-attr]
+
+    def test_set_deeply_nested_invitation_fields(self) -> None:
+        """Verify deeply nested invitation fields within guest array."""
+        invitation_data = _create_sample_invitation_data(0)
+        state = _create_state_from_data(invitation_data)
+
+        best_subj = state.get_best_value("guests.0.invitation.subject")
+        assert best_subj is not None
+        assert best_subj.value == "You're invited to PyCon 2026!"
+
+        best_send = state.get_best_value("guests.0.invitation.send_at")
+        assert best_send is not None
 
 
 # -----------------------------------------------------------------------------
@@ -587,74 +479,51 @@ class TestInterpretiveStatePopulation:
 
 
 @pytest.fixture
-def populated_canonical_state(
-    canonical_state: CanonicalState,
-) -> CanonicalState:
-    """Canonical state populated with full registration data."""
-    full_data = _create_full_registration_data()
-    for path, value in full_data.items():
-        canonical_state.set_field(path, value)
-    return canonical_state
+def populated_state() -> State:
+    """State populated with full registration data and inferences."""
+    state = State()
 
-
-@pytest.fixture
-def populated_interpretive_state(
-    interpretive_state: InterpretiveState,
-) -> InterpretiveState:
-    """Interpretive state populated with data and inferences."""
     # Add registration data with various confidences
-    interpretive_state.add_value(
-        "id", ValueConfidence(value="REG-MAIN-2026-001", confidence=1.0)
-    )
-    interpretive_state.add_value(
-        "status", ValueConfidence(value="confirmed", confidence=0.95)
-    )
-    interpretive_state.add_value(
-        "total_price", ValueConfidence(value=899.97, confidence=0.9)
-    )
+    state.add_value("id", ValueConfidence(value="REG-MAIN-2026-001", confidence=1.0))
+    state.add_value("status", ValueConfidence(value="confirmed", confidence=0.95))
+    state.add_value("total_price", ValueConfidence(value=899.97, confidence=0.9))
 
     # Registrant with inference
-    interpretive_state.add_value(
+    state.add_value(
         "registrant.name", ValueConfidence(value="John Doe", confidence=0.98)
     )
-    interpretive_state.add_inference(
+    state.add_inference(
         "registrant.name",
         Inference(
             content="Extracted from account profile", mutator_id="profile_extractor"
         ),
     )
-    interpretive_state.add_value(
+    state.add_value(
         "registrant.email",
         ValueConfidence(value="john.doe@example.com", confidence=0.99),
     )
 
     # Event
-    interpretive_state.add_value(
-        "event.name", ValueConfidence(value="PyCon 2026", confidence=0.95)
-    )
-    interpretive_state.add_value(
-        "event.capacity", ValueConfidence(value=500, confidence=1.0)
-    )
+    state.add_value("event.name", ValueConfidence(value="PyCon 2026", confidence=0.95))
+    state.add_value("event.capacity", ValueConfidence(value=500, confidence=1.0))
 
     # Guests
-    interpretive_state.add_value(
+    state.add_value(
         "guests.0.name", ValueConfidence(value="Alice Smith", confidence=0.9)
     )
-    interpretive_state.add_value(
+    state.add_value(
         "guests.1.name", ValueConfidence(value="Bob Johnson", confidence=0.85)
     )
 
-    return interpretive_state
+    return state
 
 
-class TestCanonicalStateDahExports:
-    """Tests for canonical state DAH export methods."""
+class TestStateDahExports:
+    """Tests for state DAH export methods."""
 
-    def test_to_ascii_tree(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
-    ) -> None:
+    def test_to_ascii_tree(self, populated_state: State, output_dir: Path) -> None:
         """Verify to_ascii_tree produces valid ASCII tree output."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
         tree = dah.to_ascii_tree()
 
         assert tree is not None
@@ -665,14 +534,14 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state_ascii_tree.txt"
+            output_file = output_dir / "state_ascii_tree.txt"
             output_file.write_text(tree, encoding="utf-8")
 
     def test_to_ascii_tree_with_custom_label_fn(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
+        self, populated_state: State, output_dir: Path
     ) -> None:
         """Verify to_ascii_tree accepts custom label functions."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
 
         def custom_label(value: Any) -> str:
             if value is None:
@@ -686,14 +555,12 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state_ascii_tree_custom.txt"
+            output_file = output_dir / "state_ascii_tree_custom.txt"
             output_file.write_text(tree, encoding="utf-8")
 
-    def test_to_json(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
-    ) -> None:
+    def test_to_json(self, populated_state: State, output_dir: Path) -> None:
         """Verify to_json produces valid JSON string."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
         json_str = dah.to_json(pretty=True, indent=2)
 
         assert json_str is not None
@@ -706,14 +573,12 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state.json"
+            output_file = output_dir / "state.json"
             output_file.write_text(json_str, encoding="utf-8")
 
-    def test_to_json_compact(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
-    ) -> None:
+    def test_to_json_compact(self, populated_state: State, output_dir: Path) -> None:
         """Verify to_json compact mode produces valid JSON."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
         json_str = dah.to_json(pretty=False)
 
         parsed = json.loads(json_str)
@@ -721,14 +586,12 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state_compact.json"
+            output_file = output_dir / "state_compact.json"
             output_file.write_text(json_str, encoding="utf-8")
 
-    def test_to_json_dict(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
-    ) -> None:
+    def test_to_json_dict(self, populated_state: State, output_dir: Path) -> None:
         """Verify to_json_dict produces valid dictionary structure."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
         json_dict = dah.to_json_dict()
 
         assert json_dict is not None
@@ -751,14 +614,12 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state_dict.json"
+            output_file = output_dir / "state_dict.json"
             output_file.write_text(json.dumps(json_dict, indent=2), encoding="utf-8")
 
-    def test_to_json_dict_contains_expected_paths(
-        self, populated_canonical_state: CanonicalState
-    ) -> None:
+    def test_to_json_dict_contains_expected_paths(self, populated_state: State) -> None:
         """Verify JSON dict contains expected node paths."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
         json_dict = dah.to_json_dict()
 
         nodes_list: list[dict[str, object]] = json_dict["nodes"]
@@ -769,11 +630,9 @@ class TestCanonicalStateDahExports:
         assert "registrant.name" in paths
         assert "event.name" in paths
 
-    def test_to_mermaid(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
-    ) -> None:
+    def test_to_mermaid(self, populated_state: State, output_dir: Path) -> None:
         """Verify to_mermaid produces valid Mermaid diagram format."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
         mermaid = dah.to_mermaid()
 
         assert mermaid is not None
@@ -783,14 +642,14 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state.mmd"
+            output_file = output_dir / "state.mmd"
             output_file.write_text(mermaid, encoding="utf-8")
 
     def test_to_mermaid_with_custom_functions(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
+        self, populated_state: State, output_dir: Path
     ) -> None:
         """Verify to_mermaid accepts custom label functions."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
 
         def node_label(value: Any) -> str:
             if value is None:
@@ -804,14 +663,12 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state_custom.mmd"
+            output_file = output_dir / "state_custom.mmd"
             output_file.write_text(mermaid, encoding="utf-8")
 
-    def test_to_dot(
-        self, populated_canonical_state: CanonicalState, output_dir: Path
-    ) -> None:
+    def test_to_dot(self, populated_state: State, output_dir: Path) -> None:
         """Verify to_dot produces valid Graphviz DOT format."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
         dot = dah.to_dot()
 
         assert dot is not None
@@ -822,106 +679,16 @@ class TestCanonicalStateDahExports:
 
         # Save to file if TEST_OUTPUT=true
         if _should_save_output():
-            output_file = output_dir / "canonical_state.dot"
-            output_file.write_text(dot, encoding="utf-8")
-
-
-class TestInterpretiveStateDahExports:
-    """Tests for interpretive state DAH export methods."""
-
-    def test_to_ascii_tree(
-        self, populated_interpretive_state: InterpretiveState, output_dir: Path
-    ) -> None:
-        """Verify to_ascii_tree works for interpretive state."""
-        dah = populated_interpretive_state.get_dah()
-        tree = dah.to_ascii_tree()
-
-        assert tree is not None
-        assert isinstance(tree, str)
-        assert "Schema" in tree
-
-        # Save to file if TEST_OUTPUT=true
-        if _should_save_output():
-            output_file = output_dir / "interpretive_state_ascii_tree.txt"
-            output_file.write_text(tree, encoding="utf-8")
-
-    def test_to_json(
-        self, populated_interpretive_state: InterpretiveState, output_dir: Path
-    ) -> None:
-        """Verify to_json works for interpretive state."""
-        dah = populated_interpretive_state.get_dah()
-        json_str = dah.to_json()
-
-        assert json_str is not None
-        parsed = json.loads(json_str)
-        assert "nodes" in parsed
-
-        # Save to file if TEST_OUTPUT=true
-        if _should_save_output():
-            output_file = output_dir / "interpretive_state.json"
-            output_file.write_text(json_str, encoding="utf-8")
-
-    def test_to_json_dict(
-        self, populated_interpretive_state: InterpretiveState, output_dir: Path
-    ) -> None:
-        """Verify to_json_dict works for interpretive state with rich values."""
-        dah = populated_interpretive_state.get_dah()
-        json_dict = dah.to_json_dict()
-
-        assert json_dict is not None
-        assert "nodes" in json_dict
-
-        # Find a node with inference
-        nodes_list: list[dict[str, object]] = json_dict["nodes"]
-        nodes_with_values: list[dict[str, object]] = [
-            n for n in nodes_list if n.get("value") is not None
-        ]
-        assert len(nodes_with_values) > 0
-
-        # Save to file if TEST_OUTPUT=true
-        if _should_save_output():
-            output_file = output_dir / "interpretive_state_dict.json"
-            output_file.write_text(json.dumps(json_dict, indent=2), encoding="utf-8")
-
-    def test_to_mermaid(
-        self, populated_interpretive_state: InterpretiveState, output_dir: Path
-    ) -> None:
-        """Verify to_mermaid works for interpretive state."""
-        dah = populated_interpretive_state.get_dah()
-        mermaid = dah.to_mermaid()
-
-        assert mermaid is not None
-        assert mermaid.startswith("graph TD")
-
-        # Save to file if TEST_OUTPUT=true
-        if _should_save_output():
-            output_file = output_dir / "interpretive_state.mmd"
-            output_file.write_text(mermaid, encoding="utf-8")
-
-    def test_to_dot(
-        self, populated_interpretive_state: InterpretiveState, output_dir: Path
-    ) -> None:
-        """Verify to_dot works for interpretive state."""
-        dah = populated_interpretive_state.get_dah()
-        dot = dah.to_dot()
-
-        assert dot is not None
-        assert "digraph DAH" in dot
-
-        # Save to file if TEST_OUTPUT=true
-        if _should_save_output():
-            output_file = output_dir / "interpretive_state.dot"
+            output_file = output_dir / "state.dot"
             output_file.write_text(dot, encoding="utf-8")
 
 
 class TestExportConsistency:
     """Tests for consistency between export formats."""
 
-    def test_json_and_json_dict_consistency(
-        self, populated_canonical_state: CanonicalState
-    ) -> None:
+    def test_json_and_json_dict_consistency(self, populated_state: State) -> None:
         """Verify to_json and to_json_dict produce consistent data."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
 
         json_str = dah.to_json()
         json_dict = dah.to_json_dict()
@@ -930,15 +697,13 @@ class TestExportConsistency:
         assert json_dict["node_count"] == parsed_json["node_count"]
         assert json_dict["hyperedge_count"] == parsed_json["hyperedge_count"]
 
-    def test_export_methods_non_empty_for_empty_state(
-        self, schema: Schema
-    ) -> None:
+    def test_export_methods_non_empty_for_empty_state(self) -> None:
         """Verify export methods work even with fresh state (no data populated)."""
-        fresh_canonical = CanonicalState.from_schema(schema)
+        fresh_state = State()
+        # Add at least one field so DAH has content
+        fresh_state.add_value("test", ValueConfidence(value=None, confidence=0.0))
 
-        # Cast to concrete type for type safety
-        assert isinstance(fresh_canonical, CanonicalState)
-        dah = fresh_canonical.get_dah()
+        dah = fresh_state.get_dah()
 
         # All methods should work without errors
         assert dah.to_ascii_tree() is not None
@@ -946,24 +711,6 @@ class TestExportConsistency:
         assert dah.to_json_dict() is not None
         assert dah.to_mermaid() is not None
         assert dah.to_dot() is not None
-
-    def test_canonical_and_interpretive_have_same_structure(
-        self,
-        populated_canonical_state: CanonicalState,
-    ) -> None:
-        """Verify canonical and derived interpretive states have same field paths."""
-        interpretive = InterpretiveState.from_canonical(
-            populated_canonical_state
-        )
-
-        canonical_paths = set(populated_canonical_state.get_all_fields().keys())
-        interpretive_paths = {path for path, _ in interpretive.iter_fields()}
-
-        # Interpretive state should have all canonical paths
-        # (though it may have additional paths from add_value calls)
-        assert canonical_paths.issubset(
-            interpretive_paths
-        ) or interpretive_paths.issubset(canonical_paths)
 
 
 # -----------------------------------------------------------------------------
@@ -974,102 +721,94 @@ class TestExportConsistency:
 class TestFullWorkflow:
     """End-to-end integration tests for complete workflow."""
 
-    def test_complete_workflow_schema_to_populated_states(
-        self, schema_path: Path
-    ) -> None:
-        """Test complete workflow: schema -> states -> populate -> export."""
-        # Step 1: Load schema
-        reader = OpenAPIReader(root_entity="Registration")
-        schema = reader.read(schema_path)
-        assert "id" in schema.root
+    def test_complete_workflow_populate_and_export(self) -> None:
+        """Test complete workflow: create state -> populate -> export."""
+        # Step 1: Create state
+        state = State()
 
-        # Step 2: Create states
-        canonical = CanonicalState.from_schema(schema)
-
-        # Step 3: Populate canonical state
+        # Step 2: Populate state
         full_data = _create_full_registration_data()
-        for path, value in full_data.items():
-            canonical.set_field(path, value)
+        for path, vc in full_data.items():
+            state.add_value(path, vc)
 
-        # Step 4: Create interpretive state from populated canonical
-        interpretive = InterpretiveState.from_canonical(canonical)
-
-        # Step 5: Add additional data with higher confidence to interpretive
-        interpretive.add_value(
+        # Step 3: Add additional data with higher confidence
+        state.add_value(
             "registrant.name",
             ValueConfidence(value="Jane Doe", confidence=0.99),
         )
-        interpretive.add_inference(
+        state.add_inference(
             "registrant.name",
             Inference(content="Updated from user edit", mutator_id="user_input"),
         )
 
-        # Verify data retrieval
-        assert canonical.get_field("registrant.name") == "John Doe"
-
-        # The best value should be Jane Doe (0.99) vs John Doe (1.0 from init)
-        # Note: initialization creates values with confidence 1.0, so we need higher
-        best_name = interpretive.get_best_value("registrant.name")
+        # The best value should be Jane Doe (0.99) vs John Doe (0.9)
+        best_name = state.get_best_value("registrant.name")
         assert best_name is not None
-        # With confidence 1.0 from init and 0.99 from our addition,
-        # the init value (John Doe) wins. This is expected behavior.
-        # The original None value from schema with conf=1.0 is highest.
-        # Let's verify the inference was added instead
-        field_state = interpretive.get_field("registrant.name")
+        assert best_name.value == "Jane Doe"
+
+        # Verify the inference was added
+        field_state = state.get_field("registrant.name")
         assert field_state is not None
         assert len(field_state.values) >= 2  # Original + our addition
-        assert field_state.inference is not None  # Our inference
+        assert field_state.inference is not None
         assert field_state.inference.content == "Updated from user edit"
 
-        # Step 6: Verify exports work - cast to concrete types for type safety
-        assert isinstance(canonical, CanonicalState)
-        assert isinstance(interpretive, InterpretiveState)
-        canonical_dah = canonical.get_dah()
-        interpretive_dah = interpretive.get_dah()
+        # Step 4: Verify exports work
+        dah = state.get_dah()
 
-        assert len(canonical_dah.to_ascii_tree()) > 0
-        assert len(interpretive_dah.to_json()) > 0
+        assert len(dah.to_ascii_tree()) > 0
+        assert len(dah.to_json()) > 0
 
-    def test_workflow_with_multiple_guests_and_invitations(
-        self, schema_path: Path
-    ) -> None:
+    def test_workflow_with_multiple_guests_and_invitations(self) -> None:
         """Test workflow with complex nested array data."""
-        reader = OpenAPIReader(root_entity="Registration")
-        schema = reader.read(schema_path)
-
-        canonical_base = CanonicalState.from_schema(schema)
-        assert isinstance(canonical_base, CanonicalState)
-        canonical = canonical_base
+        state = State()
 
         # Add multiple guests with invitations
         guest_names = ["Alice", "Bob", "Charlie", "Diana"]
         for i, name in enumerate(guest_names):
-            canonical.set_field(f"guests.{i}.id", f"G{i:03d}")
-            canonical.set_field(f"guests.{i}.name", name)
-            canonical.set_field(f"guests.{i}.email", f"{name.lower()}@example.com")
+            state.add_value(
+                f"guests.{i}.id",
+                ValueConfidence(value=f"G{i:03d}", confidence=0.9),
+            )
+            state.add_value(
+                f"guests.{i}.name",
+                ValueConfidence(value=name, confidence=0.9),
+            )
+            state.add_value(
+                f"guests.{i}.email",
+                ValueConfidence(value=f"{name.lower()}@example.com", confidence=0.9),
+            )
 
             # Add invitation for even-indexed guests
             if i % 2 == 0:
-                canonical.set_field(
+                state.add_value(
                     f"guests.{i}.invitation.subject",
-                    f"Welcome {name}!",
+                    ValueConfidence(value=f"Welcome {name}!", confidence=0.9),
                 )
-                canonical.set_field(
+                state.add_value(
                     f"guests.{i}.invitation.body",
-                    f"Dear {name}, you are invited.",
+                    ValueConfidence(
+                        value=f"Dear {name}, you are invited.", confidence=0.9
+                    ),
                 )
 
         # Verify all guests are stored
         for i, name in enumerate(guest_names):
-            assert canonical.get_field(f"guests.{i}.name") == name
+            best = state.get_best_value(f"guests.{i}.name")
+            assert best is not None
+            assert best.value == name
 
         # Verify invitations
-        assert canonical.get_field("guests.0.invitation.subject") == "Welcome Alice!"
-        assert canonical.get_field("guests.1.invitation.subject") is None
-        assert canonical.get_field("guests.2.invitation.subject") == "Welcome Charlie!"
+        subj0 = state.get_best_value("guests.0.invitation.subject")
+        assert subj0 is not None
+        assert subj0.value == "Welcome Alice!"
+        assert state.get_best_value("guests.1.invitation.subject") is None
+        subj2 = state.get_best_value("guests.2.invitation.subject")
+        assert subj2 is not None
+        assert subj2.value == "Welcome Charlie!"
 
         # Export should contain all data
-        dah = canonical.get_dah()
+        dah = state.get_dah()
         json_dict = dah.to_json_dict()
         nodes_list: list[dict[str, object]] = json_dict["nodes"]
         paths: set[str] = {str(node["path"]) for node in nodes_list}
@@ -1078,44 +817,34 @@ class TestFullWorkflow:
         assert "guests.3.name" in paths
         assert "guests.0.invitation.subject" in paths
 
-    def test_state_iteration_methods(self, schema_path: Path) -> None:
+    def test_state_iteration_methods(self) -> None:
         """Test state iteration and query methods."""
-        reader = OpenAPIReader(root_entity="Registration")
-        schema = reader.read(schema_path)
-
-        canonical_base = CanonicalState.from_schema(schema)
-        assert isinstance(canonical_base, CanonicalState)
-        canonical = canonical_base
+        state = State()
 
         # Populate some fields
-        canonical.set_field("id", "TEST-001")
-        canonical.set_field("status", "draft")
-        canonical.set_field("registrant.name", "Test User")
+        state.add_value("id", ValueConfidence(value="TEST-001", confidence=0.9))
+        state.add_value("status", ValueConfidence(value="draft", confidence=0.9))
+        state.add_value(
+            "registrant.name",
+            ValueConfidence(value="Test User", confidence=0.9),
+        )
 
         # Test iter_fields
-        field_count = sum(1 for _ in canonical.iter_fields())
+        field_count = sum(1 for _ in state.iter_fields())
         assert field_count > 0
 
         # Test get_all_fields
-        all_fields = canonical.get_all_fields()
+        all_fields = state.get_all_fields()
         assert len(all_fields) > 0
-        assert all_fields.get("id") == "TEST-001"
 
-        # Test get_filled_fields
-        filled = canonical.get_filled_fields()
-        assert "id" in filled
-        assert "status" in filled
-        assert "registrant.name" in filled
+        # Verify field data
+        id_field = all_fields.get("id")
+        assert id_field is not None
+        assert id_field.values[0].value == "TEST-001"
 
-        # Test get_empty_fields
-        empty = canonical.get_empty_fields()
-        assert len(empty) > 0
-
-    def test_dah_topological_order(
-        self, populated_canonical_state: CanonicalState
-    ) -> None:
+    def test_dah_topological_order(self, populated_state: State) -> None:
         """Test that DAH maintains valid topological order."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
 
         # Should not raise exception
         order = dah.topological_order()
@@ -1123,11 +852,9 @@ class TestFullWorkflow:
         assert isinstance(order, list)
         assert len(order) > 0
 
-    def test_dah_validate_acyclic(
-        self, populated_canonical_state: CanonicalState
-    ) -> None:
+    def test_dah_validate_acyclic(self, populated_state: State) -> None:
         """Test that DAH validates acyclic property."""
-        dah = populated_canonical_state.get_dah()
+        dah = populated_state.get_dah()
 
         # Should not raise exception for valid DAH
         dah.validate_acyclic()

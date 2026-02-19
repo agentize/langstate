@@ -7,7 +7,6 @@ from .base import (
 )
 from .canonical import (
     BaseProjectorCanonicalState,
-    CanonicalProjectionStrategy,
     CanonicalProjectionContext,
     CanonicalProjectionResult,
 )
@@ -26,7 +25,6 @@ __all__ = [
     "ProjectionResult",
     # Canonical
     "BaseProjectorCanonicalState",
-    "CanonicalProjectionStrategy",
     "CanonicalProjectionContext",
     "CanonicalProjectionResult",
     # UI

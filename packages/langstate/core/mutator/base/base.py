@@ -43,7 +43,7 @@ class BaseMutator(ABC, Generic[TContext]):
 
     @abstractmethod
     async def mutate(self, context: TContext) -> MutationResult:
-        """Process user input and update the interpretive state graph.
+        """Process user input and update the state graph.
 
         This method takes the user's input along with the current state
         and returns an updated state with inferences and value-confidence

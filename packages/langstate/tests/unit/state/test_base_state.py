@@ -1,6 +1,6 @@
-"""Unit tests for State base class implementation.
+"""Unit tests for BasicState base class implementation.
 
-Tests the core State class with DAH-based storage functionality.
+Tests the core BasicState class with DAH-based storage functionality.
 """
 
 # pyright: reportPrivateUsage=false
@@ -9,10 +9,10 @@ from uuid import UUID
 
 import pytest
 
-from core.state.state import State
+from core.state.base.state import BasicState
 
 
-class ConcreteState(State[str]):
+class ConcreteState(BasicState[str]):
     """Concrete implementation for testing the abstract State class."""
 
     def get_dah_nodes_count(self) -> int:

@@ -9,7 +9,7 @@ import time
 from ..evaluator import Evaluator
 from ..schema import EvaluationContext, EvaluationResult
 from ...mutator.llm.schema import MutationContext
-from ...state.interpretive.state import InterpretiveState
+from ...state.state.state import State
 
 
 class LLMEvaluator(Evaluator):
@@ -33,9 +33,9 @@ class LLMEvaluator(Evaluator):
         """
         state_copy = context.pre_state.copy()
 
-        if not isinstance(state_copy, InterpretiveState):
+        if not isinstance(state_copy, State):
             raise TypeError(
-                f"pre_state.copy() must return an InterpretiveState, "
+                f"pre_state.copy() must return a State, "
                 f"got {type(state_copy).__name__}"
             )
 

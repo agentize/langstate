@@ -1,6 +1,6 @@
 """Base Projector interface for LangState."""
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Optional, TYPE_CHECKING, TypeVar, Generic
 
 from ...data_structure.observer.base import BaseObserver, BaseSubject
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from ...spec_extractor.base.schema import Schema
 
 
-class BaseProjector(BaseObserver[PC], ABC, Generic[PC, PR]):
+class BaseProjector(BaseObserver[PC], Generic[PC, PR]):
     """Abstract base class for all Projector implementations.
 
     A Projector transforms current state into a specific output format.

@@ -2,91 +2,109 @@
 
 import pytest
 
-from core.state.canonical.state import CanonicalState
-from core.state.interpretive.schema import InterpretiveFieldState, ValueConfidence
-from core.state.interpretive.state import InterpretiveState
+from core.state.state.schema import StateField, ValueConfidence
+from core.state.state.state import State
 from core.state.snapshot import InMemorySnapshotStore, Snapshot
 
 
-class TestInMemorySnapshotStoreWithCanonicalState:
-    """Tests for InMemorySnapshotStore with CanonicalState."""
+class TestInMemorySnapshotStoreWithState:
+    """Tests for InMemorySnapshotStore with State."""
 
     @pytest.fixture
-    def store(self) -> InMemorySnapshotStore[CanonicalState]:
-        return InMemorySnapshotStore[CanonicalState]()
+    def store(self) -> InMemorySnapshotStore[State]:
+        return InMemorySnapshotStore[State]()
 
     @pytest.fixture
-    def sample_state(self) -> CanonicalState:
-        state = CanonicalState()
-        state.set_field("name", "John")
-        state.set_field("age", 30)
+    def sample_state(self) -> State:
+        state = State()
+        state.add_value("name", ValueConfidence(value="John", confidence=0.9))
+        state.add_value("age", ValueConfidence(value=30, confidence=0.85))
         return state
 
     @pytest.mark.asyncio
     async def test_record_snapshot_stores_copy(
-        self, store: InMemorySnapshotStore[CanonicalState], sample_state: CanonicalState
+        self, store: InMemorySnapshotStore[State], sample_state: State
     ) -> None:
         """Snapshot should store a deep copy, not the original."""
         await store.record_snapshot("mutator_1", sample_state)
 
         # Modify original state
-        sample_state.set_field("name", "Jane")
+        sample_state.add_value("name", ValueConfidence(value="Jane", confidence=0.95))
 
         # Snapshot should still have original value
         snapshots = await store.get_snapshots()
         assert len(snapshots) == 1
-        assert snapshots[0].state.get_field("name") == "John"
+        best = snapshots[0].state.get_best_value("name")
+        assert best is not None
+        assert best.value == "John"
 
     @pytest.mark.asyncio
     async def test_record_multiple_snapshots(
-        self, store: InMemorySnapshotStore[CanonicalState], sample_state: CanonicalState
+        self, store: InMemorySnapshotStore[State], sample_state: State
     ) -> None:
         """Should record multiple snapshots in order."""
         await store.record_snapshot("mutator_1", sample_state)
 
-        sample_state.set_field("name", "Jane")
-        await store.record_snapshot("mutator_2", sample_state)
+        state2 = State()
+        state2.add_value("name", ValueConfidence(value="Jane", confidence=0.9))
+        await store.record_snapshot("mutator_2", state2)
 
         snapshots = await store.get_snapshots()
         assert len(snapshots) == 2
-        assert snapshots[0].state.get_field("name") == "John"
-        assert snapshots[1].state.get_field("name") == "Jane"
+        best0 = snapshots[0].state.get_best_value("name")
+        best1 = snapshots[1].state.get_best_value("name")
+        assert best0 is not None
+        assert best0.value == "John"
+        assert best1 is not None
+        assert best1.value == "Jane"
         assert snapshots[0].index == 0
         assert snapshots[1].index == 1
 
     @pytest.mark.asyncio
     async def test_get_snapshots_by_mutator(
-        self, store: InMemorySnapshotStore[CanonicalState], sample_state: CanonicalState
+        self, store: InMemorySnapshotStore[State], sample_state: State
     ) -> None:
         """Should filter snapshots by mutator ID."""
         await store.record_snapshot("mutator_1", sample_state)
-        sample_state.set_field("name", "Jane")
-        await store.record_snapshot("mutator_2", sample_state)
-        sample_state.set_field("name", "Bob")
-        await store.record_snapshot("mutator_1", sample_state)
+
+        state2 = State()
+        state2.add_value("name", ValueConfidence(value="Jane", confidence=0.9))
+        await store.record_snapshot("mutator_2", state2)
+
+        state3 = State()
+        state3.add_value("name", ValueConfidence(value="Bob", confidence=0.9))
+        await store.record_snapshot("mutator_1", state3)
 
         mutator_1_snapshots = await store.get_snapshots_by_mutator("mutator_1")
         assert len(mutator_1_snapshots) == 2
-        assert mutator_1_snapshots[0].state.get_field("name") == "John"
-        assert mutator_1_snapshots[1].state.get_field("name") == "Bob"
+        best0 = mutator_1_snapshots[0].state.get_best_value("name")
+        best1 = mutator_1_snapshots[1].state.get_best_value("name")
+        assert best0 is not None
+        assert best0.value == "John"
+        assert best1 is not None
+        assert best1.value == "Bob"
 
     @pytest.mark.asyncio
     async def test_get_latest_returns_most_recent(
-        self, store: InMemorySnapshotStore[CanonicalState], sample_state: CanonicalState
+        self, store: InMemorySnapshotStore[State], sample_state: State
     ) -> None:
         """Should return the most recent snapshot."""
         await store.record_snapshot("mutator_1", sample_state)
-        sample_state.set_field("name", "Jane")
-        await store.record_snapshot("mutator_2", sample_state)
+
+        state2 = State()
+        state2.add_value("name", ValueConfidence(value="Jane", confidence=0.9))
+        await store.record_snapshot("mutator_2", state2)
 
         latest = await store.get_latest()
         assert latest is not None
-        assert latest.state.get_field("name") == "Jane"
+        best = latest.state.get_best_value("name")
+        assert best is not None
+        assert best.value == "Jane"
         assert latest.mutator_id == "mutator_2"
 
     @pytest.mark.asyncio
     async def test_get_latest_returns_none_when_empty(
-        self, store: InMemorySnapshotStore[CanonicalState]
+        self, store: InMemorySnapshotStore[State]
     ) -> None:
         """Should return None when no snapshots exist."""
         latest = await store.get_latest()
@@ -94,7 +112,7 @@ class TestInMemorySnapshotStoreWithCanonicalState:
 
     @pytest.mark.asyncio
     async def test_clear_removes_all_snapshots(
-        self, store: InMemorySnapshotStore[CanonicalState], sample_state: CanonicalState
+        self, store: InMemorySnapshotStore[State], sample_state: State
     ) -> None:
         """Clear should remove all snapshots."""
         await store.record_snapshot("mutator_1", sample_state)
@@ -107,7 +125,7 @@ class TestInMemorySnapshotStoreWithCanonicalState:
 
     @pytest.mark.asyncio
     async def test_count_returns_correct_number(
-        self, store: InMemorySnapshotStore[CanonicalState], sample_state: CanonicalState
+        self, store: InMemorySnapshotStore[State], sample_state: State
     ) -> None:
         """Count should return the number of stored snapshots."""
         assert await store.count() == 0
@@ -120,7 +138,7 @@ class TestInMemorySnapshotStoreWithCanonicalState:
 
     @pytest.mark.asyncio
     async def test_snapshot_has_timestamp(
-        self, store: InMemorySnapshotStore[CanonicalState], sample_state: CanonicalState
+        self, store: InMemorySnapshotStore[State], sample_state: State
     ) -> None:
         """Snapshots should have timestamps."""
         await store.record_snapshot("mutator_1", sample_state)
@@ -129,39 +147,37 @@ class TestInMemorySnapshotStoreWithCanonicalState:
         assert snapshots[0].timestamp is not None
 
 
-class TestInMemorySnapshotStoreWithInterpretiveState:
-    """Tests for InMemorySnapshotStore with InterpretiveState."""
+class TestInMemorySnapshotStoreDeepCopy:
+    """Tests for deep copy behavior with State."""
 
     @pytest.fixture
-    def store(self) -> InMemorySnapshotStore[InterpretiveState]:
-        return InMemorySnapshotStore[InterpretiveState]()
+    def store(self) -> InMemorySnapshotStore[State]:
+        return InMemorySnapshotStore[State]()
 
     @pytest.fixture
-    def sample_state(self) -> InterpretiveState:
-        state = InterpretiveState()
+    def sample_state(self) -> State:
+        state = State()
         state.set_field(
             "name",
-            InterpretiveFieldState(
+            StateField(
                 inference=None, values=[ValueConfidence(value="John", confidence=0.9)]
             ),
         )
         return state
 
     @pytest.mark.asyncio
-    async def test_record_snapshot_with_interpretive_state(
+    async def test_record_snapshot_with_state(
         self,
-        store: InMemorySnapshotStore[InterpretiveState],
-        sample_state: InterpretiveState,
+        store: InMemorySnapshotStore[State],
+        sample_state: State,
     ) -> None:
-        """Should correctly deep copy InterpretiveState."""
+        """Should correctly deep copy State."""
         await store.record_snapshot("mutator_1", sample_state)
 
         # Modify original
-        field_data = sample_state.get_field("name")
-        assert field_data is not None
         sample_state.set_field(
             "name",
-            InterpretiveFieldState(
+            StateField(
                 inference=None, values=[ValueConfidence(value="Jane", confidence=0.8)]
             ),
         )
@@ -181,33 +197,30 @@ class TestInMemorySnapshotStoreBoundedCapacity:
     @pytest.mark.asyncio
     async def test_respects_max_snapshots_limit(self) -> None:
         """Should discard oldest snapshots when limit exceeded."""
-        store: InMemorySnapshotStore[CanonicalState] = InMemorySnapshotStore(
-            max_snapshots=3
-        )
-        state = CanonicalState()
+        store: InMemorySnapshotStore[State] = InMemorySnapshotStore(max_snapshots=3)
 
         for i in range(5):
-            state.set_field("value", i)
+            state = State()
+            state.add_value("value", ValueConfidence(value=i, confidence=0.9))
             await store.record_snapshot(f"mutator_{i}", state)
 
         # Should only have last 3 snapshots
         assert await store.count() == 3
         snapshots = await store.get_snapshots()
         # Values should be 2, 3, 4 (oldest 0, 1 were discarded)
-        assert snapshots[0].state.get_field("value") == 2
-        assert snapshots[1].state.get_field("value") == 3
-        assert snapshots[2].state.get_field("value") == 4
+        for idx, expected_val in enumerate([2, 3, 4]):
+            best = snapshots[idx].state.get_best_value("value")
+            assert best is not None
+            assert best.value == expected_val
 
     @pytest.mark.asyncio
     async def test_index_continues_after_eviction(self) -> None:
         """Snapshot index should continue incrementing after eviction."""
-        store: InMemorySnapshotStore[CanonicalState] = InMemorySnapshotStore(
-            max_snapshots=2
-        )
-        state = CanonicalState()
+        store: InMemorySnapshotStore[State] = InMemorySnapshotStore(max_snapshots=2)
 
         for i in range(5):
-            state.set_field("value", i)
+            state = State()
+            state.add_value("value", ValueConfidence(value=i, confidence=0.9))
             await store.record_snapshot(f"mutator_{i}", state)
 
         snapshots = await store.get_snapshots()
@@ -218,15 +231,13 @@ class TestInMemorySnapshotStoreBoundedCapacity:
     @pytest.mark.asyncio
     async def test_default_max_snapshots(self) -> None:
         """Default max_snapshots should be 100."""
-        store: InMemorySnapshotStore[CanonicalState] = InMemorySnapshotStore()
+        store: InMemorySnapshotStore[State] = InMemorySnapshotStore()
         assert store.max_snapshots == 100
 
     @pytest.mark.asyncio
     async def test_custom_max_snapshots(self) -> None:
         """Should accept custom max_snapshots."""
-        store: InMemorySnapshotStore[CanonicalState] = InMemorySnapshotStore(
-            max_snapshots=50
-        )
+        store: InMemorySnapshotStore[State] = InMemorySnapshotStore(max_snapshots=50)
         assert store.max_snapshots == 50
 
 
@@ -237,8 +248,8 @@ class TestSnapshotDataclass:
         """Snapshot should be immutable (frozen dataclass)."""
         from datetime import datetime, timezone
 
-        state = CanonicalState()
-        snapshot: Snapshot[CanonicalState] = Snapshot(
+        state = State()
+        snapshot: Snapshot[State] = Snapshot(
             mutator_id="test",
             timestamp=datetime.now(timezone.utc),
             state=state,

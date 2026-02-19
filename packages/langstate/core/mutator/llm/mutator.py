@@ -7,7 +7,7 @@ from core.mutator.llm.schema import MutationContext
 from core.mutator.llm.client.base import BaseLLMClient
 from core.mutator.llm.client.schema import FieldExtraction
 from core.state import ValueConfidence
-from core.state.interpretive.schema import Inference, ValueConfidence
+from core.state.state.schema import Inference, ValueConfidence
 
 _EXTRACTION_PROMPT = """You are a structured data extraction assistant.
 

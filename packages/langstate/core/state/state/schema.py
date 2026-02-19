@@ -1,7 +1,7 @@
-"""Pydantic schemas for Interpretive State module.
+"""Pydantic schemas for State module.
 
-This module contains all data models used by the Interpretive State.
-Interpretive State uses rich format with inferences and value-confidence pairs.
+This module contains all data models used by the State.
+State uses rich format with inferences and value-confidence pairs.
 """
 
 from typing import Annotated, Dict, List, Optional
@@ -37,7 +37,7 @@ class ValueConfidence(BaseModel):
     ] = 0.0
 
 
-class InterpretiveFieldState(BaseModel):
+class StateField(BaseModel):
     """Rich state for a single field with inference and values."""
 
     inference: Annotated[
@@ -50,8 +50,8 @@ class InterpretiveFieldState(BaseModel):
     ] = []
 
 
-class InterpretiveStateSchema(RootModel[Dict[str, InterpretiveFieldState]]):
-    """Interpretive state representation: rich format with inference and values.
+class StateSchema(RootModel[Dict[str, StateField]]):
+    """State representation: rich format with inference and values.
 
     Format: {key: {inference: {content, mutator_id, message_id} | null, values: [{value, confidence}]}}
 

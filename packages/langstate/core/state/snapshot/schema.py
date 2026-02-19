@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Generic, TypeVar
 
-from core.state.base import BaseState
+from core.state.base.base import BaseBasicState
 
-TState = TypeVar("TState", bound=BaseState[Any])
+TState = TypeVar("TState", bound=BaseBasicState[Any])
 
 
 @dataclass(frozen=True)

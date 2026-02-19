@@ -8,10 +8,10 @@ storage backends without changing the core logic.
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Generic, Optional, TypeVar
 
-from ..base import BaseState
+from ..base.base import BaseBasicState
 
 
-TState = TypeVar("TState", bound=BaseState[Any])
+TState = TypeVar("TState", bound=BaseBasicState[Any])
 
 
 class BaseStateRepository(ABC, Generic[TState]):
@@ -21,8 +21,8 @@ class BaseStateRepository(ABC, Generic[TState]):
     following Interface Segregation Principle (ISP) by focusing only
     on state-related operations.
 
-    Generic over TState, works with any state type (CanonicalState,
-    InterpretiveState, or custom state implementations).
+    Generic over TState, works with any state type
+    or custom state implementations.
 
     Implementations can store state in:
     - Memory (default, for single-session)
