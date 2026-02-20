@@ -5,30 +5,30 @@ from typing_extensions import Self
 
 from pydantic_core import core_schema
 
-from core.state.base.state import BasicState
+from core.state.base.state import DAHState
 from core.state.state.base import BaseState
 from core.state.state.schema import (
     Inference,
-    StateField,
+    InterpretiveField,
     ValueConfidence,
 )
 
 
-class State(BasicState[StateField], BaseState):
+class State(DAHState[InterpretiveField], BaseState):
     """State implementation with DAH-based storage and inference tracking.
 
-    Implements BaseState interface using StateField as node values.
+    Implements BaseState interface using InterpretiveField as node values.
     Field values are stored directly in DAH nodes with paths like:
     - "name" for simple fields
     - "address.city" for nested objects
     - "guests.0.email" for array elements
 
-    Values are StateField objects with:
+    Values are InterpretiveField objects with:
     - inference: Optional single inference about the field (latest overwrites)
     - values: List of value-confidence pairs
     """
 
-    def _is_field_filled(self, value: Optional[StateField]) -> bool:
+    def _is_field_filled(self, value: Optional[InterpretiveField]) -> bool:
         """Check if a field value is considered filled.
 
         Args:
@@ -85,31 +85,14 @@ class State(BasicState[StateField], BaseState):
         field_state = self._get_or_create_field_state(path)
         field_state.values.append(value_confidence)
 
-    def get_best_value(self, path: str) -> Optional[ValueConfidence]:
-        """Get the value with highest confidence for a field.
-
-        Args:
-            path: The field path (e.g., "name" or "guests.0.email")
-
-        Returns:
-            ValueConfidence with highest confidence, None if no values
-        """
-        value = self.get_field(path)
-        if value is None:
-            return None
-        if not value.values:
-            return None
-
-        return max(value.values, key=lambda vc: vc.confidence)
-
-    def _get_or_create_field_state(self, path: str) -> StateField:
+    def _get_or_create_field_state(self, path: str) -> InterpretiveField:
         """Get or create field state for a field path.
 
         Args:
             path: The field path
 
         Returns:
-            The StateField for this field
+            The InterpretiveField for this field
         """
         value = self.get_field(path)
 
@@ -117,7 +100,7 @@ class State(BasicState[StateField], BaseState):
             return value
 
         # Create new field state
-        new_field_state = StateField(inference=None, values=[])
+        new_field_state = InterpretiveField(inference=None, values=[])
         self.set_field(path, new_field_state)
 
         return new_field_state

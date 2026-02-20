@@ -4,7 +4,7 @@ from typing_extensions import Self
 from core.typing.generic import TFieldData
 
 
-class BaseBasicState(ABC, Generic[TFieldData]):
+class BaseDAHState(ABC, Generic[TFieldData]):
     """Abstract base class for State implementations.
 
     The State holds the current values directly in DAH.

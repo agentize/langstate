@@ -230,6 +230,39 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             [prereq_path], dep_path, metadata=metadata, check_cycle=check_cycle
         )
 
+    def ensure_node_hierarchy(self, path: str) -> None:
+        """Ensure all ancestor nodes and parent→child hyperedges exist for *path*.
+
+        Given a dot-separated path such as ``"guests.0.name"``, this method
+        creates every intermediate node (``"guests"``, ``"guests.0"``) if they
+        are absent and adds a single-source hyperedge from each parent to its
+        immediate child.  Existing nodes and edges are left untouched.
+
+        Args:
+            path: Dot-separated node path (e.g. ``"address.city"``).  A
+                  top-level path with no dots is a no-op.
+        """
+        parts = path.split(".")
+        if len(parts) <= 1:
+            return
+
+        for i in range(1, len(parts)):
+            parent_path = ".".join(parts[:i])
+            child_path = ".".join(parts[: i + 1])
+
+            if self.get_node(parent_path) is None:
+                self.add_node(parent_path, None)
+
+            # Ensure intermediate (non-leaf) child node exists
+            if i < len(parts) - 1 and self.get_node(child_path) is None:
+                self.add_node(child_path, None)
+
+            try:
+                self.add_hyperedge([parent_path], child_path, check_cycle=True)
+            except ValueError:
+                # Edge already exists or would create a cycle — skip.
+                pass
+
     # ---- Graph-wide queries -------------------------------------------------
 
     def prerequisite_ids(self, path: str) -> Set[UUID]:

@@ -188,6 +188,11 @@ class BaseDirectedAcyclicHypergraph(BaseGraph[V, E]):
         pass
 
     @abstractmethod
+    def ensure_node_hierarchy(self, path: str) -> None:
+        """Ensure all ancestor nodes and parent→child edges exist for a dot-separated path."""
+        pass
+
+    @abstractmethod
     def to_dot(self) -> str:
         """Export to Graphviz DOT format."""
         pass

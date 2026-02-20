@@ -8,7 +8,7 @@ inference tracking, and value-confidence pairs.
 
 from core.state.state.schema import (
     Inference,
-    StateField,
+    InterpretiveField,
     ValueConfidence,
 )
 from core.state.state.state import State
@@ -115,52 +115,6 @@ class TestStateAddInference:
         assert field_state.inference.mutator_id == "unknown"
 
 
-class TestStateGetBestValue:
-    """Tests for get_best_value operation."""
-
-    def test_get_best_value_single_value(self) -> None:
-        """get_best_value should return only value."""
-        state = State()
-        state.add_value("name", ValueConfidence(value="John", confidence=0.9))
-
-        best = state.get_best_value("name")
-
-        assert best is not None
-        assert best.value == "John"
-        assert best.confidence == 0.9
-
-    def test_get_best_value_multiple_values(self) -> None:
-        """get_best_value should return highest confidence."""
-        state = State()
-        state.add_value("name", ValueConfidence(value="John", confidence=0.6))
-        state.add_value("name", ValueConfidence(value="Jonathan", confidence=0.9))
-        state.add_value("name", ValueConfidence(value="Jon", confidence=0.3))
-
-        best = state.get_best_value("name")
-
-        assert best is not None
-        assert best.value == "Jonathan"
-        assert best.confidence == 0.9
-
-    def test_get_best_value_nonexistent_field(self) -> None:
-        """get_best_value should return None for non-existent field."""
-        state = State()
-
-        best = state.get_best_value("nonexistent")
-
-        assert best is None
-
-    def test_get_best_value_empty_values(self) -> None:
-        """get_best_value should return None for field with no values."""
-        state = State()
-        # Create field with inference but no values
-        state.add_inference("name", Inference(content="test", mutator_id="llm"))
-
-        best = state.get_best_value("name")
-
-        assert best is None
-
-
 class TestStateNestedPaths:
     """Tests for nested path handling."""
 
@@ -173,13 +127,13 @@ class TestStateNestedPaths:
             "address.country", ValueConfidence(value="USA", confidence=0.98)
         )
 
-        city_best = state.get_best_value("address.city")
-        country_best = state.get_best_value("address.country")
+        city_field = state.get_field("address.city")
+        country_field = state.get_field("address.country")
 
-        assert city_best is not None
-        assert city_best.value == "NYC"
-        assert country_best is not None
-        assert country_best.value == "USA"
+        assert city_field is not None
+        assert city_field.values[0].value == "NYC"
+        assert country_field is not None
+        assert country_field.values[0].value == "USA"
 
     def test_array_element_path(self) -> None:
         """Should handle array element paths."""
@@ -188,13 +142,13 @@ class TestStateNestedPaths:
         state.add_value("guests.0.name", ValueConfidence(value="Alice", confidence=0.9))
         state.add_value("guests.1.name", ValueConfidence(value="Bob", confidence=0.85))
 
-        guest0 = state.get_best_value("guests.0.name")
-        guest1 = state.get_best_value("guests.1.name")
+        guest0 = state.get_field("guests.0.name")
+        guest1 = state.get_field("guests.1.name")
 
         assert guest0 is not None
-        assert guest0.value == "Alice"
+        assert guest0.values[0].value == "Alice"
         assert guest1 is not None
-        assert guest1.value == "Bob"
+        assert guest1.values[0].value == "Bob"
 
 
 class TestStateCopy:
@@ -284,9 +238,9 @@ class TestStateCopy:
 
         copied = state.copy()
 
-        best = copied.get_best_value("a.b.c")
-        assert best is not None
-        assert best.value == "deep"
+        field = copied.get_field("a.b.c")
+        assert field is not None
+        assert field.values[0].value == "deep"
 
 
 class TestStateIsFieldFilled:
@@ -295,7 +249,7 @@ class TestStateIsFieldFilled:
     def test_is_field_filled_with_values(self) -> None:
         """Field with values should be considered filled."""
         state = State()
-        field_state = StateField(
+        field_state = InterpretiveField(
             inference=None, values=[ValueConfidence(value="test", confidence=0.9)]
         )
 
@@ -304,14 +258,14 @@ class TestStateIsFieldFilled:
     def test_is_field_filled_empty_values(self) -> None:
         """Field with no values should not be considered filled."""
         state = State()
-        field_state = StateField(inference=None, values=[])
+        field_state = InterpretiveField(inference=None, values=[])
 
         assert state._is_field_filled(field_state) is False
 
     def test_is_field_filled_with_inference_only(self) -> None:
         """Field with only inference (no values) should not be filled."""
         state = State()
-        field_state = StateField(
+        field_state = InterpretiveField(
             inference=Inference(content="test", mutator_id="llm"), values=[]
         )
 
@@ -401,7 +355,7 @@ class TestStateGetOrCreateFieldState:
 
         field_state = state._get_or_create_field_state("new_field")
 
-        assert isinstance(field_state, StateField)
+        assert isinstance(field_state, InterpretiveField)
         assert field_state.inference is None
         assert len(field_state.values) == 0
 
@@ -467,9 +421,9 @@ class TestStateEdgeCases:
 
         state.add_value("name", ValueConfidence(value="John", confidence=0.0))
 
-        best = state.get_best_value("name")
-        assert best is not None
-        assert best.confidence == 0.0
+        field = state.get_field("name")
+        assert field is not None
+        assert field.values[0].confidence == 0.0
 
     def test_value_with_none_value(self) -> None:
         """Should handle None as actual value."""
@@ -477,10 +431,10 @@ class TestStateEdgeCases:
 
         state.add_value("optional", ValueConfidence(value=None, confidence=0.9))
 
-        best = state.get_best_value("optional")
-        assert best is not None
-        assert best.value is None
-        assert best.confidence == 0.9
+        field = state.get_field("optional")
+        assert field is not None
+        assert field.values[0].value is None
+        assert field.values[0].confidence == 0.9
 
     def test_mixed_inferences_and_values(self) -> None:
         """Should handle fields with both inferences and values."""
@@ -502,7 +456,6 @@ class TestStateEdgeCases:
         state = State()
 
         assert state.get_field("any") is None
-        assert state.get_best_value("any") is None
         assert state.get_filled_fields() == []
         assert state.get_empty_fields() == []
         assert state.is_complete() is True

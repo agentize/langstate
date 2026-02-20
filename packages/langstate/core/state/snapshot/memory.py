@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, List, Optional, TypeVar
 
-from core.state.base.base import BaseBasicState
+from core.state.base.base import BaseDAHState
 from core.state.snapshot.base import BaseSnapshotStore
 from core.state.snapshot.schema import Snapshot
 
-TState = TypeVar("TState", bound=BaseBasicState[Any])
+TState = TypeVar("TState", bound=BaseDAHState[Any])
 
 
 class InMemorySnapshotStore(BaseSnapshotStore[TState]):

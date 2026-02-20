@@ -8,16 +8,16 @@ Uses DAH for internal storage with field paths as node identifiers.
 """
 
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from pydantic_core import core_schema
 
-from ..base.base import BaseBasicState
+from ..base.base import BaseDAHState
 from .schema import ValueConfidence
-from .schema import Inference, StateField
+from .schema import Inference, InterpretiveField
 
 
-class BaseState(BaseBasicState[StateField]):
+class BaseState(BaseDAHState[InterpretiveField]):
     """State interface.
 
     The State stores field values with optional inference and confidence scores.
@@ -47,8 +47,6 @@ class BaseState(BaseBasicState[StateField]):
         # Nested array element
         state.add_value("guests.0.name", ValueConfidence(value="Jane", confidence=0.95))
 
-        # Get best value
-        best = state.get_best_value("name")  # ValueConfidence(value="John", confidence=0.9)
     """
 
     @classmethod
@@ -81,17 +79,5 @@ class BaseState(BaseBasicState[StateField]):
         Args:
             path: The field path (e.g., "name" or "guests.0.email")
             value_confidence: The value with confidence
-        """
-        pass
-
-    @abstractmethod
-    def get_best_value(self, path: str) -> Optional[ValueConfidence]:
-        """Get the value with highest confidence for a field.
-
-        Args:
-            path: The field path (e.g., "name" or "guests.0.email")
-
-        Returns:
-            ValueConfidence with highest confidence, None if no values
         """
         pass

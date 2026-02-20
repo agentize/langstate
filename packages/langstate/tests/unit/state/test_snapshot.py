@@ -2,7 +2,7 @@
 
 import pytest
 
-from core.state.state.schema import StateField, ValueConfidence
+from core.state.state.schema import InterpretiveField, ValueConfidence
 from core.state.state.state import State
 from core.state.snapshot import InMemorySnapshotStore, Snapshot
 
@@ -34,9 +34,9 @@ class TestInMemorySnapshotStoreWithState:
         # Snapshot should still have original value
         snapshots = await store.get_snapshots()
         assert len(snapshots) == 1
-        best = snapshots[0].state.get_best_value("name")
-        assert best is not None
-        assert best.value == "John"
+        field = snapshots[0].state.get_field("name")
+        assert field is not None
+        assert field.values[0].value == "John"
 
     @pytest.mark.asyncio
     async def test_record_multiple_snapshots(
@@ -51,12 +51,12 @@ class TestInMemorySnapshotStoreWithState:
 
         snapshots = await store.get_snapshots()
         assert len(snapshots) == 2
-        best0 = snapshots[0].state.get_best_value("name")
-        best1 = snapshots[1].state.get_best_value("name")
-        assert best0 is not None
-        assert best0.value == "John"
-        assert best1 is not None
-        assert best1.value == "Jane"
+        field0 = snapshots[0].state.get_field("name")
+        field1 = snapshots[1].state.get_field("name")
+        assert field0 is not None
+        assert field0.values[0].value == "John"
+        assert field1 is not None
+        assert field1.values[0].value == "Jane"
         assert snapshots[0].index == 0
         assert snapshots[1].index == 1
 
@@ -77,12 +77,12 @@ class TestInMemorySnapshotStoreWithState:
 
         mutator_1_snapshots = await store.get_snapshots_by_mutator("mutator_1")
         assert len(mutator_1_snapshots) == 2
-        best0 = mutator_1_snapshots[0].state.get_best_value("name")
-        best1 = mutator_1_snapshots[1].state.get_best_value("name")
-        assert best0 is not None
-        assert best0.value == "John"
-        assert best1 is not None
-        assert best1.value == "Bob"
+        field0 = mutator_1_snapshots[0].state.get_field("name")
+        field1 = mutator_1_snapshots[1].state.get_field("name")
+        assert field0 is not None
+        assert field0.values[0].value == "John"
+        assert field1 is not None
+        assert field1.values[0].value == "Bob"
 
     @pytest.mark.asyncio
     async def test_get_latest_returns_most_recent(
@@ -97,9 +97,9 @@ class TestInMemorySnapshotStoreWithState:
 
         latest = await store.get_latest()
         assert latest is not None
-        best = latest.state.get_best_value("name")
-        assert best is not None
-        assert best.value == "Jane"
+        field = latest.state.get_field("name")
+        assert field is not None
+        assert field.values[0].value == "Jane"
         assert latest.mutator_id == "mutator_2"
 
     @pytest.mark.asyncio
@@ -159,7 +159,7 @@ class TestInMemorySnapshotStoreDeepCopy:
         state = State()
         state.set_field(
             "name",
-            StateField(
+            InterpretiveField(
                 inference=None, values=[ValueConfidence(value="John", confidence=0.9)]
             ),
         )
@@ -177,7 +177,7 @@ class TestInMemorySnapshotStoreDeepCopy:
         # Modify original
         sample_state.set_field(
             "name",
-            StateField(
+            InterpretiveField(
                 inference=None, values=[ValueConfidence(value="Jane", confidence=0.8)]
             ),
         )
@@ -209,9 +209,9 @@ class TestInMemorySnapshotStoreBoundedCapacity:
         snapshots = await store.get_snapshots()
         # Values should be 2, 3, 4 (oldest 0, 1 were discarded)
         for idx, expected_val in enumerate([2, 3, 4]):
-            best = snapshots[idx].state.get_best_value("value")
-            assert best is not None
-            assert best.value == expected_val
+            field = snapshots[idx].state.get_field("value")
+            assert field is not None
+            assert field.values[0].value == expected_val
 
     @pytest.mark.asyncio
     async def test_index_continues_after_eviction(self) -> None:

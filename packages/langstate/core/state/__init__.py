@@ -1,8 +1,8 @@
 """State module exports."""
 
-from .base.base import BaseBasicState
-from .base.state import BasicState
-from .state.schema import Inference, ValueConfidence, StateField, StateSchema
+from .base.base import BaseDAHState
+from .base.state import DAHState
+from .state.schema import Inference, ValueConfidence, InterpretiveField, StateSchema
 from .state.base import BaseState
 from .state.state import State
 from .state import BaseSnapshotStore
@@ -13,11 +13,11 @@ from .repository import (
 
 __all__ = [
     # Base
-    "BaseBasicState",
-    "BasicState",
+    "BaseDAHState",
+    "DAHState",
     "BaseState",
     "State",
-    "StateField",
+    "InterpretiveField",
     "StateSchema",
     "Inference",
     "ValueConfidence",

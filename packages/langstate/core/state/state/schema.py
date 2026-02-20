@@ -37,7 +37,7 @@ class ValueConfidence(BaseModel):
     ] = 0.0
 
 
-class StateField(BaseModel):
+class InterpretiveField(BaseModel):
     """Rich state for a single field with inference and values."""
 
     inference: Annotated[
@@ -50,7 +50,7 @@ class StateField(BaseModel):
     ] = []
 
 
-class StateSchema(RootModel[Dict[str, StateField]]):
+class StateSchema(RootModel[Dict[str, InterpretiveField]]):
     """State representation: rich format with inference and values.
 
     Format: {key: {inference: {content, mutator_id, message_id} | null, values: [{value, confidence}]}}

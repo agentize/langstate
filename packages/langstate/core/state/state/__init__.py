@@ -3,7 +3,7 @@
 from .base import BaseState
 from .state import State
 from .schema import (
-    StateField,
+    InterpretiveField,
     StateSchema as StateSchema,
     Inference,
     ValueConfidence,
@@ -13,7 +13,7 @@ from ..snapshot.base import BaseSnapshotStore
 __all__ = [
     "BaseState",
     "State",
-    "StateField",
+    "InterpretiveField",
     "StateSchema",
     "Inference",
     "ValueConfidence",

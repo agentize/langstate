@@ -45,8 +45,10 @@ class Evaluator(BaseEvaluator):
         extra = 0
 
         for path in sorted(all_paths):
-            expected_val: Optional[ValueConfidence] = expected.get_best_value(path)
-            actual_val: Optional[ValueConfidence] = actual.get_best_value(path)
+            expected_val: Optional[ValueConfidence] = self._get_best_value(
+                expected, path
+            )
+            actual_val: Optional[ValueConfidence] = self._get_best_value(actual, path)
 
             in_expected = path in expected_fields
             in_actual = path in actual_fields
@@ -105,6 +107,25 @@ class Evaluator(BaseEvaluator):
             extra_fields=extra,
             overall_match=(mismatched == 0 and missing == 0 and extra == 0),
         )
+
+    def _get_best_value(self, state: BaseState, path: str) -> Optional[ValueConfidence]:
+        """Get the value with the highest confidence for a field.
+
+        Args:
+            state: The state to query.
+            path:  The field path.
+
+        Returns:
+            The ValueConfidence with the highest confidence score, or None if
+            the field is absent or has no values.
+        """
+        field = state.get_field(path)
+        if field is None:
+            return None
+        values = getattr(field, "values", [])
+        if not values:
+            return None
+        return max(values, key=lambda vc: vc.confidence)
 
     def _values_equal(
         self,

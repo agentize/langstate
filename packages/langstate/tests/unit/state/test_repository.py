@@ -40,9 +40,9 @@ class TestInMemoryStateRepository:
         result = await repository.get("test_id")
 
         assert result is not None
-        best = result.get_best_value("name")
-        assert best is not None
-        assert best.value == "John"
+        field = result.get_field("name")
+        assert field is not None
+        assert field.values[0].value == "John"
 
     @pytest.mark.asyncio
     async def test_save_overwrites_existing(
@@ -59,9 +59,9 @@ class TestInMemoryStateRepository:
         result = await repository.get("test_id")
 
         assert result is not None
-        best = result.get_best_value("name")
-        assert best is not None
-        assert best.value == "Jane"
+        field = result.get_field("name")
+        assert field is not None
+        assert field.values[0].value == "Jane"
 
     @pytest.mark.asyncio
     async def test_delete_existing(
@@ -135,9 +135,9 @@ class TestInMemoryStateRepository:
 
         result = await repository.get_or_create("test_id", factory)
 
-        best = result.get_best_value("source")
-        assert best is not None
-        assert best.value == "existing"
+        field = result.get_field("source")
+        assert field is not None
+        assert field.values[0].value == "existing"
 
     @pytest.mark.asyncio
     async def test_get_or_create_new(
@@ -152,15 +152,15 @@ class TestInMemoryStateRepository:
 
         result = await repository.get_or_create("new_id", factory)
 
-        best = result.get_best_value("source")
-        assert best is not None
-        assert best.value == "factory"
+        field = result.get_field("source")
+        assert field is not None
+        assert field.values[0].value == "factory"
         # Should also be saved
         saved = await repository.get("new_id")
         assert saved is not None
-        best_saved = saved.get_best_value("source")
-        assert best_saved is not None
-        assert best_saved.value == "factory"
+        saved_field = saved.get_field("source")
+        assert saved_field is not None
+        assert saved_field.values[0].value == "factory"
 
 
 class TestInMemoryStateRepositoryWithBaseState:
@@ -184,9 +184,9 @@ class TestInMemoryStateRepositoryWithBaseState:
         result = await repository.get("state_1")
 
         assert result is not None
-        best_name = result.get_best_value("name")
-        assert best_name is not None
-        assert best_name.value == "John"
+        name_field = result.get_field("name")
+        assert name_field is not None
+        assert name_field.values[0].value == "John"
 
     @pytest.mark.asyncio
     async def test_multiple_states(
@@ -205,13 +205,13 @@ class TestInMemoryStateRepositoryWithBaseState:
         result2 = await repository.get("state_2")
 
         assert result1 is not None
-        best1 = result1.get_best_value("id")
-        assert best1 is not None
-        assert best1.value == "1"
+        field1 = result1.get_field("id")
+        assert field1 is not None
+        assert field1.values[0].value == "1"
         assert result2 is not None
-        best2 = result2.get_best_value("id")
-        assert best2 is not None
-        assert best2.value == "2"
+        field2 = result2.get_field("id")
+        assert field2 is not None
+        assert field2.values[0].value == "2"
 
 
 class TestInMemoryStateRepositoryVariant:
@@ -234,10 +234,10 @@ class TestInMemoryStateRepositoryVariant:
         result = await repository.get("state_1")
 
         assert result is not None
-        best = result.get_best_value("name")
-        assert best is not None
-        assert best.value == "John"
-        assert best.confidence == 0.9
+        field = result.get_field("name")
+        assert field is not None
+        assert field.values[0].value == "John"
+        assert field.values[0].confidence == 0.9
 
     @pytest.mark.asyncio
     async def test_delete_and_exists(
@@ -299,9 +299,9 @@ class TestRepositoryEdgeCases:
         # Verify
         result = await repository.get("id")
         assert result is not None
-        best = result.get_best_value("version")
-        assert best is not None
-        assert best.value == "2"
+        field = result.get_field("version")
+        assert field is not None
+        assert field.values[0].value == "2"
 
         # Delete
         assert await repository.delete("id") is True

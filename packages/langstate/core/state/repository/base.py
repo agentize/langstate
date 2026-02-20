@@ -8,10 +8,10 @@ storage backends without changing the core logic.
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Generic, Optional, TypeVar
 
-from ..base.base import BaseBasicState
+from ..base.base import BaseDAHState
 
 
-TState = TypeVar("TState", bound=BaseBasicState[Any])
+TState = TypeVar("TState", bound=BaseDAHState[Any])
 
 
 class BaseStateRepository(ABC, Generic[TState]):

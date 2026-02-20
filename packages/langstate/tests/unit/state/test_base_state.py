@@ -1,6 +1,6 @@
-"""Unit tests for BasicState base class implementation.
+"""Unit tests for DAHState base class implementation.
 
-Tests the core BasicState class with DAH-based storage functionality.
+Tests the core DAHState class with DAH-based storage functionality.
 """
 
 # pyright: reportPrivateUsage=false
@@ -9,10 +9,10 @@ from uuid import UUID
 
 import pytest
 
-from core.state.base.state import BasicState
+from core.state.base.state import DAHState
 
 
-class ConcreteState(BasicState[str]):
+class ConcreteState(DAHState[str]):
     """Concrete implementation for testing the abstract State class."""
 
     def get_dah_nodes_count(self) -> int:
@@ -116,13 +116,13 @@ class TestGetSetField:
 
 
 class TestEnsureParentHierarchy:
-    """Tests for _ensure_parent_hierarchy method."""
+    """Tests for ensure_node_hierarchy (delegated to DAH)."""
 
     def test_ensure_parent_hierarchy_single_level(self) -> None:
         """Single level path should not create any parents."""
         state = ConcreteState()
 
-        state._ensure_parent_hierarchy("name")
+        state._dah.ensure_node_hierarchy("name")
 
         # No parent nodes created for single-level path
         assert state.get_dah_nodes_count() == 0
@@ -131,7 +131,7 @@ class TestEnsureParentHierarchy:
         """Two level path should create parent node."""
         state = ConcreteState()
 
-        state._ensure_parent_hierarchy("address.city")
+        state._dah.ensure_node_hierarchy("address.city")
 
         assert state.has_node("address")
 
@@ -141,9 +141,9 @@ class TestEnsureParentHierarchy:
         state.set_field("address.city", "NYC")
 
         # Creating sibling should reuse parent
-        state._ensure_parent_hierarchy("address.street")
+        state._dah.ensure_node_hierarchy("address.street")
 
-        # Note: _ensure_parent_hierarchy doesn't create the leaf
+        # Note: ensure_node_hierarchy doesn't create the leaf
         assert state.has_node("address")
 
 

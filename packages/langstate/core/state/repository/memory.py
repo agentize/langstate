@@ -6,10 +6,10 @@ for single-session or testing scenarios.
 
 from typing import Any, Dict, Optional, TypeVar
 
-from ..base.base import BaseBasicState
+from ..base.base import BaseDAHState
 from .base import BaseStateRepository
 
-TState = TypeVar("TState", bound=BaseBasicState[Any])
+TState = TypeVar("TState", bound=BaseDAHState[Any])
 
 
 class InMemoryStateRepository(BaseStateRepository[TState]):

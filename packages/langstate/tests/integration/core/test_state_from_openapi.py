@@ -277,10 +277,10 @@ class TestStateCreation:
         state = State()
         state.add_value("name", ValueConfidence(value="John", confidence=0.9))
 
-        best = state.get_best_value("name")
-        assert best is not None
-        assert best.value == "John"
-        assert best.confidence == 0.9
+        field = state.get_field("name")
+        assert field is not None
+        assert field.values[0].value == "John"
+        assert field.values[0].confidence == 0.9
 
     def test_state_dah_structure(self) -> None:
         """Verify underlying DAH structure is valid."""
@@ -305,10 +305,10 @@ class TestStatePopulation:
             ValueConfidence(value="John Doe", confidence=0.95),
         )
 
-        best = state.get_best_value("registrant.name")
-        assert best is not None
-        assert best.value == "John Doe"
-        assert best.confidence == 0.95
+        field = state.get_field("registrant.name")
+        assert field is not None
+        assert field.values[0].value == "John Doe"
+        assert field.values[0].confidence == 0.95
 
     def test_add_multiple_values_different_confidence(self) -> None:
         """Verify multiple values can be added and best is selected by confidence."""
@@ -327,8 +327,9 @@ class TestStatePopulation:
             ValueConfidence(value="j.doe@example.com", confidence=0.6),
         )
 
-        best = state.get_best_value("registrant.email")
-        assert best is not None
+        field = state.get_field("registrant.email")
+        assert field is not None
+        best = max(field.values, key=lambda vc: vc.confidence)
         assert best.value == "johndoe@example.com"
         assert best.confidence == 0.95
 
@@ -380,9 +381,9 @@ class TestStatePopulation:
             ValueConfidence(value="Bob Johnson", confidence=0.85),
         )
 
-        assert state.get_best_value("guests.0.name") is not None
-        assert state.get_best_value("guests.0.name").value == "Alice Smith"  # type: ignore[union-attr]
-        assert state.get_best_value("guests.1.name").value == "Bob Johnson"  # type: ignore[union-attr]
+        assert state.get_field("guests.0.name") is not None
+        assert state.get_field("guests.0.name").values[0].value == "Alice Smith"
+        assert state.get_field("guests.1.name").values[0].value == "Bob Johnson"  # type: ignore[union-attr]
 
     def test_state_copy(self) -> None:
         """Verify state can be copied."""
@@ -398,12 +399,12 @@ class TestStatePopulation:
 
         copied = state.copy()
 
-        best_original = state.get_best_value("id")
-        best_copied = copied.get_best_value("id")
+        field_original = state.get_field("id")
+        field_copied = copied.get_field("id")
 
-        assert best_original is not None
-        assert best_copied is not None
-        assert best_original.value == best_copied.value
+        assert field_original is not None
+        assert field_copied is not None
+        assert field_original.values[0].value == field_copied.values[0].value
 
     def test_populate_full_registration(self) -> None:
         """Verify complete registration data can be populated."""
@@ -411,15 +412,15 @@ class TestStatePopulation:
         state = _create_state_from_data(full_data)
 
         # Verify all data was set correctly
-        assert state.get_best_value("id") is not None
-        assert state.get_best_value("id").value == "REG-MAIN-2026-001"  # type: ignore[union-attr]
-        assert state.get_best_value("status").value == "confirmed"  # type: ignore[union-attr]
-        assert state.get_best_value("registrant.name").value == "John Doe"  # type: ignore[union-attr]
-        assert state.get_best_value("event.name").value == "PyCon 2026"  # type: ignore[union-attr]
-        assert state.get_best_value("guests.0.name").value == "Alice Smith"  # type: ignore[union-attr]
-        assert state.get_best_value("guests.1.name").value == "Bob Johnson"  # type: ignore[union-attr]
+        assert state.get_field("id") is not None
+        assert state.get_field("id").values[0].value == "REG-MAIN-2026-001"  # type: ignore[union-attr]
+        assert state.get_field("status").values[0].value == "confirmed"  # type: ignore[union-attr]
+        assert state.get_field("registrant.name").values[0].value == "John Doe"  # type: ignore[union-attr]
+        assert state.get_field("event.name").values[0].value == "PyCon 2026"  # type: ignore[union-attr]
+        assert state.get_field("guests.0.name").values[0].value == "Alice Smith"  # type: ignore[union-attr]
+        assert state.get_field("guests.1.name").values[0].value == "Bob Johnson"  # type: ignore[union-attr]
         assert (
-            state.get_best_value("guests.0.invitation.subject").value  # type: ignore[union-attr]
+            state.get_field("guests.0.invitation.subject").values[0].value  # type: ignore[union-attr]
             == "You're invited to PyCon 2026!"
         )
 
@@ -428,19 +429,19 @@ class TestStatePopulation:
         data = _create_sample_registrant_data()
         state = _create_state_from_data(data)
 
-        assert state.get_best_value("registrant.id").value == "REG-2026-001"  # type: ignore[union-attr]
-        assert state.get_best_value("registrant.name").value == "John Doe"  # type: ignore[union-attr]
-        assert state.get_best_value("registrant.email").value == "john.doe@example.com"  # type: ignore[union-attr]
+        assert state.get_field("registrant.id").values[0].value == "REG-2026-001"  # type: ignore[union-attr]
+        assert state.get_field("registrant.name").values[0].value == "John Doe"  # type: ignore[union-attr]
+        assert state.get_field("registrant.email").values[0].value == "john.doe@example.com"  # type: ignore[union-attr]
 
     def test_set_nested_event_fields(self) -> None:
         """Verify nested event fields can be added."""
         data = _create_sample_event_data()
         state = _create_state_from_data(data)
 
-        assert state.get_best_value("event.id").value == "EVT-PYTHON-2026"  # type: ignore[union-attr]
-        assert state.get_best_value("event.name").value == "PyCon 2026"  # type: ignore[union-attr]
-        assert state.get_best_value("event.capacity").value == 500  # type: ignore[union-attr]
-        assert state.get_best_value("event.pricing").value == 299.99  # type: ignore[union-attr]
+        assert state.get_field("event.id").values[0].value == "EVT-PYTHON-2026"  # type: ignore[union-attr]
+        assert state.get_field("event.name").values[0].value == "PyCon 2026"  # type: ignore[union-attr]
+        assert state.get_field("event.capacity").values[0].value == 500  # type: ignore[union-attr]
+        assert state.get_field("event.pricing").values[0].value == 299.99  # type: ignore[union-attr]
 
     def test_set_array_element_fields(self) -> None:
         """Verify array element fields can be set with indexed paths."""
@@ -455,22 +456,22 @@ class TestStatePopulation:
         for path, vc in guest1_data.items():
             state.add_value(path, vc)
 
-        assert state.get_best_value("guests.0.name").value == "Alice Smith"  # type: ignore[union-attr]
-        assert state.get_best_value("guests.0.email").value == "alice@example.com"  # type: ignore[union-attr]
-        assert state.get_best_value("guests.1.name").value == "Bob Johnson"  # type: ignore[union-attr]
-        assert state.get_best_value("guests.1.email").value == "bob@example.com"  # type: ignore[union-attr]
+        assert state.get_field("guests.0.name").values[0].value == "Alice Smith"  # type: ignore[union-attr]
+        assert state.get_field("guests.0.email").values[0].value == "alice@example.com"  # type: ignore[union-attr]
+        assert state.get_field("guests.1.name").values[0].value == "Bob Johnson"  # type: ignore[union-attr]
+        assert state.get_field("guests.1.email").values[0].value == "bob@example.com"  # type: ignore[union-attr]
 
     def test_set_deeply_nested_invitation_fields(self) -> None:
         """Verify deeply nested invitation fields within guest array."""
         invitation_data = _create_sample_invitation_data(0)
         state = _create_state_from_data(invitation_data)
 
-        best_subj = state.get_best_value("guests.0.invitation.subject")
-        assert best_subj is not None
-        assert best_subj.value == "You're invited to PyCon 2026!"
+        subj_field = state.get_field("guests.0.invitation.subject")
+        assert subj_field is not None
+        assert subj_field.values[0].value == "You're invited to PyCon 2026!"
 
-        best_send = state.get_best_value("guests.0.invitation.send_at")
-        assert best_send is not None
+        send_field = state.get_field("guests.0.invitation.send_at")
+        assert send_field is not None
 
 
 # -----------------------------------------------------------------------------
@@ -742,8 +743,9 @@ class TestFullWorkflow:
         )
 
         # The best value should be Jane Doe (0.99) vs John Doe (0.9)
-        best_name = state.get_best_value("registrant.name")
-        assert best_name is not None
+        name_field = state.get_field("registrant.name")
+        assert name_field is not None
+        best_name = max(name_field.values, key=lambda vc: vc.confidence)
         assert best_name.value == "Jane Doe"
 
         # Verify the inference was added
@@ -794,18 +796,18 @@ class TestFullWorkflow:
 
         # Verify all guests are stored
         for i, name in enumerate(guest_names):
-            best = state.get_best_value(f"guests.{i}.name")
-            assert best is not None
-            assert best.value == name
+            field = state.get_field(f"guests.{i}.name")
+            assert field is not None
+            assert field.values[0].value == name
 
         # Verify invitations
-        subj0 = state.get_best_value("guests.0.invitation.subject")
-        assert subj0 is not None
-        assert subj0.value == "Welcome Alice!"
-        assert state.get_best_value("guests.1.invitation.subject") is None
-        subj2 = state.get_best_value("guests.2.invitation.subject")
-        assert subj2 is not None
-        assert subj2.value == "Welcome Charlie!"
+        subj0_field = state.get_field("guests.0.invitation.subject")
+        assert subj0_field is not None
+        assert subj0_field.values[0].value == "Welcome Alice!"
+        assert state.get_field("guests.1.invitation.subject") is None
+        subj2_field = state.get_field("guests.2.invitation.subject")
+        assert subj2_field is not None
+        assert subj2_field.values[0].value == "Welcome Charlie!"
 
         # Export should contain all data
         dah = state.get_dah()

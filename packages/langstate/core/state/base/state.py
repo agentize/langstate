@@ -8,7 +8,7 @@ State uses DAH (Directed Acyclic Hypergraph) for internal storage where:
 - Each node has a path (e.g., "guests.1.name") for addressing
 - Nested fields use dot notation: parent.child or parent.index for arrays
 - Field relationships can be modeled via hyperedges
-- Values are stored directly (primitives for basic state, StateField for field-based state)
+- Values are stored directly (primitives for state, InterpretiveField for field-based state)
 """
 
 from typing import Dict, Iterator, List, Optional, Tuple
@@ -16,11 +16,11 @@ from typing_extensions import Self
 from uuid import UUID
 
 from core.data_structure.dah.dah import DirectedAcyclicHypergraph
-from core.state.base.base import BaseBasicState
+from core.state.base.base import BaseDAHState
 from core.typing.generic import TFieldData
 
 
-class BasicState(BaseBasicState[TFieldData]):
+class DAHState(BaseDAHState[TFieldData]):
     """Common base implementation of State with DAH-based storage.
 
     This class provides the common functionality for all state types.
@@ -66,7 +66,7 @@ class BasicState(BaseBasicState[TFieldData]):
             value: The value or data to set
         """
         # Ensure parent hierarchy exists
-        self._ensure_parent_hierarchy(path)
+        self._dah.ensure_node_hierarchy(path)
 
         existing_node = self._dah.get_node(path)
 
@@ -76,39 +76,6 @@ class BasicState(BaseBasicState[TFieldData]):
         else:
             # Create new node
             self._dah.add_node(path, value)
-
-    def _ensure_parent_hierarchy(self, path: str) -> None:
-        """Ensure all parent nodes exist and have dependencies set up.
-
-        Args:
-            path: The full field path
-        """
-        parts = path.split(".")
-        if len(parts) <= 1:
-            return
-
-        # Create all intermediate parent nodes and dependencies
-        for i in range(1, len(parts)):
-            parent_path = ".".join(parts[:i])
-            child_path = ".".join(parts[: i + 1])
-
-            # Ensure parent node exists
-            parent_node = self._dah.get_node(parent_path)
-            if parent_node is None:
-                self._dah.add_node(parent_path, None)
-
-            # Ensure child node exists (if not the final leaf)
-            if i < len(parts) - 1:
-                child_node = self._dah.get_node(child_path)
-                if child_node is None:
-                    self._dah.add_node(child_path, None)
-
-            # Add dependency from parent to child
-            try:
-                self._dah.add_hyperedge([parent_path], child_path, check_cycle=True)
-            except ValueError:
-                # Edge already exists or would create cycle, skip
-                pass
 
     def remove_field(self, path: str) -> bool:
         """Remove a field by path.

@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any, Generic, List, Optional, TypeVar
 if TYPE_CHECKING:
     from core.state.snapshot.schema import Snapshot
 
-from core.state.base.base import BaseBasicState
+from core.state.base.base import BaseDAHState
 
-TState = TypeVar("TState", bound=BaseBasicState[Any])
+TState = TypeVar("TState", bound=BaseDAHState[Any])
 
 
 class BaseSnapshotStore(ABC, Generic[TState]):
