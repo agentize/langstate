@@ -8,7 +8,6 @@ from .state.state import State
 from .snapshot import Snapshot
 from .repository import (
     BaseRepository,
-    InMemoryStateRepository,
     BaseSnapshotRepository,
     HistoryFilter,
     InMemorySnapshotRepository,
@@ -28,7 +27,6 @@ __all__ = [
     "Snapshot",
     # Repository (SOLID: SRP, DIP)
     "BaseRepository",
-    "InMemoryStateRepository",
     # Snapshot Repository
     "BaseSnapshotRepository",
     "HistoryFilter",

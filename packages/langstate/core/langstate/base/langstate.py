@@ -5,8 +5,7 @@ notification using the observer pattern.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Union, cast
-from typing import Callable, Dict, Generic, List, Optional, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, Union, cast
 
 from ...mutator.base.base import TContext
 
@@ -15,7 +14,7 @@ from ...mutator import BaseMutator
 from ...projector import BaseProjector, ProjectionContext, ProjectionResult
 from ...spec_extractor import BaseSpecExtractor, Schema
 from ...state import BaseState, StateSchema
-from ...state.repository import BaseRepository, InMemoryStateRepository
+from ...state.repository import BaseRepository
 from .schema import (
     AgentInput,
     InteractionRequest,
@@ -52,7 +51,7 @@ class LangState(ABC, Generic[TContext]):
 
         self._schema: Optional[Schema] = None
         self._conversation_history: List[Dict[str, str]] = []
-        self._state_repository: BaseRepository[BaseState] = InMemoryStateRepository()
+        self._state_repository: BaseRepository[BaseState] = _DictStateRepository()
         self._state_id = "state"
 
     @abstractmethod
