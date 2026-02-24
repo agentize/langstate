@@ -8,7 +8,6 @@ from .schema import (
     Inference,
     ValueConfidence,
 )
-from ..snapshot.base import BaseSnapshotStore
 
 __all__ = [
     "BaseState",
@@ -17,5 +16,4 @@ __all__ = [
     "StateSchema",
     "Inference",
     "ValueConfidence",
-    "BaseSnapshotStore",
 ]

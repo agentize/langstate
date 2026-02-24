@@ -10,7 +10,12 @@ This module provides the base interfaces and implementations for LangState:
 """
 
 from .state import BaseDAHState, DAHState
-from .state.state.schema import Inference, ValueConfidence, InterpretiveField, StateSchema
+from .state.state.schema import (
+    Inference,
+    ValueConfidence,
+    InterpretiveField,
+    StateSchema,
+)
 from .action import (
     BaseAction,
     ActionStatus,
@@ -52,7 +57,7 @@ from .spec_extractor import (
 from .state import (
     BaseState,
     State,
-    BaseSnapshotStore,
+    Snapshot,
 )
 from .langstate import (
     LangState,
@@ -110,7 +115,7 @@ __all__ = [
     "Inference",
     "ValueConfidence",
     # State - Snapshot
-    "BaseSnapshotStore",
+    "Snapshot",
     # LangState Orchestrator
     "LangState",
     "InputType",

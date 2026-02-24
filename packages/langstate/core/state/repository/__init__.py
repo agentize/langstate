@@ -1,13 +1,21 @@
-"""State Repository module.
+"""Repository module.
 
-This module provides the StateRepository interface and implementations
+This module provides the Repository interface and implementations
 for managing state persistence and retrieval following the Repository pattern.
 """
 
-from .base import BaseStateRepository
+from .base import BaseRepository
 from .memory import InMemoryStateRepository
+from .snapshot_repository import (
+    BaseSnapshotRepository,
+    HistoryFilter,
+    InMemorySnapshotRepository,
+)
 
 __all__ = [
-    "BaseStateRepository",
+    "BaseRepository",
     "InMemoryStateRepository",
+    "BaseSnapshotRepository",
+    "HistoryFilter",
+    "InMemorySnapshotRepository",
 ]

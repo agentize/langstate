@@ -21,6 +21,7 @@ from typing import (
     Set,
     Tuple,
     TypeVar,
+    cast,
 )
 from uuid import UUID, uuid4
 
@@ -481,6 +482,68 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         if pretty:
             return json.dumps(payload, indent=indent)
         return json.dumps(payload, separators=(",", ":"))
+
+    @classmethod
+    def from_json(
+        cls,
+        json_str: str,
+        value_parser: Optional[Callable[[Any], Optional[V]]] = None,
+    ) -> "DirectedAcyclicHypergraph[V, E]":
+        """Create a DirectedAcyclicHypergraph from a JSON string.
+
+        Parses the format produced by ``to_json()`` which includes
+        ``nodes`` (with ``path`` and ``value``) and ``hyperedges``.
+
+        Args:
+            json_str: JSON string representation of the hypergraph.
+            value_parser: Optional callable to convert raw JSON node values
+                into the desired ``V`` type.  When *None*, raw values are
+                stored as-is (suitable for ``Any``-typed graphs).
+
+        Returns:
+            A new ``DirectedAcyclicHypergraph`` instance populated from the
+            JSON data.
+        """
+        dah: DirectedAcyclicHypergraph[V, E] = cls()
+        raw_data: Any = json.loads(json_str)
+        if not isinstance(raw_data, dict):
+            return dah
+        data: Dict[str, Any] = cast(Dict[str, Any], raw_data)
+
+        raw_nodes: Any = data.get("nodes", [])
+        if isinstance(raw_nodes, list):
+            nodes: List[Any] = cast(List[Any], raw_nodes)
+            for node_data in nodes:
+                if not isinstance(node_data, dict):
+                    continue
+                node_dict: Dict[str, Any] = cast(Dict[str, Any], node_data)
+                path: Optional[str] = cast(Optional[str], node_dict.get("path"))
+                raw_value: Any = node_dict.get("value")
+                if path is None:
+                    continue
+                parsed: Optional[V] = (
+                    value_parser(raw_value)
+                    if value_parser is not None
+                    else cast(Optional[V], raw_value)
+                )
+                dah.add_node(str(path), parsed)
+
+        raw_hyperedges: Any = data.get("hyperedges", [])
+        if isinstance(raw_hyperedges, list):
+            hyperedges: List[Any] = cast(List[Any], raw_hyperedges)
+            for edge_data in hyperedges:
+                if not isinstance(edge_data, dict):
+                    continue
+                edge_dict: Dict[str, Any] = cast(Dict[str, Any], edge_data)
+                sources: List[str] = cast(List[str], edge_dict.get("sources", []))
+                target: Optional[str] = cast(Optional[str], edge_dict.get("target"))
+                if target is not None:
+                    try:
+                        dah.add_hyperedge(sources, str(target), check_cycle=False)
+                    except ValueError:
+                        pass
+
+        return dah
 
     def to_ascii_tree(
         self,

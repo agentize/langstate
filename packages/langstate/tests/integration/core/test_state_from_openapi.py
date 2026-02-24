@@ -382,7 +382,7 @@ class TestStatePopulation:
         )
 
         assert state.get_field("guests.0.name") is not None
-        assert state.get_field("guests.0.name").values[0].value == "Alice Smith"
+        assert state.get_field("guests.0.name").values[0].value == "Alice Smith"  # type: ignore[union-attr]
         assert state.get_field("guests.1.name").values[0].value == "Bob Johnson"  # type: ignore[union-attr]
 
     def test_state_copy(self) -> None:

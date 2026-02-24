@@ -14,12 +14,12 @@ from ..base.base import BaseDAHState
 TState = TypeVar("TState", bound=BaseDAHState[Any])
 
 
-class BaseStateRepository(ABC, Generic[TState]):
-    """Base interface for state repository operations.
+class BaseRepository(ABC, Generic[TState]):
+    """Base interface for repository operations.
 
-    This interface defines the contract for state persistence operations,
+    This interface defines the contract for persistence operations,
     following Interface Segregation Principle (ISP) by focusing only
-    on state-related operations.
+    on CRUD operations.
 
     Generic over TState, works with any state type
     or custom state implementations.

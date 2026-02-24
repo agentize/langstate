@@ -65,6 +65,34 @@ class State(DAHState[InterpretiveField], BaseState):
 
         return new_state
 
+    @classmethod
+    def from_json(cls, json_str: str) -> "State":
+        """Create a State from a JSON string.
+
+        Delegates to :meth:`DirectedAcyclicHypergraph.from_json` with an
+        ``InterpretiveField`` value parser.
+        Expects the format produced by ``to_json()`` which includes
+        ``nodes`` (with ``path`` and ``value``) and ``hyperedges``.
+
+        Args:
+            json_str: JSON string representation of the state
+
+        Returns:
+            A new State instance populated from the JSON data
+        """
+        from core.data_structure.dah.dah import DirectedAcyclicHypergraph
+
+        def _parse_field(raw: Any) -> InterpretiveField:
+            if isinstance(raw, dict):
+                return InterpretiveField.model_validate(raw)
+            return InterpretiveField()
+
+        new_state = cls()
+        new_state._dah = DirectedAcyclicHypergraph.from_json(  # type: ignore[assignment]
+            json_str, value_parser=_parse_field
+        )
+        return new_state
+
     def add_inference(self, path: str, inference: Inference) -> None:
         """Add an inference to a field.
 

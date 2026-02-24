@@ -7,12 +7,12 @@ for single-session or testing scenarios.
 from typing import Any, Dict, Optional, TypeVar
 
 from ..base.base import BaseDAHState
-from .base import BaseStateRepository
+from .base import BaseRepository
 
 TState = TypeVar("TState", bound=BaseDAHState[Any])
 
 
-class InMemoryStateRepository(BaseStateRepository[TState]):
+class InMemoryStateRepository(BaseRepository[TState]):
     """In-memory implementation of state repository.
 
     Stores states in a dictionary. Suitable for single-session scenarios

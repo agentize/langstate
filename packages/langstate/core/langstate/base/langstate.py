@@ -15,7 +15,7 @@ from ...mutator import BaseMutator
 from ...projector import BaseProjector, ProjectionContext, ProjectionResult
 from ...spec_extractor import BaseSpecExtractor, Schema
 from ...state import BaseState, StateSchema
-from ...state.repository import BaseStateRepository, InMemoryStateRepository
+from ...state.repository import BaseRepository, InMemoryStateRepository
 from .schema import (
     AgentInput,
     InteractionRequest,
@@ -52,9 +52,7 @@ class LangState(ABC, Generic[TContext]):
 
         self._schema: Optional[Schema] = None
         self._conversation_history: List[Dict[str, str]] = []
-        self._state_repository: BaseStateRepository[BaseState] = (
-            InMemoryStateRepository()
-        )
+        self._state_repository: BaseRepository[BaseState] = InMemoryStateRepository()
         self._state_id = "state"
 
     @abstractmethod
@@ -112,7 +110,9 @@ class LangState(ABC, Generic[TContext]):
         """Detach a projector observer."""
         super().detach(observer)
 
-    def set_projectors(self, projectors: Union[BaseProjector, List[BaseProjector]]) -> None:
+    def set_projectors(
+        self, projectors: Union[BaseProjector, List[BaseProjector]]
+    ) -> None:
         """Set projector(s), replacing existing projectors."""
         self.clear_projectors()
         if isinstance(projectors, list):
@@ -164,13 +164,11 @@ class LangState(ABC, Generic[TContext]):
         return self._schema
 
     @property
-    def state_repository(self) -> BaseStateRepository[BaseState]:
+    def state_repository(self) -> BaseRepository[BaseState]:
         """Get the state repository."""
         return self._state_repository
 
-    def set_state_repository(
-        self, repository: BaseStateRepository[BaseState]
-    ) -> None:
+    def set_state_repository(self, repository: BaseRepository[BaseState]) -> None:
         """Set a custom state repository."""
         self._state_repository = repository
 
@@ -195,7 +193,9 @@ class LangState(ABC, Generic[TContext]):
             return []
 
         state_values = {
-            path: value for path, value in current_state.iter_fields() if value is not None
+            path: value
+            for path, value in current_state.iter_fields()
+            if value is not None
         }
         context = ProjectionContext(
             state=StateSchema.model_validate(state_values),
@@ -205,5 +205,7 @@ class LangState(ABC, Generic[TContext]):
 
         notified_results = await self.notify(context)
         return [
-            result for result in notified_results if isinstance(result, ProjectionResult)
+            result
+            for result in notified_results
+            if isinstance(result, ProjectionResult)
         ]

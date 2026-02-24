@@ -11,7 +11,7 @@ State uses DAH (Directed Acyclic Hypergraph) for internal storage where:
 - Values are stored directly (primitives for state, InterpretiveField for field-based state)
 """
 
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 from typing_extensions import Self
 from uuid import UUID
 
@@ -181,6 +181,23 @@ class DAHState(BaseDAHState[TFieldData]):
             JSON string representation of the state
         """
         return self._dah.to_json()
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "DAHState[Any]":
+        """Create a DAHState from a JSON string.
+
+        Delegates to :meth:`DirectedAcyclicHypergraph.from_json` which owns
+        the serialisation logic.
+
+        Args:
+            json_str: JSON string representation of the state
+
+        Returns:
+            A new DAHState instance populated from the JSON data
+        """
+        new_state = cls()
+        new_state._dah = DirectedAcyclicHypergraph.from_json(json_str)
+        return new_state
 
     def copy(self) -> Self:
         """Create a copy of the state.

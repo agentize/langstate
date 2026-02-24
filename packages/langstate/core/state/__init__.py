@@ -5,10 +5,13 @@ from .base.state import DAHState
 from .state.schema import Inference, ValueConfidence, InterpretiveField, StateSchema
 from .state.base import BaseState
 from .state.state import State
-from .state import BaseSnapshotStore
+from .snapshot import Snapshot
 from .repository import (
-    BaseStateRepository,
+    BaseRepository,
     InMemoryStateRepository,
+    BaseSnapshotRepository,
+    HistoryFilter,
+    InMemorySnapshotRepository,
 )
 
 __all__ = [
@@ -22,8 +25,12 @@ __all__ = [
     "Inference",
     "ValueConfidence",
     # Snapshot
-    "BaseSnapshotStore",
+    "Snapshot",
     # Repository (SOLID: SRP, DIP)
-    "BaseStateRepository",
+    "BaseRepository",
     "InMemoryStateRepository",
+    # Snapshot Repository
+    "BaseSnapshotRepository",
+    "HistoryFilter",
+    "InMemorySnapshotRepository",
 ]
