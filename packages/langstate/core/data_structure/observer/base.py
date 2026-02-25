@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Abstract base classes for a generic observer pattern.
 """
@@ -45,8 +43,6 @@ class BaseSubject(Generic[E], ABC):
 
 class Subject(BaseSubject[E], Generic[E]):
     """Simple subject that manages a list of observers."""
-
-    __slots__ = ("_observers",)
 
     def __init__(self, observers: List[BaseObserver[E]] | None = None) -> None:
         self._observers: List[BaseObserver[E]] = []

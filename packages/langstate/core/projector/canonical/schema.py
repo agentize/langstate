@@ -20,8 +20,8 @@ class CanonicalProjectionContext(ProjectionContext):
 
     confidence_threshold: Annotated[
         float,
-        Field(default=0.7, description="Minimum confidence for automatic resolution"),
-    ]
+        Field(description="Minimum confidence for automatic resolution"),
+    ] = 0.7
 
 
 class CanonicalProjectionResult(ProjectionResult):

@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from core.state.state.base import BaseState
 
 
-
 class ActionStatus(str, Enum):
     """Status of an action execution."""
 

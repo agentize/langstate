@@ -10,6 +10,10 @@ from pydantic import BaseModel, Field
 from ...state.state.schema import StateSchema
 
 
+def _default_conversation_history() -> List[Dict[str, str]]:
+    return []
+
+
 class ProjectionContext(BaseModel):
     """Base context provided to projectors for processing."""
 
@@ -19,24 +23,24 @@ class ProjectionContext(BaseModel):
     ]
     conversation_history: Annotated[
         List[Dict[str, str]],
-        Field(default_factory=list, description="Conversation history for context"),
-    ]
+        Field(description="Conversation history for context"),
+    ] = Field(default_factory=_default_conversation_history)
     user_preferences: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="User preferences for projection"),
-    ]
+        Field(description="User preferences for projection"),
+    ] = Field(default_factory=dict)
     strategy: Annotated[
         str,
-        Field(default="highest_confidence", description="Projection strategy hint"),
-    ]
+        Field(description="Projection strategy hint"),
+    ] = "highest_confidence"
     confidence_threshold: Annotated[
         float,
-        Field(default=0.7, description="Default confidence threshold"),
-    ]
+        Field(description="Default confidence threshold"),
+    ] = 0.7
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional context metadata"),
-    ]
+        Field(description="Additional context metadata"),
+    ] = Field(default_factory=dict)
 
 
 class ProjectionResult(BaseModel):
@@ -44,11 +48,9 @@ class ProjectionResult(BaseModel):
 
     success: Annotated[
         bool,
-        Field(default=True, description="Whether the projection was successful"),
-    ]
+        Field(description="Whether the projection was successful"),
+    ] = True
     metadata: Annotated[
         Dict[str, object],
-        Field(
-            default_factory=dict, description="Additional metadata about the projection"
-        ),
-    ]
+        Field(description="Additional metadata about the projection"),
+    ] = Field(default_factory=dict)
