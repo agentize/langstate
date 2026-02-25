@@ -6,7 +6,9 @@ mutation, and projector notification using the observer pattern.
 
 from typing import Any, Callable, Dict, Generic, List, Optional, Union, cast
 
-from ...data_structure.observer.base import BaseObserver, Subject
+from ...data_structure.observer.subject import Subject
+
+from ...data_structure.observer.base import BaseObserver
 from ...mutator.base.base import BaseMutator, TContext
 from ...projector.base.projector import BaseProjector
 from ...projector.base.schema import ProjectionContext, ProjectionResult
