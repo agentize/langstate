@@ -178,14 +178,8 @@ class LangState(
     def set_spec_extractor(self, spec_extractor: BaseSpecExtractor) -> None:
         self._spec_extractor = spec_extractor
 
-    def remove_spec_extractor(self) -> None:
-        self._spec_extractor = None
-
     def set_mutator(self, mutator: BaseMutator[TContext]) -> None:
         self._mutator = mutator
-
-    def remove_mutator(self) -> None:
-        self._mutator = None
 
     def set_schema(self, schema: Schema) -> None:
         self._schema = schema

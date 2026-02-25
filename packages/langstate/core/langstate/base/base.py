@@ -91,16 +91,8 @@ class BaseLangState(
         """Replace the spec extractor."""
 
     @abstractmethod
-    def remove_spec_extractor(self) -> None:
-        """Remove the current spec extractor."""
-
-    @abstractmethod
     def set_mutator(self, mutator: BaseMutator[TContext]) -> None:
         """Replace the mutator."""
-
-    @abstractmethod
-    def remove_mutator(self) -> None:
-        """Remove the current mutator."""
 
     @abstractmethod
     def set_schema(self, schema: Schema) -> None:
