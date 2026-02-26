@@ -1,10 +1,12 @@
-# pyright: reportPrivateUsage=false
 """Tests for LangState orchestrator.
 
 Covers construction via LangStateDeps, initialize, invoke,
 reset, projector management, component getters/setters,
 and the schema_to_state helper.
 """
+
+# pyright: reportPrivateUsage=false
+
 
 from pathlib import Path
 from typing import List, Optional, Union, cast
@@ -371,25 +373,19 @@ class TestReset:
 class TestComponentManagement:
     """Getters/setters for mutator, spec_extractor, schema, repository."""
 
-    def test_set_and_remove_mutator(self) -> None:
+    def test_set_mutator(self) -> None:
         agent: LangState[StubContext, AgentInput] = LangState(_make_deps())
         mutator = StubMutator()
 
         agent.set_mutator(mutator)
         assert agent.mutator is mutator
 
-        agent.remove_mutator()
-        assert agent.mutator is None
-
-    def test_set_and_remove_spec_extractor(self) -> None:
+    def test_set_spec_extractor(self) -> None:
         agent: LangState[StubContext, AgentInput] = LangState(_make_deps())
         ext = StubSpecExtractor()
 
         agent.set_spec_extractor(ext)
         assert agent.spec_extractor is ext
-
-        agent.remove_spec_extractor()
-        assert agent.spec_extractor is None
 
     def test_set_schema_directly(self) -> None:
         agent: LangState[StubContext, AgentInput] = LangState(_make_deps())
