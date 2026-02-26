@@ -64,8 +64,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
                 self._path_to_uuid[n.path] = n.id
         self._edge_counter: int = 0
 
-    # ---- Properties ---------------------------------------------------------
-
     @property
     def nodes(self) -> Dict[UUID, DirectedAcyclicHypergraphNode[V, E]]:
         """All nodes in the hypergraph (keyed by UUID)."""
@@ -75,8 +73,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
     def path_to_uuid(self) -> Dict[str, UUID]:
         """Path to UUID mapping for node lookup."""
         return self._path_to_uuid
-
-    # ---- Node operations ----------------------------------------------------
 
     def add_node(
         self, path: str, value: Optional[V] = None
@@ -134,8 +130,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             for eid, hedge in list(dep.in_edges.items()):
                 if node in hedge.sources:
                     self.remove_hyperedge(eid, dep.path)
-
-    # ---- Hyperedge operations -----------------------------------------------
 
     def _next_edge_id(self) -> UUID:
         """Generate next edge UUID."""
@@ -213,8 +207,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             except Exception:
                 pass
 
-    # ---- Backward compatibility (single-source edge API) --------------------
-
     def add_edge(
         self,
         prereq_path: str,
@@ -263,8 +255,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             except ValueError:
                 # Edge already exists or would create a cycle — skip.
                 pass
-
-    # ---- Graph-wide queries -------------------------------------------------
 
     def prerequisite_ids(self, path: str) -> Set[UUID]:
         """Get prerequisite UUIDs of a node."""
@@ -337,16 +327,12 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             for hid, hedge in node.in_edges.items():
                 yield (hedge.source_paths(), node.path, hedge.metadata, hid)
 
-    # ---- Internal helpers ---------------------------------------------------
-
     def _would_create_cycle(self, source_path: str, target_path: str) -> bool:
         """True if adding conceptual edge source->target closes a cycle.
 
         Check whether source_path is already a descendant of target_path.
         """
         return source_path in self.descendants(target_path)
-
-    # ---- Export methods -----------------------------------------------------
 
     def to_dot(self) -> str:
         """Graphviz DOT representing hyperedges.
@@ -542,7 +528,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
                         dah.add_hyperedge(sources, str(target), check_cycle=False)
                     except ValueError:
                         pass
-
         return dah
 
     def to_ascii_tree(

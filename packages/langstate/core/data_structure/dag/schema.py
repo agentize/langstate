@@ -75,7 +75,6 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
         default_factory=weakref.WeakSet, repr=False
     )
 
-    # ---- Reverse mirror management (for use by DAG manager) ----------------
     def add_dependent(self, node: "DirectedAcyclicGraphNode[V, E]") -> None:
         """Register a node as depending on this node."""
         self._dependents.add(node)
@@ -91,7 +90,6 @@ class DirectedAcyclicGraphNode(Generic[V, E]):
     def __eq__(self, other: object) -> bool:
         return isinstance(other, DirectedAcyclicGraphNode) and self.id == other.id
 
-    # ---- Local queries ------------------------------------------------------
     def prerequisites(self) -> Set[str]:
         """Paths of nodes this node depends on."""
         return set(self.depends_on.keys())
