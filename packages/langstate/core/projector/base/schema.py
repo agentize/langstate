@@ -7,7 +7,7 @@ from typing import Annotated, Dict, List
 
 from pydantic import BaseModel, Field
 
-from ...state.state.schema import StateSchema
+from ...state.state.base import BaseState
 
 
 def _default_conversation_history() -> List[Dict[str, str]]:
@@ -18,7 +18,7 @@ class ProjectionContext(BaseModel):
     """Base context provided to projectors for processing."""
 
     state: Annotated[
-        StateSchema,
+        BaseState,
         Field(description="Current state graph with field instances"),
     ]
     conversation_history: Annotated[

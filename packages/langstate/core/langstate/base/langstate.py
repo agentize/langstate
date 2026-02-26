@@ -4,7 +4,7 @@ Coordinates schema loading, state persistence via snapshots,
 mutation, and projector notification using the observer pattern.
 """
 
-from typing import Any, Callable, Dict, Generic, List, Optional, Union, cast
+from typing import Callable, Dict, Generic, List, Optional, Union, cast
 
 from ...data_structure.observer.subject import Subject
 
@@ -19,7 +19,6 @@ from ...state.repository.snapshot_repository.memory.memory import (
     InMemorySnapshotRepository,
 )
 from ...state.state.base import BaseState
-from ...state.state.schema import StateSchema
 from ...state.state.state import State
 from ...typing.generic import TInput
 from .base import BaseLangState
@@ -114,14 +113,8 @@ class LangState(
             mutation_result.updated_state, metadata
         )
 
-        state_values: Dict[str, Any] = {
-            path: value
-            for path, value in mutation_result.updated_state.iter_fields()
-            if value is not None
-        }
-
         return StateResultData(
-            state=StateSchema.model_validate(state_values),
+            state=mutation_result.updated_state,
             success=True,
             metadata={
                 "mutation_metadata": mutation_result.metadata or {},
@@ -254,13 +247,8 @@ class LangState(
 
         current_state = latest.state
 
-        state_values: Dict[str, Any] = {
-            path: value
-            for path, value in current_state.iter_fields()
-            if value is not None
-        }
         context = ProjectionContext(
-            state=StateSchema.model_validate(state_values),
+            state=current_state,
             conversation_history=self._conversation_history,
             metadata=metadata or {},
         )

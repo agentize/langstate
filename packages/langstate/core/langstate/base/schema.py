@@ -22,7 +22,6 @@ from ...projector.base.schema import ProjectionContext, ProjectionResult
 from ...spec_extractor.base.extractor import BaseSpecExtractor
 from ...state.repository.snapshot_repository.base.base import BaseSnapshotRepository
 from ...state.state.base import BaseState
-from ...state.state.schema import StateSchema
 from ...typing.generic import TInput
 
 
@@ -269,7 +268,7 @@ class InteractionRequest(BaseModel):
         Field(description="Options for selection-type interactions"),
     ] = Field(default_factory=dict)
     state: Annotated[
-        Optional[StateSchema],
+        Optional[BaseState],
         Field(description="Current state snapshot"),
     ] = None
     pending_fields: Annotated[
@@ -286,7 +285,7 @@ class StateResultData(BaseModel):
     """Result returned when the flow is complete."""
 
     state: Annotated[
-        StateSchema,
+        BaseState,
         Field(description="Final state with all field snapshots"),
     ]
     success: Annotated[
