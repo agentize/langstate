@@ -3,7 +3,7 @@
 This module provides the base interfaces and implementations for LangState:
 - Action: Execute business logic when state is complete
 - Mutator: Process user input and update state
-- Projector: Transform state to external representations (UI, Canonical)
+- Projector: Transform state to external representations (UI)
 - SpecExtractor: Load and parse schema definitions
 - State: Manage structured state
 - LangState: Main orchestrator coordinating all components
@@ -40,9 +40,6 @@ from .projector import (
     BaseProjector,
     ProjectionContext,
     ProjectionResult,
-    BaseProjectorCanonicalState,
-    CanonicalProjectionContext,
-    CanonicalProjectionResult,
     BaseProjectorUI,
     UIComponentType,
     UIComponent,
@@ -94,10 +91,6 @@ __all__ = [
     "BaseProjector",
     "ProjectionContext",
     "ProjectionResult",
-    # Projector - Canonical
-    "BaseProjectorCanonicalState",
-    "CanonicalProjectionContext",
-    "CanonicalProjectionResult",
     # Projector - UI
     "BaseProjectorUI",
     "UIComponentType",

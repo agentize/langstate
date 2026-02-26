@@ -12,6 +12,7 @@ from .repository import (
     HistoryFilter,
     InMemorySnapshotRepository,
 )
+from .transformer import BaseStateTransformer
 
 __all__ = [
     # Base
@@ -25,10 +26,12 @@ __all__ = [
     "ValueConfidence",
     # Snapshot
     "Snapshot",
-    # Repository (SOLID: SRP, DIP)
+    # Repository
     "BaseRepository",
     # Snapshot Repository
     "BaseSnapshotRepository",
     "HistoryFilter",
     "InMemorySnapshotRepository",
+    # Transformer
+    "BaseStateTransformer",
 ]
