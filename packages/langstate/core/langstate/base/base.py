@@ -48,7 +48,7 @@ class BaseLangState(
     @abstractmethod
     async def invoke(
         self,
-        agent_input: Optional[TInput] = None,
+        agent_input: TInput,
         metadata: Optional[Dict[str, object]] = None,
     ) -> Union[InteractionRequest, StateResultData]:
         """Process external input going through mutator → state → projectors."""

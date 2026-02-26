@@ -94,13 +94,11 @@ class LangState(
 
     async def invoke(
         self,
-        agent_input: Optional[TInput] = None,
+        agent_input: TInput,
         metadata: Optional[Dict[str, object]] = None,
     ) -> Union[InteractionRequest, StateResultData]:
         if self._mutator is None:
             raise RuntimeError("Mutator is not set.")
-        if agent_input is None:
-            raise ValueError("agent_input is required.")
 
         current_state = await self.get_state()
 

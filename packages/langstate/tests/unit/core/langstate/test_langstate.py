@@ -321,18 +321,6 @@ class TestInvoke:
         with pytest.raises(RuntimeError, match="Mutator is not set"):
             await agent.invoke(AgentInput.from_text("test"))
 
-    @pytest.mark.asyncio
-    async def test_invoke_raises_without_input(self) -> None:
-        deps = _make_deps(
-            mutator=StubMutator(),
-            spec_extractor=StubSpecExtractor(),
-        )
-        agent: LangState[StubContext, AgentInput] = LangState(deps)
-        await agent.initialize({"schema_source": "path"})
-
-        with pytest.raises(ValueError, match="agent_input is required"):
-            await agent.invoke(None)
-
 
 class TestReset:
     """reset clears the state and returns an InteractionRequest."""
