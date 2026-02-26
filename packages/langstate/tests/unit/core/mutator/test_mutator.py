@@ -337,7 +337,12 @@ class TestLLMMutatorMutate:
         """Multiple LLM extractions should all be applied to the state."""
         extractions: list[dict[str, object]] = [
             {"path": "name", "value": "Bob", "confidence": 0.9, "inference": "i1"},
-            {"path": "email", "value": "bob@x.com", "confidence": 0.8, "inference": "i2"},
+            {
+                "path": "email",
+                "value": "bob@x.com",
+                "confidence": 0.8,
+                "inference": "i2",
+            },
         ]
         mutator._llm_client = MockLLMClient(  # type: ignore[assignment]
             response=json.dumps(extractions)
@@ -428,9 +433,7 @@ class TestLLMMutatorMutate:
             await mutator.mutate(ctx)
 
     @pytest.mark.asyncio
-    async def test_original_state_not_mutated(
-        self, mutator: LLMMutator
-    ) -> None:
+    async def test_original_state_not_mutated(self, mutator: LLMMutator) -> None:
         """mutate() should operate on a copy; the original state must not be modified."""
         original = State()
         extraction: list[dict[str, object]] = [
