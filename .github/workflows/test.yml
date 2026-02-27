@@ -4,8 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [feature/apply-some-patterns] # TODO:
-    # branches: [main]
+    branches: [main]
 
 permissions:
   contents: read
