@@ -5,6 +5,7 @@ mutation, and projector notification using the observer pattern.
 """
 
 from typing import Callable, Dict, Generic, List, Optional, Union, cast
+from uuid import uuid4
 
 from ...data_structure.observer.subject import Subject
 
@@ -71,7 +72,9 @@ class LangState(
             if deps.repository is not None
             else InMemorySnapshotRepository(state_class=State)
         )
-        self._state_id: str = "state"
+        self._state_id: str = (
+            deps.state_id if deps.state_id is not None else str(uuid4())
+        )
 
     async def initialize(
         self, config: Union[LangStateConfig, Dict[str, object]]

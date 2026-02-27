@@ -366,3 +366,10 @@ class LangStateDeps(BaseModel, Generic[TContext, TInput]):
         Callable[[TInput, BaseState], TContext],
         Field(description="Callable that bridges TInput + current state → TContext"),
     ]
+    state_id: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            description="Unique identifier for the state. Defaults to a generated UUID.",
+        ),
+    ]

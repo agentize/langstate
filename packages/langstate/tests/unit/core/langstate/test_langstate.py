@@ -229,7 +229,7 @@ class TestInitialize:
 
         await agent.initialize(LangStateConfig(schema_source="path"))
 
-        snapshot = await repo.get_latest("state")
+        snapshot = await repo.get_latest(agent._state_id)
         assert snapshot is not None
         assert snapshot.state.get_field("name") is not None
 
@@ -290,7 +290,7 @@ class TestInvoke:
 
         await agent.invoke(AgentInput.from_text("Alice"))
 
-        snapshot = await repo.get_latest("state")
+        snapshot = await repo.get_latest(agent._state_id)
         assert snapshot is not None
         name_field = snapshot.state.get_field("name")
         assert name_field is not None
