@@ -3,35 +3,44 @@
 This module contains all data models used by the base Projector interface.
 """
 
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Dict, List
 
 from pydantic import BaseModel, Field
 
-from ...state.interpretive.schema import InterpretiveStateSchema
-from ...state.canonical.schema import CanonicalStateSchema
+from ...state.state.base import BaseState
+
+
+def _default_conversation_history() -> List[Dict[str, str]]:
+    return []
 
 
 class ProjectionContext(BaseModel):
     """Base context provided to projectors for processing."""
 
-    interpretive_state: Annotated[
-        InterpretiveStateSchema,
-        Field(
-            description="Current interpretive state graph with field instances. "
-            "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"
-        ),
+    state: Annotated[
+        BaseState,
+        Field(description="Current state graph with field instances"),
     ]
-    canonical_state: Annotated[
-        Optional[CanonicalStateSchema],
-        Field(
-            default=None,
-            description="Current canonical state with resolved values (key: value)",
-        ),
-    ]
+    conversation_history: Annotated[
+        List[Dict[str, str]],
+        Field(description="Conversation history for context"),
+    ] = Field(default_factory=_default_conversation_history)
+    user_preferences: Annotated[
+        Dict[str, object],
+        Field(description="User preferences for projection"),
+    ] = Field(default_factory=dict)
+    strategy: Annotated[
+        str,
+        Field(description="Projection strategy hint"),
+    ] = "highest_confidence"
+    confidence_threshold: Annotated[
+        float,
+        Field(description="Default confidence threshold"),
+    ] = 0.7
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional context metadata"),
-    ]
+        Field(description="Additional context metadata"),
+    ] = Field(default_factory=dict)
 
 
 class ProjectionResult(BaseModel):
@@ -39,11 +48,9 @@ class ProjectionResult(BaseModel):
 
     success: Annotated[
         bool,
-        Field(default=True, description="Whether the projection was successful"),
-    ]
+        Field(description="Whether the projection was successful"),
+    ] = True
     metadata: Annotated[
         Dict[str, object],
-        Field(
-            default_factory=dict, description="Additional metadata about the projection"
-        ),
-    ]
+        Field(description="Additional metadata about the projection"),
+    ] = Field(default_factory=dict)

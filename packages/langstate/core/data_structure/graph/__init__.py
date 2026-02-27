@@ -6,11 +6,9 @@ including simple graphs (DAG) and hypergraphs (DAH).
 """
 
 from .base import BaseGraph, BaseGraphEdge, BaseGraphNode
-from .graph import Graph
 
 __all__ = [
     "BaseGraph",
     "BaseGraphEdge",
     "BaseGraphNode",
-    "Graph",
 ]

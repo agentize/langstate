@@ -1,18 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Generic, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Generic, Iterator, List, Optional, Tuple
 from typing_extensions import Self
 from core.typing.generic import TFieldData
 
 
-class BaseState(ABC, Generic[TFieldData]):
+class BaseDAHState(ABC, Generic[TFieldData]):
     """Abstract base class for State implementations.
 
     The State holds the current values directly in DAH.
     Uses DAH for internal storage where path is the key.
-
-    Specialized implementations:
-    - CanonicalState: Simple key-value state for business logic (values are primitives)
-    - InterpretiveState: Rich state with inferences and confidence scores (values are InterpretiveFieldState)
     """
 
     @abstractmethod
@@ -113,6 +109,19 @@ class BaseState(ABC, Generic[TFieldData]):
 
         Returns:
             A new State instance with copied data
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_json(cls, json_str: str) -> "BaseDAHState[Any]":
+        """Create a state instance from a JSON string.
+
+        Args:
+            json_str: JSON string representation of the state
+
+        Returns:
+            A new State instance populated from the JSON data
         """
         pass
 

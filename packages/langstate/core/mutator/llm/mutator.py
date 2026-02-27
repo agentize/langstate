@@ -6,7 +6,8 @@ from core.mutator.base.schema import MutationResult
 from core.mutator.llm.schema import MutationContext
 from core.mutator.llm.client.base import BaseLLMClient
 from core.mutator.llm.client.schema import FieldExtraction
-from core.state.interpretive.schema import Inference, ValueConfidence
+from core.state import ValueConfidence
+from core.state.state.schema import Inference, ValueConfidence
 
 _EXTRACTION_PROMPT = """You are a structured data extraction assistant.
 
@@ -35,7 +36,7 @@ class LLMMutator(BaseMutator[MutationContext]):
         self._mutator_id: str = str(uuid4())
 
     async def mutate(self, context: MutationContext) -> MutationResult:
-        """Process user input and update the interpretive state via LLM extraction.
+        """Process user input and update state via LLM extraction.
 
         Args:
             context: MutationContext containing agent input and current state

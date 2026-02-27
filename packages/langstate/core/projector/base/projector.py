@@ -1,13 +1,9 @@
-"""Base Projector interface for LangState.
+"""Base Projector interface for LangState."""
 
-The Projector is responsible for:
-- Projecting internal state to external representations
-- Base interface for both UI projection and Canonical State projection
-"""
-
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Optional, TYPE_CHECKING, TypeVar, Generic
 
+from ...data_structure.observer.base import BaseObserver, BaseSubject
 from .schema import ProjectionContext, ProjectionResult
 
 PC = TypeVar("PC", bound=ProjectionContext)
@@ -17,15 +13,11 @@ if TYPE_CHECKING:
     from ...spec_extractor.base.schema import Schema
 
 
-class BaseProjector(ABC, Generic[PC, PR]):
+class BaseProjector(BaseObserver[PC], Generic[PC, PR]):
     """Abstract base class for all Projector implementations.
 
-    A Projector transforms internal state into a specific output format.
-    This is the base interface that specialized projectors inherit from.
-
-    Specialized implementations:
-    - ProjectorUI: Transforms state into UI components and user prompts
-    - ProjectorCanonicalState: Transforms interpretive state into canonical business state
+    A Projector transforms current state into a specific output format.
+    Specialized projector types can provide domain-specific contracts.
     """
 
     @abstractmethod
@@ -51,3 +43,7 @@ class BaseProjector(ABC, Generic[PC, PR]):
             schema: The schema definition to use for projection
         """
         pass
+
+    async def notified(self, subject: BaseSubject[PC], event: PC) -> object:
+        """Observer hook executed by the shared Subject protocol."""
+        return await self.project(event)

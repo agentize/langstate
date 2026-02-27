@@ -12,8 +12,8 @@ from pydantic import BaseModel, Field
 
 from ..mutator.base.base import BaseMutator
 from ..mutator.llm.schema import MutationContext, StructuredInput
-from ..state.interpretive.base import BaseInterpretiveState
-from ..state.interpretive.schema import ValueConfidence
+from ..state.state.base import BaseState
+from ..state.state.schema import ValueConfidence
 
 
 class EvaluationContext(BaseModel):
@@ -29,12 +29,12 @@ class EvaluationContext(BaseModel):
         Field(description="The mutator instance to evaluate."),
     ]
     pre_state: Annotated[
-        BaseInterpretiveState,
-        Field(description="The interpretive state before mutation."),
+        BaseState,
+        Field(description="The state before mutation."),
     ]
     expected_post_state: Annotated[
-        BaseInterpretiveState,
-        Field(description="The expected interpretive state after mutation."),
+        BaseState,
+        Field(description="The expected state after mutation."),
     ]
     mutation_input: Annotated[
         StructuredInput,
@@ -74,7 +74,7 @@ class FieldComparison(BaseModel):
 
 
 class StateComparison(BaseModel):
-    """Aggregated comparison between expected and actual interpretive states."""
+    """Aggregated comparison between expected and actual states."""
 
     fields: Annotated[
         List[FieldComparison],
@@ -118,8 +118,8 @@ class EvaluationResult(BaseModel):
         ),
     ]
     actual_post_state: Annotated[
-        BaseInterpretiveState,
-        Field(description="The actual interpretive state produced by the mutator."),
+        BaseState,
+        Field(description="The actual state produced by the mutator."),
     ]
     accuracy_score: Annotated[
         float,

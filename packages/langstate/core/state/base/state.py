@@ -8,26 +8,26 @@ State uses DAH (Directed Acyclic Hypergraph) for internal storage where:
 - Each node has a path (e.g., "guests.1.name") for addressing
 - Nested fields use dot notation: parent.child or parent.index for arrays
 - Field relationships can be modeled via hyperedges
-- Values are stored directly (primitives for canonical, InterpretiveFieldState for interpretive)
+- Values are stored directly (primitives for state, InterpretiveField for field-based state)
 """
 
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 from typing_extensions import Self
 from uuid import UUID
 
 from core.data_structure.dah.dah import DirectedAcyclicHypergraph
-from core.state.base.base import BaseState
+from core.state.base.base import BaseDAHState
 from core.typing.generic import TFieldData
 
 
-class State(BaseState[TFieldData]):
+class DAHState(BaseDAHState[TFieldData]):
     """Common base implementation of State with DAH-based storage.
 
     This class provides the common functionality for all state types.
     Uses DirectedAcyclicHypergraph for storing field values:
     - Node ID: UUID (auto-generated unique identifier)
     - Node path: field path (e.g., "registrant.event.id") for addressing
-    - Node value: The actual field data (primitive for canonical, InterpretiveFieldState for interpretive)
+    - Node value: The actual field data
 
     Public API uses paths for field access (get_field, set_field, etc.).
     UUIDs are internal identifiers accessible via get_field_uuid().
@@ -66,7 +66,7 @@ class State(BaseState[TFieldData]):
             value: The value or data to set
         """
         # Ensure parent hierarchy exists
-        self._ensure_parent_hierarchy(path)
+        self._dah.ensure_node_hierarchy(path)
 
         existing_node = self._dah.get_node(path)
 
@@ -76,39 +76,6 @@ class State(BaseState[TFieldData]):
         else:
             # Create new node
             self._dah.add_node(path, value)
-
-    def _ensure_parent_hierarchy(self, path: str) -> None:
-        """Ensure all parent nodes exist and have dependencies set up.
-
-        Args:
-            path: The full field path
-        """
-        parts = path.split(".")
-        if len(parts) <= 1:
-            return
-
-        # Create all intermediate parent nodes and dependencies
-        for i in range(1, len(parts)):
-            parent_path = ".".join(parts[:i])
-            child_path = ".".join(parts[: i + 1])
-
-            # Ensure parent node exists
-            parent_node = self._dah.get_node(parent_path)
-            if parent_node is None:
-                self._dah.add_node(parent_path, None)
-
-            # Ensure child node exists (if not the final leaf)
-            if i < len(parts) - 1:
-                child_node = self._dah.get_node(child_path)
-                if child_node is None:
-                    self._dah.add_node(child_path, None)
-
-            # Add dependency from parent to child
-            try:
-                self._dah.add_hyperedge([parent_path], child_path, check_cycle=True)
-            except ValueError:
-                # Edge already exists or would create cycle, skip
-                pass
 
     def remove_field(self, path: str) -> bool:
         """Remove a field by path.
@@ -214,6 +181,23 @@ class State(BaseState[TFieldData]):
             JSON string representation of the state
         """
         return self._dah.to_json()
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "DAHState[Any]":
+        """Create a DAHState from a JSON string.
+
+        Delegates to :meth:`DirectedAcyclicHypergraph.from_json` which owns
+        the serialisation logic.
+
+        Args:
+            json_str: JSON string representation of the state
+
+        Returns:
+            A new DAHState instance populated from the JSON data
+        """
+        new_state = cls()
+        new_state._dah = DirectedAcyclicHypergraph.from_json(json_str)
+        return new_state
 
     def copy(self) -> Self:
         """Create a copy of the state.

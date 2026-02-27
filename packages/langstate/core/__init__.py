@@ -2,16 +2,20 @@
 
 This module provides the base interfaces and implementations for LangState:
 - Action: Execute business logic when state is complete
-- Mutator: Process user input and update interpretive state
-- Projector: Transform state to external representations (UI, Canonical)
+- Mutator: Process user input and update state
+- Projector: Transform state to external representations (UI)
 - SpecExtractor: Load and parse schema definitions
-- State: Manage canonical and interpretive state
+- State: Manage structured state
 - LangState: Main orchestrator coordinating all components
 """
 
-from .state.base.base import BaseState
-from .state.interpretive.schema import Inference, ValueConfidence
-from .state.factory import BaseStateFactory, StateFactory
+from .state import BaseDAHState, DAHState
+from .state.state.schema import (
+    Inference,
+    ValueConfidence,
+    InterpretiveField,
+    StateSchema,
+)
 from .action import (
     BaseAction,
     ActionStatus,
@@ -36,10 +40,6 @@ from .projector import (
     BaseProjector,
     ProjectionContext,
     ProjectionResult,
-    BaseProjectorCanonicalState,
-    CanonicalProjectionStrategy,
-    CanonicalProjectionContext,
-    CanonicalProjectionResult,
     BaseProjectorUI,
     UIComponentType,
     UIComponent,
@@ -52,21 +52,21 @@ from .spec_extractor import (
     SchemaField,
 )
 from .state import (
-    BaseCanonicalState,
-    CanonicalStateSchema,
-    BaseInterpretiveState,
-    InterpretiveFieldState,
-    InterpretiveStateSchema,
-    BaseSnapshotStore,
+    BaseState,
+    State,
+    Snapshot,
 )
 from .langstate import (
+    BaseLangState,
     LangState,
+    LangStateDeps,
     InputType,
     AgentInput,
     InteractionType,
     InteractionRequest,
-    ActionResultData,
+    StateResultData,
     LangStateConfig,
+    schema_to_state,
 )
 
 __all__ = [
@@ -91,11 +91,6 @@ __all__ = [
     "BaseProjector",
     "ProjectionContext",
     "ProjectionResult",
-    # Projector - Canonical
-    "BaseProjectorCanonicalState",
-    "CanonicalProjectionStrategy",
-    "CanonicalProjectionContext",
-    "CanonicalProjectionResult",
     # Projector - UI
     "BaseProjectorUI",
     "UIComponentType",
@@ -107,26 +102,25 @@ __all__ = [
     "Schema",
     "SchemaField",
     # State - Base
+    "BaseDAHState",
+    "DAHState",
     "BaseState",
+    "State",
+    "StateSchema",
+    "InterpretiveField",
     "Inference",
     "ValueConfidence",
-    # State - Canonical
-    "BaseCanonicalState",
-    "CanonicalStateSchema",
-    # State - Interpretive
-    "BaseInterpretiveState",
-    "InterpretiveFieldState",
-    "InterpretiveStateSchema",
-    "BaseSnapshotStore",
-    # State - Factory
-    "BaseStateFactory",
-    "StateFactory",
+    # State - Snapshot
+    "Snapshot",
     # LangState Orchestrator
+    "BaseLangState",
     "LangState",
+    "LangStateDeps",
     "InputType",
     "AgentInput",
     "InteractionType",
     "InteractionRequest",
-    "ActionResultData",
+    "StateResultData",
     "LangStateConfig",
+    "schema_to_state",
 ]

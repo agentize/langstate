@@ -1,375 +1,262 @@
-"""Main LangState class - the orchestrator for the system.
+"""Concrete LangState orchestrator.
 
-LangState is the main entry point for developers. It coordinates:
-- Schema reading and initialization
-- Creation of canonical state (key: value) and interpretive state
-- User input processing via Mutator (updates interpretive state)
-- Validation and projection via ProjectorCanonicalState (receives interpretive state,
-  validates, can trigger actions, updates canonical state)
-- UI/response generation via ProjectorUI
-
-Interpretive State Format:
-    {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
-
-This module follows agent SDK conventions (similar to OpenAI Agents SDK):
-- LangState acts as an agent that can be invoked with structured input
-- The main method is `invoke()` which processes agent input and returns responses
-- Input is structured via `AgentInput` to support various interaction types
+Coordinates schema loading, state persistence via snapshots,
+mutation, and projector notification using the observer pattern.
 """
 
-from abc import ABC, abstractmethod
-from typing import Callable, Dict, Generic, List, Optional, Union
+from typing import Callable, Dict, Generic, List, Optional, Union, cast
+from uuid import uuid4
 
-from ...mutator.base.base import TContext
+from ...data_structure.observer.subject import Subject
 
-from ...spec_extractor import BaseSpecExtractor, Schema
-from ...mutator import BaseMutator
-from ...projector import (
-    BaseProjectorCanonicalState,
-    BaseProjectorUI,
+from ...data_structure.observer.base import BaseObserver
+from ...mutator.base.base import BaseMutator, TContext
+from ...projector.base.projector import BaseProjector
+from ...projector.base.schema import ProjectionContext, ProjectionResult
+from ...spec_extractor.base.extractor import BaseSpecExtractor
+from ...spec_extractor.base.schema import Schema
+from ...state.repository.snapshot_repository.base.base import BaseSnapshotRepository
+from ...state.repository.snapshot_repository.memory.memory import (
+    InMemorySnapshotRepository,
 )
-from ...state import BaseCanonicalState, BaseInterpretiveState
-
+from ...state.state.base import BaseState
+from ...state.state.state import State
+from ...typing.generic import TInput
+from .base import BaseLangState
+from .helpers import schema_to_state
 from .schema import (
-    AgentInput,
     InteractionRequest,
-    ActionResultData,
+    InteractionType,
     LangStateConfig,
+    LangStateDeps,
+    StateResultData,
 )
 
 
-class LangState(ABC, Generic[TContext]):
-    """Abstract base class for the main LangState orchestrator (Agent).
+class LangState(
+    BaseLangState[TContext, TInput],
+    Subject[ProjectionContext],
+    Generic[TContext, TInput],
+):
+    """Concrete LangState orchestrator.
 
-    LangState is the main entry point for developers using this library.
-    It acts as an agent that can be invoked with structured input, following
-    conventions similar to OpenAI Agents SDK.
+    Accepts a :class:`LangStateDeps` bundle at construction time.
+    State is stored and versioned through a
+    :class:`BaseSnapshotRepository`.
 
-    It coordinates all components (Mutator, ProjectorCanonicalState, ProjectorUI)
-    and manages the conversation flow.
-
-    Interpretive State Format:
-        {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}
-
-    The flow is:
-    1. Developer creates LangState instance with optional components
-    2. Developer calls initialize() with config to setup schema and states
-    3. Developer calls invoke() to get initial or next InteractionRequest
-    4. Developer sends InteractionRequest to frontend (e.g., via HTTP)
-    5. Developer receives user response and calls invoke() again
-    6. Repeat until flow is complete (invoke returns ActionResultData)
-
-    Example usage:
-        class MyLangState(LangState):
-            async def initialize(self, config: LangStateConfig) -> None:
-                # Load schema using the configured spec extractor
-                if self._spec_extractor and config.schema_source:
-                    self._schema = self._spec_extractor.read(config.schema_source)
-
-                # Initialize components
-                if self._mutator:
-                    await self._mutator.initialize(self._schema)
-                if self._projector_canonical:
-                    await self._projector_canonical.initialize(self._schema)
-
-                # Initialize all UI projectors
-                for projector in self._projectors_ui:
-                    await projector.initialize(self._schema)
-
-                # Create initial canonical state from schema (key: value)
-                self._canonical_state = CanonicalState()
-
-                # Create interpretive state from canonical state
-                # Format: {key: {inference: [], values: [{value, confidence}]}}
-                self._interpretive_state = InterpretiveState()
-
-            async def invoke(
-                self,
-                agent_input: Optional[AgentInput] = None
-            ) -> Union[InteractionRequest, ActionResultData]:
-                # If agent_input is empty (first call), generate initial interaction
-                if agent_input is None or agent_input.is_empty():
-                    return await self._create_interaction_request()
-
-                # Run mutator to update interpretive state
-                # Adds inference and value-confidence pairs
-                mutation = await self.mutator.mutate(...)
-                self._interpretive_state = mutation.updated_state
-
-                # Run canonical state projector to resolve values
-                projection = await self.projector_canonical.project(...)
-                self._canonical_state = projection.updated_state
-
-                # Run all UI projectors to generate prompts/components
-                ui_projections = []
-                for projector in self._projectors_ui:
-                    ui_projection = await projector.project(...)
-                    ui_projections.append(ui_projection)
-
-                # Check if complete
-                if self._is_state_complete(self._canonical_state):
-                    return ActionResultData(
-                        state=self._interpretive_state.to_dict(),
-                        canonical_state=self._canonical_state.to_dict()
-                    )
-
-                # Generate next interaction
-                return await self._create_interaction_request()
-
-    Constructor Parameters:
-        spec_extractor: Optional BaseSpecExtractor for loading schemas
-        mutator: Optional BaseMutator for input processing
-        projector_canonical: Optional BaseProjectorCanonicalState for validation
-        projectors_ui: Optional BaseProjectorUI or List[BaseProjectorUI] for UI generation
-
-    Customization:
-        Developers can customize behavior by:
-        - Providing components via constructor or setters
-        - Configuring via LangStateConfig
-        - Overriding methods in subclasses
-
-        # Setup with constructor parameters (single projector)
-        langstate = MyLangState(
-            spec_extractor=OpenAPIYamlExtractor(),
-            mutator=MyCustomMutator(),
-            projector_canonical=MyLLMProjectorCanonical(),
-            projectors_ui=MyUIProjector()
-        )
-
-        # Setup with multiple projectors
-        langstate = MyLangState(
-            spec_extractor=OpenAPIYamlExtractor(),
-            mutator=MyCustomMutator(),
-            projector_canonical=MyLLMProjectorCanonical(),
-            projectors_ui=[MyUIProjector(), MyUIInterpreterA()]
-        )
-
-        # Or use setters
-        langstate = MyLangState()
-        langstate.set_spec_extractor(OpenAPIYamlExtractor())
-        langstate.set_mutator(MyCustomMutator())
-        langstate.set_projector_canonical(MyLLMProjectorCanonical())
-        langstate.set_projector_ui(MyUIProjector())
-
-        # Or add projectors one by one
-        langstate.add_projector_ui(MyUIInterpreterA())
-        langstate.add_projector_ui(MyUIInterpreterB())
-
-        # Initialize (loads schema, creates states)
-        await langstate.initialize(LangStateConfig(schema_source="./schema.yaml"))
-
-        # Get first interaction (invoke with no input)
-        interaction = await langstate.invoke()
-
-        # Process user text input
-        result = await langstate.invoke(AgentInput.from_text("John Doe"))
-
-        # Process button click
-        result = await langstate.invoke(AgentInput.from_action("submit", {"form_id": "reg"}))
-
-        # Process selection
-        result = await langstate.invoke(AgentInput.from_selection(["option_1"]))
+    Type Parameters:
+        TContext: Mutation context expected by the mutator.
+        TInput:   External input type accepted by ``invoke``.
     """
 
-    def __init__(
-        self,
-        spec_extractor: Optional[BaseSpecExtractor] = None,
-        mutator: Optional[BaseMutator[TContext]] = None,
-        projector_canonical: Optional[BaseProjectorCanonicalState] = None,
-        projectors_ui: Optional[Union[BaseProjectorUI, List[BaseProjectorUI]]] = None,
-    ) -> None:
-        """Initialize LangState with optional components.
+    def __init__(self, deps: LangStateDeps[TContext, TInput]) -> None:
+        self._spec_extractor = deps.spec_extractor
+        self._mutator = deps.mutator
+        self._context_factory: Callable[[TInput, BaseState], TContext] = (
+            deps.context_factory
+        )
 
-        Args:
-            spec_extractor: Spec extractor for loading schema definitions
-            mutator: Mutator for processing user input
-            projector_canonical: Canonical state projector for validation
-            projectors_ui: UI projector(s) for generating prompts/components.
-                          Can be a single projector or a list of projectors.
-        """
-        self._spec_extractor = spec_extractor
-        self._mutator = mutator
-        self._projector_canonical = projector_canonical
+        initial_projectors: List[BaseProjector[ProjectionContext, ProjectionResult]] = (
+            deps.projectors if deps.projectors is not None else []
+        )
 
-        # Convert single projector to list
-        if projectors_ui is None:
-            self._projectors_ui: List[BaseProjectorUI] = []
-        elif isinstance(projectors_ui, list):
-            self._projectors_ui = projectors_ui
-        else:
-            self._projectors_ui = [projectors_ui]
+        self._observers: List[BaseObserver[ProjectionContext]] = []
+        for proj in initial_projectors:
+            self._observers.append(proj)
 
         self._schema: Optional[Schema] = None
-        self._canonical_state: Optional[BaseCanonicalState] = None
-        self._interpretive_state: Optional[BaseInterpretiveState] = None
         self._conversation_history: List[Dict[str, str]] = []
-        self._action_handlers: List[Callable[[ActionResultData], object]] = []
 
-    @abstractmethod
-    async def initialize(self, config: LangStateConfig) -> None:
-        """Initialize LangState with configuration.
+        self._state_repository: BaseSnapshotRepository[BaseState] = (
+            deps.repository
+            if deps.repository is not None
+            else InMemorySnapshotRepository(state_class=State)
+        )
+        self._state_id: str = (
+            deps.state_id if deps.state_id is not None else str(uuid4())
+        )
 
-        This method sets up schema, components, and creates both canonical
-        and interpretive states. Does not return interaction - call invoke()
-        to get the first InteractionRequest.
+    async def initialize(
+        self, config: Union[LangStateConfig, Dict[str, object]]
+    ) -> None:
+        if isinstance(config, dict):
+            config = LangStateConfig.model_validate(config)
 
-        Args:
-            config: Configuration for this LangState instance
-        """
-        pass
+        # 1. Load schema via spec extractor
+        if config.schema_source is not None and self._spec_extractor is not None:
+            self._schema = self._spec_extractor.read(config.schema_source)
 
-    @abstractmethod
+        # 2. Convert Schema → State and persist the initial snapshot
+        if self._schema is not None:
+            initial_state: BaseState = schema_to_state(self._schema)
+            await self._state_repository.save(self._state_id, initial_state)
+
+        # 3. Initialize all projectors
+        for proj in self.projectors:
+            await proj.initialize(self._schema)
+
     async def invoke(
         self,
-        agent_input: Optional[AgentInput] = None,
+        agent_input: TInput,
         metadata: Optional[Dict[str, object]] = None,
-    ) -> Union[InteractionRequest, ActionResultData]:
-        """Invoke the agent with structured input and return next interaction or result.
+    ) -> Union[InteractionRequest, StateResultData]:
+        if self._mutator is None:
+            raise RuntimeError("Mutator is not set.")
 
-        This is the main method developers call when they receive
-        input from the frontend. Follows agent SDK conventions.
+        current_state = await self.get_state()
 
-        Args:
-            agent_input: Structured input from user (text, action, selection, etc.)
-                        If None or empty, returns initial interaction.
-            metadata: Optional additional metadata about the invocation
+        # Bridge TInput → TContext using the caller-supplied factory.
+        context = self._context_factory(agent_input, current_state)
+        mutation_result = await self._mutator.mutate(context)
 
-        Returns:
-            InteractionRequest if more input needed, ActionResultData if complete
+        # Persist updated state and notify projectors.
+        projection_results = await self._set_state(
+            mutation_result.updated_state, metadata
+        )
 
-        Example:
-            # Initial invocation
-            interaction = await langstate.invoke()
+        return StateResultData(
+            state=mutation_result.updated_state,
+            success=True,
+            metadata={
+                "mutation_metadata": mutation_result.metadata or {},
+                "projection_results": [r.model_dump() for r in projection_results],
+            },
+        )
 
-            # Text input
-            result = await langstate.invoke(AgentInput.from_text("John"))
-
-            # Button click
-            result = await langstate.invoke(AgentInput.from_action("submit"))
-
-            # Selection
-            result = await langstate.invoke(AgentInput.from_selection(["opt1"]))
-        """
-        pass
-
-    @abstractmethod
-    async def get_current_state(self) -> BaseInterpretiveState:
-        """Get the current interpretive state.
-
-        Returns:
-            Current InterpretiveState with all field instances and their snapshots
-        """
-        pass
-
-    @abstractmethod
-    async def get_canonical_state(self) -> BaseCanonicalState:
-        """Get the current canonical state.
-
-        Returns:
-            Current CanonicalState with resolved values
-        """
-        pass
-
-    def set_spec_extractor(self, spec_extractor: BaseSpecExtractor) -> None:
-        """Set a custom SpecExtractor implementation.
-
-        Args:
-            spec_extractor: Custom SpecExtractor instance
-        """
-        self._spec_extractor = spec_extractor
-
-    def set_schema(self, schema: Schema) -> None:
-        """Set the schema directly.
-
-        Args:
-            schema: Schema instance to use
-        """
-        self._schema = schema
-
-    def set_mutator(self, mutator: BaseMutator[TContext]) -> None:
-        """Set a custom Mutator implementation.
-
-        Args:
-            mutator: Custom Mutator instance
-        """
-        self._mutator = mutator
-
-    def set_projector_canonical(self, projector: BaseProjectorCanonicalState) -> None:
-        """Set a custom Canonical State Projector implementation.
-
-        Args:
-            projector: Custom ProjectorCanonicalState instance
-        """
-        self._projector_canonical = projector
-
-    def set_projector_ui(
-        self, projector: Union[BaseProjectorUI, List[BaseProjectorUI]]
-    ) -> None:
-        """Set UI Projector implementation(s), replacing existing projectors.
-
-        Args:
-            projector: Custom ProjectorUI instance or list of instances
-        """
-        if isinstance(projector, list):
-            self._projectors_ui = projector
-        else:
-            self._projectors_ui = [projector]
-
-    def add_projector_ui(self, projector: BaseProjectorUI) -> None:
-        """Add a UI Projector to the list of projectors.
-
-        Args:
-            projector: Custom ProjectorUI instance to add
-        """
-        self._projectors_ui.append(projector)
-
-    def add_action_handler(self, handler: Callable[[ActionResultData], object]) -> None:
-        """Add a handler to be called when action is triggered.
-
-        Args:
-            handler: Callback function that receives ActionResultData
-        """
-        self._action_handlers.append(handler)
-
-    @abstractmethod
     async def reset(self) -> InteractionRequest:
-        """Reset the state and start over.
+        await self._state_repository.delete(self._state_id)
 
-        Returns:
-            Fresh InteractionRequest to start new conversation
-        """
-        pass
+        # Re-create empty state from schema if available.
+        if self._schema is not None:
+            initial_state: BaseState = schema_to_state(self._schema)
+            await self._state_repository.save(self._state_id, initial_state)
 
-    def get_conversation_history(self) -> List[Dict[str, str]]:
-        """Get the conversation history.
+        self._conversation_history.clear()
 
-        Returns:
-            List of conversation entries
-        """
-        return self._conversation_history
+        return InteractionRequest(
+            interaction_type=InteractionType.COMPLETE,
+            prompt="State has been reset.",
+        )
 
-    # Property accessors for components
+    async def get_state(self) -> BaseState:
+        latest = await self._state_repository.get_latest(self._state_id)
+        if latest is None:
+            raise RuntimeError("State not available in repository.")
+        return latest.state
+
     @property
     def spec_extractor(self) -> Optional[BaseSpecExtractor]:
-        """Get the current spec extractor."""
         return self._spec_extractor
 
     @property
     def mutator(self) -> Optional[BaseMutator[TContext]]:
-        """Get the current mutator."""
         return self._mutator
 
     @property
-    def projector_canonical(self) -> Optional[BaseProjectorCanonicalState]:
-        """Get the current canonical state projector."""
-        return self._projector_canonical
-
-    @property
-    def projectors_ui(self) -> List[BaseProjectorUI]:
-        """Get the list of current UI projectors."""
-        return self._projectors_ui
+    def projectors(
+        self,
+    ) -> List[BaseProjector[ProjectionContext, ProjectionResult]]:
+        return cast(
+            List[BaseProjector[ProjectionContext, ProjectionResult]],
+            list(self.observers),
+        )
 
     @property
     def schema(self) -> Optional[Schema]:
-        """Get the current schema."""
         return self._schema
+
+    @property
+    def state_repository(self) -> BaseSnapshotRepository[BaseState]:
+        return self._state_repository
+
+    def set_spec_extractor(self, spec_extractor: BaseSpecExtractor) -> None:
+        self._spec_extractor = spec_extractor
+
+    def set_mutator(self, mutator: BaseMutator[TContext]) -> None:
+        self._mutator = mutator
+
+    def set_schema(self, schema: Schema) -> None:
+        self._schema = schema
+
+    def set_state_repository(
+        self, repository: BaseSnapshotRepository[BaseState]
+    ) -> None:
+        self._state_repository = repository
+
+    def attach(  # type: ignore[override]
+        self,
+        observer: BaseObserver[ProjectionContext],
+    ) -> None:
+        if not isinstance(observer, BaseProjector):
+            raise TypeError("LangState observers must be BaseProjector instances.")
+        super().attach(cast(BaseObserver[ProjectionContext], observer))
+
+    def detach(  # type: ignore[override]
+        self,
+        observer: BaseProjector[ProjectionContext, ProjectionResult],
+    ) -> None:
+        super().detach(observer)
+
+    def set_projectors(
+        self,
+        projectors: Union[
+            BaseProjector[ProjectionContext, ProjectionResult],
+            List[BaseProjector[ProjectionContext, ProjectionResult]],
+        ],
+    ) -> None:
+        self.clear_projectors()
+        if isinstance(projectors, list):
+            for projector in projectors:
+                self.attach(projector)
+        else:
+            self.attach(projectors)
+
+    def add_projector(
+        self, projector: BaseProjector[ProjectionContext, ProjectionResult]
+    ) -> None:
+        self.attach(projector)
+
+    def remove_projector(
+        self, projector: BaseProjector[ProjectionContext, ProjectionResult]
+    ) -> None:
+        self.detach(projector)
+
+    def clear_projectors(self) -> None:
+        for projector in tuple(self.projectors):
+            self.detach(projector)
+
+    def get_conversation_history(self) -> List[Dict[str, str]]:
+        return self._conversation_history
+
+    async def _set_state(
+        self,
+        state: BaseState,
+        metadata: Optional[Dict[str, object]] = None,
+    ) -> List[ProjectionResult]:
+        await self._state_repository.save(self._state_id, state)
+        return await self._notify_projectors(metadata)
+
+    async def _notify_projectors(
+        self, metadata: Optional[Dict[str, object]] = None
+    ) -> List[ProjectionResult]:
+        if not self.projectors:
+            return []
+
+        latest = await self._state_repository.get_latest(self._state_id)
+        if latest is None:
+            return []
+
+        current_state = latest.state
+
+        context = ProjectionContext(
+            state=current_state,
+            conversation_history=self._conversation_history,
+            metadata=metadata or {},
+        )
+
+        notified_results = await self.notify(context)
+        return [
+            result
+            for result in notified_results
+            if isinstance(result, ProjectionResult)
+        ]

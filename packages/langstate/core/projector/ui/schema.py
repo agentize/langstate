@@ -77,17 +77,10 @@ class UIComponent(BaseModel):
 class UIProjectionContext(ProjectionContext):
     """Context provided to the UI projector for processing.
 
-    Extends ProjectionContext with UI-specific fields.
+    UI projector uses the shared ProjectionContext contract.
     """
 
-    conversation_history: Annotated[
-        List[Dict[str, str]],
-        Field(default_factory=list, description="Conversation history for context"),
-    ]
-    user_preferences: Annotated[
-        Dict[str, object],
-        Field(default_factory=dict, description="User preferences for UI generation"),
-    ]
+    pass
 
 
 class UIProjectionResult(ProjectionResult):
@@ -104,7 +97,7 @@ class UIProjectionResult(ProjectionResult):
     suggestions: Annotated[
         Dict[str, List[object]],
         Field(
-            default_factory=dict, description="Suggested values/actions for the user"
+            default_factory=dict, description="Suggested values/options for the user"
         ),
     ]
     is_complete: Annotated[

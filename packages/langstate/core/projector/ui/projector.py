@@ -40,7 +40,7 @@ class BaseProjectorUI(BaseProjector[UIProjectionContext, UIProjectionResult]):
             ) -> UIProjectionResult:
                 # Generate components for unfilled fields
                 components = []
-                for field_id, field_data in context.interpretive_state.items():
+                for field_id, field_data in context.state.items():
                     values = field_data.get("values", [])
                     if not self._has_resolved_value(values):
                         component = self.map_field_to_component(field_id)
