@@ -4,7 +4,7 @@ version = "0.0.1"
 description = "A Python library for managing state in language-based applications with graph data structures"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<4.0"
 authors = [{ "name" = "Agentize AI Inc.", "email" = "contact@agentize.ai" }]
 keywords = [
     "langstate",
@@ -40,7 +40,7 @@ documentation = "https://python-poetry.org/docs/"
 packages = [{ include = "core" }]
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = ">=3.10,<4.0"
 pydantic = "^2.12.5"
 openapi3-parser = "^1.1.22"
 
