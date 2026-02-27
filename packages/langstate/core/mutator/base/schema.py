@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict
 
 from pydantic import BaseModel, Field
 
-from ...state.state import State
+from ...state.state.state import State
 
 
 class MutationResult(BaseModel):
@@ -16,7 +16,7 @@ class MutationResult(BaseModel):
     updated_state: Annotated[
         State,
         Field(
-            description="The updated interpretive state implementation instance after mutation."
+            description="The updated state implementation instance after mutation."
             "Format: {key: {inference: [{content, mutator_id}], values: [{value, confidence}]}}"
         ),
     ]

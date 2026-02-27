@@ -40,11 +40,10 @@ langstate/
 │   ├── state/
 │   │   ├── base.py             # BaseState abstract class
 │   │   ├── state.py            # State implementation
-│   │   ├── schema.py           # StateSchema, StateField
+│   │   ├── schema.py           # StateSchema, InterpretiveField
 │   │   ├── canonical/          # Canonical projection/state helpers
 │   │   └── repository/
-│   │       ├── base.py         # BaseStateRepository
-│   │       └── memory.py       # InMemoryStateRepository
+│   │       └── base.py         # BaseStateRepository
 │   └── langstate/
 │       └── base/
 │           ├── langstate.py    # LangState orchestrator abstract class

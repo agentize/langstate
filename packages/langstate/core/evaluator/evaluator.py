@@ -1,35 +1,35 @@
 """Base Evaluator implementation for LangState.
 
-Provides shared functionality for comparing interpretive states.
+Provides shared functionality for comparing states.
 """
 
 from typing import Optional, Set
 
 from .base import BaseEvaluator
 from .schema import FieldComparison, StateComparison
-from ..state.interpretive.base import BaseInterpretiveState
-from ..state.interpretive.schema import ValueConfidence
+from ..state.state.base import BaseState
+from ..state.state.schema import ValueConfidence
 
 
 class Evaluator(BaseEvaluator):
     """Base evaluator with state comparison logic.
 
     This class provides common functionality for comparing expected
-    and actual interpretive states field by field. Concrete evaluator
+    and actual states field by field. Concrete evaluator
     implementations should inherit from this class and implement the
     ``evaluate`` method.
     """
 
     async def _compare_states(
         self,
-        expected: BaseInterpretiveState,
-        actual: BaseInterpretiveState,
+        expected: BaseState,
+        actual: BaseState,
     ) -> StateComparison:
-        """Compare two interpretive states field by field.
+        """Compare two states field by field.
 
         Args:
-            expected: The expected interpretive state.
-            actual:   The actual interpretive state produced by the mutator.
+            expected: The expected state.
+            actual:   The actual state produced by the mutator.
 
         Returns:
             StateComparison with per-field details and aggregate counters.
@@ -45,8 +45,10 @@ class Evaluator(BaseEvaluator):
         extra = 0
 
         for path in sorted(all_paths):
-            expected_val: Optional[ValueConfidence] = expected.get_best_value(path)
-            actual_val: Optional[ValueConfidence] = actual.get_best_value(path)
+            expected_val: Optional[ValueConfidence] = self._get_best_value(
+                expected, path
+            )
+            actual_val: Optional[ValueConfidence] = self._get_best_value(actual, path)
 
             in_expected = path in expected_fields
             in_actual = path in actual_fields
@@ -105,6 +107,25 @@ class Evaluator(BaseEvaluator):
             extra_fields=extra,
             overall_match=(mismatched == 0 and missing == 0 and extra == 0),
         )
+
+    def _get_best_value(self, state: BaseState, path: str) -> Optional[ValueConfidence]:
+        """Get the value with the highest confidence for a field.
+
+        Args:
+            state: The state to query.
+            path:  The field path.
+
+        Returns:
+            The ValueConfidence with the highest confidence score, or None if
+            the field is absent or has no values.
+        """
+        field = state.get_field(path)
+        if field is None:
+            return None
+        values = getattr(field, "values", [])
+        if not values:
+            return None
+        return max(values, key=lambda vc: vc.confidence)
 
     def _values_equal(
         self,

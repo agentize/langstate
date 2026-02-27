@@ -68,7 +68,6 @@ class DirectedAcyclicHypergraphNode(Generic[V, E]):
         default_factory=weakref.WeakSet, repr=False
     )
 
-    # ---- Reverse mirror management (for use by DAH manager) ----------------
     def add_dependent(self, node: "DirectedAcyclicHypergraphNode[V, E]") -> None:
         """Register a node as depending on this node."""
         self._dependents.add(node)
@@ -83,7 +82,6 @@ class DirectedAcyclicHypergraphNode(Generic[V, E]):
     def __eq__(self, other: object) -> bool:
         return isinstance(other, DirectedAcyclicHypergraphNode) and self.id == other.id
 
-    # ---- Local queries ------------------------------------------------------
     def prerequisite_ids(self) -> Set[UUID]:
         """All distinct source node UUIDs feeding into this node via hyperedges."""
         ids: Set[UUID] = set()

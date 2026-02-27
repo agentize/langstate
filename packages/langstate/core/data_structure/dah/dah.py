@@ -21,6 +21,7 @@ from typing import (
     Set,
     Tuple,
     TypeVar,
+    cast,
 )
 from uuid import UUID, uuid4
 
@@ -63,8 +64,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
                 self._path_to_uuid[n.path] = n.id
         self._edge_counter: int = 0
 
-    # ---- Properties ---------------------------------------------------------
-
     @property
     def nodes(self) -> Dict[UUID, DirectedAcyclicHypergraphNode[V, E]]:
         """All nodes in the hypergraph (keyed by UUID)."""
@@ -74,8 +73,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
     def path_to_uuid(self) -> Dict[str, UUID]:
         """Path to UUID mapping for node lookup."""
         return self._path_to_uuid
-
-    # ---- Node operations ----------------------------------------------------
 
     def add_node(
         self, path: str, value: Optional[V] = None
@@ -133,8 +130,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             for eid, hedge in list(dep.in_edges.items()):
                 if node in hedge.sources:
                     self.remove_hyperedge(eid, dep.path)
-
-    # ---- Hyperedge operations -----------------------------------------------
 
     def _next_edge_id(self) -> UUID:
         """Generate next edge UUID."""
@@ -212,8 +207,6 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             except Exception:
                 pass
 
-    # ---- Backward compatibility (single-source edge API) --------------------
-
     def add_edge(
         self,
         prereq_path: str,
@@ -230,7 +223,38 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             [prereq_path], dep_path, metadata=metadata, check_cycle=check_cycle
         )
 
-    # ---- Graph-wide queries -------------------------------------------------
+    def ensure_node_hierarchy(self, path: str) -> None:
+        """Ensure all ancestor nodes and parent→child hyperedges exist for *path*.
+
+        Given a dot-separated path such as ``"guests.0.name"``, this method
+        creates every intermediate node (``"guests"``, ``"guests.0"``) if they
+        are absent and adds a single-source hyperedge from each parent to its
+        immediate child.  Existing nodes and edges are left untouched.
+
+        Args:
+            path: Dot-separated node path (e.g. ``"address.city"``).  A
+                  top-level path with no dots is a no-op.
+        """
+        parts = path.split(".")
+        if len(parts) <= 1:
+            return
+
+        for i in range(1, len(parts)):
+            parent_path = ".".join(parts[:i])
+            child_path = ".".join(parts[: i + 1])
+
+            if self.get_node(parent_path) is None:
+                self.add_node(parent_path, None)
+
+            # Ensure intermediate (non-leaf) child node exists
+            if i < len(parts) - 1 and self.get_node(child_path) is None:
+                self.add_node(child_path, None)
+
+            try:
+                self.add_hyperedge([parent_path], child_path, check_cycle=True)
+            except ValueError:
+                # Edge already exists or would create a cycle — skip.
+                pass
 
     def prerequisite_ids(self, path: str) -> Set[UUID]:
         """Get prerequisite UUIDs of a node."""
@@ -303,16 +327,12 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
             for hid, hedge in node.in_edges.items():
                 yield (hedge.source_paths(), node.path, hedge.metadata, hid)
 
-    # ---- Internal helpers ---------------------------------------------------
-
     def _would_create_cycle(self, source_path: str, target_path: str) -> bool:
         """True if adding conceptual edge source->target closes a cycle.
 
         Check whether source_path is already a descendant of target_path.
         """
         return source_path in self.descendants(target_path)
-
-    # ---- Export methods -----------------------------------------------------
 
     def to_dot(self) -> str:
         """Graphviz DOT representing hyperedges.
@@ -448,6 +468,67 @@ class DirectedAcyclicHypergraph(Generic[V, E]):
         if pretty:
             return json.dumps(payload, indent=indent)
         return json.dumps(payload, separators=(",", ":"))
+
+    @classmethod
+    def from_json(
+        cls,
+        json_str: str,
+        value_parser: Optional[Callable[[Any], Optional[V]]] = None,
+    ) -> "DirectedAcyclicHypergraph[V, E]":
+        """Create a DirectedAcyclicHypergraph from a JSON string.
+
+        Parses the format produced by ``to_json()`` which includes
+        ``nodes`` (with ``path`` and ``value``) and ``hyperedges``.
+
+        Args:
+            json_str: JSON string representation of the hypergraph.
+            value_parser: Optional callable to convert raw JSON node values
+                into the desired ``V`` type.  When *None*, raw values are
+                stored as-is (suitable for ``Any``-typed graphs).
+
+        Returns:
+            A new ``DirectedAcyclicHypergraph`` instance populated from the
+            JSON data.
+        """
+        dah: DirectedAcyclicHypergraph[V, E] = cls()
+        raw_data: Any = json.loads(json_str)
+        if not isinstance(raw_data, dict):
+            return dah
+        data: Dict[str, Any] = cast(Dict[str, Any], raw_data)
+
+        raw_nodes: Any = data.get("nodes", [])
+        if isinstance(raw_nodes, list):
+            nodes: List[Any] = cast(List[Any], raw_nodes)
+            for node_data in nodes:
+                if not isinstance(node_data, dict):
+                    continue
+                node_dict: Dict[str, Any] = cast(Dict[str, Any], node_data)
+                path: Optional[str] = cast(Optional[str], node_dict.get("path"))
+                raw_value: Any = node_dict.get("value")
+                if path is None:
+                    continue
+                parsed: Optional[V] = (
+                    value_parser(raw_value)
+                    if value_parser is not None
+                    else cast(Optional[V], raw_value)
+                )
+                dah.add_node(str(path), parsed)
+
+        raw_hyperedges: Any = data.get("hyperedges", [])
+        if isinstance(raw_hyperedges, list):
+            hyperedges: List[Any] = cast(List[Any], raw_hyperedges)
+            for edge_data in hyperedges:
+                if not isinstance(edge_data, dict):
+                    continue
+                edge_dict: Dict[str, Any] = cast(Dict[str, Any], edge_data)
+                sources: List[str] = cast(List[str], edge_dict.get("sources", []))
+                target: Optional[str] = cast(Optional[str], edge_dict.get("target"))
+                if target is not None:
+                    try:
+                        dah.add_hyperedge(sources, str(target), check_cycle=False)
+                    except ValueError:
+                        pass
+        return dah
 
     def to_ascii_tree(
         self,

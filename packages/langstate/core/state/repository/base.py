@@ -8,21 +8,21 @@ storage backends without changing the core logic.
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Generic, Optional, TypeVar
 
-from ..base import BaseState
+from ..base.base import BaseDAHState
 
 
-TState = TypeVar("TState", bound=BaseState[Any])
+TState = TypeVar("TState", bound=BaseDAHState[Any])
 
 
-class BaseStateRepository(ABC, Generic[TState]):
-    """Base interface for state repository operations.
+class BaseRepository(ABC, Generic[TState]):
+    """Base interface for repository operations.
 
-    This interface defines the contract for state persistence operations,
+    This interface defines the contract for persistence operations,
     following Interface Segregation Principle (ISP) by focusing only
-    on state-related operations.
+    on CRUD operations.
 
-    Generic over TState, works with any state type (CanonicalState,
-    InterpretiveState, or custom state implementations).
+    Generic over TState, works with any state type
+    or custom state implementations.
 
     Implementations can store state in:
     - Memory (default, for single-session)

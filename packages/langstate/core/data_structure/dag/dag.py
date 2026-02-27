@@ -58,8 +58,6 @@ class DirectedAcyclicGraph(Generic[V, E]):
                 self._nodes[n.id] = n
                 self._path_to_uuid[n.path] = n.id
 
-    # ---- Properties ---------------------------------------------------------
-
     @property
     def nodes(self) -> Dict[UUID, DirectedAcyclicGraphNode[V, E]]:
         """All nodes in the graph (keyed by UUID)."""
@@ -69,8 +67,6 @@ class DirectedAcyclicGraph(Generic[V, E]):
     def path_to_uuid(self) -> Dict[str, UUID]:
         """Path to UUID mapping for node lookup."""
         return self._path_to_uuid
-
-    # ---- Node operations ----------------------------------------------------
 
     def add_node(
         self, path: str, value: Optional[V] = None
@@ -126,8 +122,6 @@ class DirectedAcyclicGraph(Generic[V, E]):
         # Unlink outbound edges (node as prerequisite)
         for dep in list(node.dependents()):
             self.remove_edge(path, dep.path)
-
-    # ---- Edge operations ----------------------------------------------------
 
     def add_edge(
         self,
@@ -185,8 +179,6 @@ class DirectedAcyclicGraph(Generic[V, E]):
                     prereq.remove_dependent(dep)
                 except Exception:
                     pass
-
-    # ---- Graph-wide queries -------------------------------------------------
 
     def prerequisites(self, path: str) -> Set[str]:
         """Get prerequisite paths of a node."""
@@ -253,8 +245,6 @@ class DirectedAcyclicGraph(Generic[V, E]):
             for prereq_path, edge in node.depends_on.items():
                 yield (prereq_path, node.path, edge.metadata)
 
-    # ---- Internal helpers ---------------------------------------------------
-
     def _would_create_cycle(self, prereq_path: str, dep_path: str) -> bool:
         """True if adding prereq_path -> dep_path closes a cycle.
 
@@ -262,8 +252,6 @@ class DirectedAcyclicGraph(Generic[V, E]):
         If yes, then adding the edge would create a cycle.
         """
         return prereq_path in self.descendants(dep_path)
-
-    # ---- Export methods -----------------------------------------------------
 
     def to_dot(self) -> str:
         """Graphviz DOT (unstyled). Uses path for node labels."""

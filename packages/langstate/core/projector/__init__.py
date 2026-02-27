@@ -5,12 +5,6 @@ from .base import (
     ProjectionContext,
     ProjectionResult,
 )
-from .canonical import (
-    BaseProjectorCanonicalState,
-    CanonicalProjectionStrategy,
-    CanonicalProjectionContext,
-    CanonicalProjectionResult,
-)
 from .ui import (
     BaseProjectorUI,
     UIComponentType,
@@ -24,11 +18,6 @@ __all__ = [
     "BaseProjector",
     "ProjectionContext",
     "ProjectionResult",
-    # Canonical
-    "BaseProjectorCanonicalState",
-    "CanonicalProjectionStrategy",
-    "CanonicalProjectionContext",
-    "CanonicalProjectionResult",
     # UI
     "BaseProjectorUI",
     "UIComponentType",

@@ -4,11 +4,25 @@ This module contains all data models used by the LangState orchestrator.
 """
 
 from enum import Enum
-from typing import Annotated, Dict, List, Optional
+from typing import (
+    Annotated,
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Optional,
+)
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from ...state.schema import StateSchema
+from ...mutator.base.base import BaseMutator, TContext
+from ...projector.base.projector import BaseProjector
+from ...projector.base.schema import ProjectionContext, ProjectionResult
+from ...spec_extractor.base.extractor import BaseSpecExtractor
+from ...state.repository.snapshot_repository.base.base import BaseSnapshotRepository
+from ...state.state.base import BaseState
+from ...typing.generic import TInput
 
 
 class InputType(str, Enum):
@@ -243,51 +257,49 @@ class InteractionRequest(BaseModel):
     ]
     prompt: Annotated[
         str,
-        Field(default="", description="Message/prompt for the user"),
-    ]
+        Field(description="Message/prompt for the user"),
+    ] = ""
     components: Annotated[
-        List[object],
-        Field(default_factory=list, description="UI components to render"),
-    ]
+        List[Any],
+        Field(description="UI components to render"),
+    ] = Field(default_factory=list)
     options: Annotated[
         Dict[str, List[object]],
-        Field(
-            default_factory=dict, description="Options for selection-type interactions"
-        ),
-    ]
+        Field(description="Options for selection-type interactions"),
+    ] = Field(default_factory=dict)
     state: Annotated[
-        Optional[StateSchema],
-        Field(default=None, description="Current state snapshot"),
-    ]
+        Optional[BaseState],
+        Field(description="Current state snapshot"),
+    ] = None
     pending_fields: Annotated[
         List[str],
-        Field(default_factory=list, description="Fields still needing values"),
-    ]
+        Field(description="Fields still needing values"),
+    ] = Field(default_factory=list)
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional metadata"),
-    ]
+        Field(description="Additional metadata"),
+    ] = Field(default_factory=dict)
 
 
 class StateResultData(BaseModel):
     """Result returned when the flow is complete."""
 
     state: Annotated[
-        StateSchema,
+        BaseState,
         Field(description="Final state with all field snapshots"),
     ]
     success: Annotated[
         bool,
-        Field(default=True, description="Whether the flow completed successfully"),
-    ]
+        Field(description="Whether the flow completed successfully"),
+    ] = True
     data: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional output data"),
-    ]
+        Field(description="Additional output data"),
+    ] = Field(default_factory=dict)
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional metadata"),
-    ]
+        Field(description="Additional metadata"),
+    ] = Field(default_factory=dict)
 
 
 class LangStateConfig(BaseModel):
@@ -295,23 +307,69 @@ class LangStateConfig(BaseModel):
 
     schema_source: Annotated[
         Optional[str],
-        Field(default=None, description="Path or dict for schema definition"),
-    ]
+        Field(description="Path or dict for schema definition"),
+    ] = None
     confidence_threshold: Annotated[
         float,
-        Field(default=0.7, description="Default confidence threshold for projection"),
-    ]
+        Field(description="Default confidence threshold for projection"),
+    ] = 0.7
     require_confirmation: Annotated[
         bool,
-        Field(
-            default=False, description="Whether to require user confirmation for values"
-        ),
-    ]
+        Field(description="Whether to require user confirmation for values"),
+    ] = False
     conversation_history_limit: Annotated[
         int,
-        Field(default=100, description="Max conversation history to maintain"),
-    ]
+        Field(description="Max conversation history to maintain"),
+    ] = 100
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional configuration"),
+        Field(description="Additional configuration"),
+    ] = Field(default_factory=dict)
+
+
+class LangStateDeps(BaseModel, Generic[TContext, TInput]):
+    """Dependency bundle for constructing a ``LangState`` instance.
+
+    Example::
+
+        deps: LangStateDeps[MutationContext, AgentInput] = LangStateDeps(
+            mutator=mutator,
+            spec_extractor=spec_extractor,
+            projectors=[projector],
+            context_factory=lambda inp, state: MutationContext(
+                input=StructuredInput(prompt=inp.text or ""),
+                state=state,
+            ),
+        )
+        agent = LangState(deps)
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    mutator: Annotated[
+        Optional[BaseMutator[TContext]],
+        Field(default=None, description="Mutator instance"),
+    ]
+    spec_extractor: Annotated[
+        Optional[BaseSpecExtractor],
+        Field(default=None, description="Spec extractor instance"),
+    ]
+    projectors: Annotated[
+        Optional[List[BaseProjector[ProjectionContext, ProjectionResult]]],
+        Field(default=None, description="List of projector instances"),
+    ]
+    repository: Annotated[
+        Optional[BaseSnapshotRepository[BaseState]],
+        Field(default=None, description="Snapshot repository for state persistence"),
+    ]
+    context_factory: Annotated[
+        Callable[[TInput, BaseState], TContext],
+        Field(description="Callable that bridges TInput + current state → TContext"),
+    ]
+    state_id: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            description="Unique identifier for the state. Defaults to a generated UUID.",
+        ),
     ]

@@ -9,7 +9,7 @@ The Evaluator is responsible for:
 from abc import ABC, abstractmethod
 
 from .schema import EvaluationContext, EvaluationResult, StateComparison
-from ..state.interpretive.base import BaseInterpretiveState
+from ..state.state.base import BaseState
 
 
 class BaseEvaluator(ABC):
@@ -53,18 +53,18 @@ class BaseEvaluator(ABC):
     @abstractmethod
     async def _compare_states(
         self,
-        expected: BaseInterpretiveState,
-        actual: BaseInterpretiveState,
+        expected: BaseState,
+        actual: BaseState,
     ) -> StateComparison:
-        """Compare two interpretive states field by field.
+        """Compare two states field by field.
 
         Iterates over every field path present in either state, retrieves the
         best value for each, and classifies the field as matching, mismatched,
         missing (present only in expected) or extra (present only in actual).
 
         Args:
-            expected: The expected interpretive state.
-            actual:   The actual interpretive state produced by the mutator.
+            expected: The expected state.
+            actual:   The actual state produced by the mutator.
 
         Returns:
             StateComparison with per-field details and aggregate counters.

@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
-from ...state.interpretive.state import InterpretiveState
+from ...state.state.state import State
 
 
 class StructuredInput(BaseModel):
@@ -38,9 +38,9 @@ class MutationContext(BaseModel):
         ),
     ]
     state: Annotated[
-        InterpretiveState,
+        State,
         Field(
-            description="Current interpretive state implementation instance."
+            description="Current state implementation instance."
             "Format: {key: {inference: {content, mutator_id, message_id} | null, values: [{value, confidence}]}}"
         ),
     ]

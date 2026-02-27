@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "langstate"
-version = "0.1.0"
+version = "0.0.1"
 description = "A Python library for managing state in language-based applications with graph data structures"
 authors = ["Agentize <contact@agentize.ai>"]
 readme = "README.md"
