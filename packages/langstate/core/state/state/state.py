@@ -1,6 +1,6 @@
 """State implementation using DAH storage."""
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from typing_extensions import Self
 
 from pydantic_core import core_schema
@@ -88,8 +88,9 @@ class State(DAHState[InterpretiveField], BaseState):
             return InterpretiveField()
 
         new_state = cls()
-        new_state._dah = DirectedAcyclicHypergraph.from_json(  # type: ignore[assignment]
-            json_str, value_parser=_parse_field
+        new_state._dah = cast(
+            "DirectedAcyclicHypergraph[InterpretiveField, None]",
+            DirectedAcyclicHypergraph.from_json(json_str, value_parser=_parse_field),
         )
         return new_state
 

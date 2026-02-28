@@ -27,9 +27,12 @@ from .mutator import (
     MutationContext,
     MutationResult,
     StructuredInput,
+    LLMMutator,
+    BaseLLMClient,
 )
 from .evaluator import (
     BaseEvaluator,
+    Evaluator,
     LLMEvaluator,
     EvaluationContext,
     EvaluationResult,
@@ -50,11 +53,17 @@ from .spec_extractor import (
     BaseSpecExtractor,
     Schema,
     SchemaField,
+    SourceType,
 )
 from .state import (
     BaseState,
     State,
     Snapshot,
+    BaseRepository,
+    BaseSnapshotRepository,
+    HistoryFilter,
+    InMemorySnapshotRepository,
+    BaseStateTransformer,
 )
 from .langstate import (
     BaseLangState,
@@ -80,8 +89,11 @@ __all__ = [
     "MutationContext",
     "MutationResult",
     "StructuredInput",
+    "LLMMutator",
+    "BaseLLMClient",
     # Evaluator
     "BaseEvaluator",
+    "Evaluator",
     "LLMEvaluator",
     "EvaluationContext",
     "EvaluationResult",
@@ -101,6 +113,7 @@ __all__ = [
     "BaseSpecExtractor",
     "Schema",
     "SchemaField",
+    "SourceType",
     # State - Base
     "BaseDAHState",
     "DAHState",
@@ -112,6 +125,13 @@ __all__ = [
     "ValueConfidence",
     # State - Snapshot
     "Snapshot",
+    # State - Repository
+    "BaseRepository",
+    "BaseSnapshotRepository",
+    "HistoryFilter",
+    "InMemorySnapshotRepository",
+    # State - Transformer
+    "BaseStateTransformer",
     # LangState Orchestrator
     "BaseLangState",
     "LangState",

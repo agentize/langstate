@@ -21,6 +21,11 @@ from .core import (
     Inference,
     ValueConfidence,
     Snapshot,
+    BaseRepository,
+    BaseSnapshotRepository,
+    HistoryFilter,
+    InMemorySnapshotRepository,
+    BaseStateTransformer,
     # Action
     BaseAction,
     ActionStatus,
@@ -31,8 +36,11 @@ from .core import (
     MutationContext,
     MutationResult,
     StructuredInput,
+    LLMMutator,
+    BaseLLMClient,
     # Evaluator
     BaseEvaluator,
+    Evaluator,
     LLMEvaluator,
     EvaluationContext,
     EvaluationResult,
@@ -51,6 +59,9 @@ from .core import (
     BaseSpecExtractor,
     Schema,
     SchemaField,
+    SourceType,
+    # LangState
+    schema_to_state,
 )
 
 __version__ = version("langstate")
@@ -77,6 +88,11 @@ __all__ = [
     "Inference",
     "ValueConfidence",
     "Snapshot",
+    "BaseRepository",
+    "BaseSnapshotRepository",
+    "HistoryFilter",
+    "InMemorySnapshotRepository",
+    "BaseStateTransformer",
     # Action
     "BaseAction",
     "ActionStatus",
@@ -87,8 +103,11 @@ __all__ = [
     "MutationContext",
     "MutationResult",
     "StructuredInput",
+    "LLMMutator",
+    "BaseLLMClient",
     # Evaluator
     "BaseEvaluator",
+    "Evaluator",
     "LLMEvaluator",
     "EvaluationContext",
     "EvaluationResult",
@@ -107,4 +126,7 @@ __all__ = [
     "BaseSpecExtractor",
     "Schema",
     "SchemaField",
+    "SourceType",
+    # LangState
+    "schema_to_state",
 ]

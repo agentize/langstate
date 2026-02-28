@@ -475,3 +475,57 @@ class TestLLMMutatorMutate:
         )
         result = await m.mutate(ctx)
         assert isinstance(result, MutationResult)
+
+
+# ============================================================================
+# Additional coverage tests
+# ============================================================================
+
+
+class TestBaseMutatorABC:
+    """Tests for BaseMutator abstract base class."""
+
+    def test_cannot_instantiate_directly(self) -> None:
+        with pytest.raises(TypeError):
+            BaseMutator()  # type: ignore[abstract]
+
+
+class TestBaseLLMClientABC:
+    """Tests for BaseLLMClient abstract base class."""
+
+    def test_cannot_instantiate_directly(self) -> None:
+        with pytest.raises(TypeError):
+            BaseLLMClient()  # type: ignore[abstract]
+
+
+class TestLLMMutatorMutateEdgeCases:
+    """Additional edge cases for LLMMutator.mutate."""
+
+    @pytest.mark.asyncio
+    async def test_mutate_unparseable_json_raises(self) -> None:
+        """When LLM returns invalid JSON, mutate should raise."""
+        client = MockLLMClient(response="not json at all {{{")
+        m = LLMMutator(client)
+        ctx = MutationContext(
+            input=StructuredInput(prompt="test"),
+            state=State(),
+        )
+        with pytest.raises((ValueError, json.JSONDecodeError)):
+            await m.mutate(ctx)
+
+    @pytest.mark.asyncio
+    async def test_mutate_with_negative_confidence(self) -> None:
+        """Negative confidence in extraction should be applied."""
+        extraction: list[dict[str, object]] = [
+            {"path": "x", "value": "v", "confidence": -0.5, "inference": "negative"}
+        ]
+        client = MockLLMClient(response=json.dumps(extraction))
+        m = LLMMutator(client)
+        ctx = MutationContext(
+            input=StructuredInput(prompt="test"),
+            state=State(),
+        )
+        result = await m.mutate(ctx)
+        field = result.updated_state.get_field("x")
+        assert field is not None
+        assert field.values[0].confidence == -0.5

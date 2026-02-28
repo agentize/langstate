@@ -495,3 +495,243 @@ class TestGetState:
 
         state = await agent.get_state()
         assert isinstance(state, BaseState)
+
+
+# ══════════════════════════════════════════════════════════════════
+# Additional coverage tests
+# ══════════════════════════════════════════════════════════════════
+
+
+class TestInitializeEdgeCases:
+    """Edge cases for initialize."""
+
+    @pytest.mark.asyncio
+    async def test_initialize_without_spec_extractor(self) -> None:
+        """Initialize with schema set directly (no spec_extractor)."""
+        schema = _make_schema()
+        deps = _make_deps(mutator=StubMutator())
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        agent.set_schema(schema)
+
+        await agent.initialize(LangStateConfig())
+
+        state = await agent.get_state()
+        assert state.get_field("name") is not None
+
+    @pytest.mark.asyncio
+    async def test_initialize_without_schema_source_and_no_extractor(self) -> None:
+        """Initialize with no schema_source and no spec_extractor should not crash."""
+        deps = _make_deps(mutator=StubMutator())
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+
+        # Should not raise — just nothing happens (no schema → no state created)
+        await agent.initialize(LangStateConfig())
+
+    @pytest.mark.asyncio
+    async def test_initialize_config_with_schema_source_but_no_extractor(self) -> None:
+        """Providing schema_source without spec_extractor should be safe."""
+        deps = _make_deps(mutator=StubMutator())
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+
+        await agent.initialize(LangStateConfig(schema_source="path"))
+
+
+class TestInvokeEdgeCases:
+    """Edge cases for invoke."""
+
+    @pytest.mark.asyncio
+    async def test_invoke_multiple_times_accumulates_state(self) -> None:
+        """Multiple invocations should build up state."""
+        deps = _make_deps(
+            mutator=StubMutator(),
+            spec_extractor=StubSpecExtractor(),
+        )
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        await agent.initialize({"schema_source": "path"})
+
+        await agent.invoke(AgentInput.from_text("Alice"))
+        await agent.invoke(AgentInput.from_text("Bob"))
+
+        state = await agent.get_state()
+        name_field = state.get_field("name")
+        assert name_field is not None
+        # StubMutator always sets "name" — last value should be "Bob"
+        assert any(vc.value == "Bob" for vc in name_field.values)
+
+
+class TestNotifyProjectorsEdgeCases:
+    """Edge cases for projector notification."""
+
+    @pytest.mark.asyncio
+    async def test_notify_with_no_projectors(self) -> None:
+        """_notify_projectors with no projectors should return empty list."""
+        deps = _make_deps(mutator=StubMutator(), spec_extractor=StubSpecExtractor())
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        await agent.initialize({"schema_source": "path"})
+
+        results = await agent._notify_projectors()
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_notify_with_metadata(self) -> None:
+        """_notify_projectors should pass metadata to projection context."""
+        projector = StubProjector()
+        deps = _make_deps(
+            mutator=StubMutator(),
+            spec_extractor=StubSpecExtractor(),
+            projectors=[projector],
+        )
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        await agent.initialize({"schema_source": "path"})
+
+        results = await agent._notify_projectors(metadata={"key": "val"})
+        assert len(results) >= 1
+        assert projector.last_context is not None
+        assert projector.last_context.metadata == {"key": "val"}
+
+
+class TestRemoveProjectorEdgeCases:
+    """Edge cases for projector management."""
+
+    def test_remove_projector_not_attached(self) -> None:
+        """Removing a non-attached projector should be silent."""
+        agent: LangState[StubContext, AgentInput] = LangState(_make_deps())
+        proj = StubProjector()
+        # Should not raise
+        agent.remove_projector(proj)
+
+    def test_double_remove(self) -> None:
+        """Removing a projector twice should be safe."""
+        agent: LangState[StubContext, AgentInput] = LangState(_make_deps())
+        proj = StubProjector()
+        agent.add_projector(proj)
+        agent.remove_projector(proj)
+        agent.remove_projector(proj)
+        assert proj not in agent.projectors
+
+
+class TestConversationHistory:
+    """Tests for conversation history management."""
+
+    def test_get_conversation_history_empty(self) -> None:
+        agent: LangState[StubContext, AgentInput] = LangState(_make_deps())
+        assert agent.get_conversation_history() == []
+
+    def test_get_conversation_history_after_manual_append(self) -> None:
+        agent: LangState[StubContext, AgentInput] = LangState(_make_deps())
+        agent._conversation_history.append({"role": "user", "content": "hi"})
+        assert len(agent.get_conversation_history()) == 1
+
+    @pytest.mark.asyncio
+    async def test_conversation_history_in_projection_context(self) -> None:
+        """Projector notification should include current conversation history."""
+        projector = StubProjector()
+        deps = _make_deps(
+            mutator=StubMutator(),
+            spec_extractor=StubSpecExtractor(),
+            projectors=[projector],
+        )
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        await agent.initialize({"schema_source": "path"})
+        agent._conversation_history.append({"role": "user", "content": "hello"})
+
+        await agent.invoke(AgentInput.from_text("Alice"))
+
+        assert projector.last_context is not None
+        assert len(projector.last_context.conversation_history) == 1
+
+
+class TestSchemaToStateEdgeCases:
+    """Additional schema_to_state edge cases."""
+
+    def test_schema_to_state_empty(self) -> None:
+        schema = Schema.model_validate({})
+        state = schema_to_state(schema)
+        assert state.get_all_fields() == {}
+
+    def test_field_with_no_depends_on(self) -> None:
+        """Fields without depends_on should have no dependency edges."""
+        schema = Schema.model_validate(
+            {
+                "solo": SchemaField(
+                    field_id="solo",
+                    field_type="string",
+                    label="Solo",
+                ),
+            }
+        )
+        state = schema_to_state(schema)
+        children = list(state.get_children("solo"))
+        assert children == []
+
+
+class TestStateId:
+    """Tests for state_id handling."""
+
+    def test_custom_state_id(self) -> None:
+        deps = LangStateDeps(
+            context_factory=_context_factory,
+            state_id="custom-id-123",
+        )
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        assert agent._state_id == "custom-id-123"
+
+    def test_auto_generated_state_id(self) -> None:
+        deps = _make_deps()
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        assert agent._state_id is not None
+        assert len(agent._state_id) > 0
+
+
+# ════════════════════════════════════════════════════════════════════
+# reset() without schema → branch 130→134
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestResetWithoutSchema:
+    """Calling reset() when no schema is set skips re-creation."""
+
+    @pytest.mark.asyncio
+    async def test_reset_no_schema(self) -> None:
+        deps = _make_deps()
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        result = await agent.reset()
+        assert result.interaction_type == InteractionType.COMPLETE
+        assert "reset" in result.prompt.lower()
+
+
+# ════════════════════════════════════════════════════════════════════
+# _notify_projectors when get_latest returns None → line 247
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestNotifyProjectorsLatestNone:
+    """When projectors exist but get_latest returns None."""
+
+    @pytest.mark.asyncio
+    async def test_notify_returns_empty_when_no_latest(self) -> None:
+        projector = StubProjector()
+        deps = _make_deps(projectors=[projector])
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        # Don't save any state, so get_latest returns None
+        results = await agent._notify_projectors()
+        assert results == []
+
+
+# ════════════════════════════════════════════════════════════════════
+# Observer detach iteration – branch 30→29
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestObserverDetachIteration:
+    """Detaching a non-first observer makes the loop skip earlier items."""
+
+    def test_detach_second_observer(self) -> None:
+        deps = _make_deps()
+        agent: LangState[StubContext, AgentInput] = LangState(deps)
+        p1 = StubProjector()
+        p2 = StubProjector()
+        agent.attach(p1)
+        agent.attach(p2)
+        agent.detach(p2)
+        assert list(agent.projectors) == [p1]

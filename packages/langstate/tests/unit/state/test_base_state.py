@@ -5,6 +5,7 @@ Tests the core DAHState class with DAH-based storage functionality.
 
 # pyright: reportPrivateUsage=false
 
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -453,6 +454,30 @@ class TestCopy:
         children = copied.get_children("parent")
         assert "child" in children
 
+    def test_copy_catches_valueerror_from_bad_hyperedge(self) -> None:
+        """copy() catches ValueError when add_hyperedge fails (empty sources)."""
+        from unittest.mock import patch
+        from uuid import uuid4
+        from core.data_structure.dah.dah import DirectedAcyclicHypergraph
+
+        state = ConcreteState()
+        state.set_field("a", "val_a")
+        state.set_field("b", "val_b")
+        state.add_field_dependency("a", "b")
+
+        original_dah = state._dah
+        original_method: Any = getattr(DirectedAcyclicHypergraph, "iter_hyperedges")
+
+        def _bad_iter(self_dah: Any) -> Any:
+            yield from original_method(self_dah)
+            if self_dah is original_dah:
+                yield (set(), "a", None, uuid4())
+
+        with patch.object(DirectedAcyclicHypergraph, "iter_hyperedges", _bad_iter):
+            copied = state.copy()
+
+        assert copied.get_field("a") is not None
+
 
 class TestAddFieldDependency:
     """Tests for add_field_dependency operation."""
@@ -632,3 +657,90 @@ class TestEdgeCases:
         result = state.is_complete(required_fields=[])
 
         assert result is True
+
+
+# ════════════════════════════════════════════════════════════════════
+# Additional coverage tests
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHStateFromJson:
+    """Tests for DAHState.from_json base method."""
+
+    def test_from_json_empty_state(self) -> None:
+        """from_json should parse an empty state."""
+        state = ConcreteState()
+        json_str = state.to_json()
+        restored = ConcreteState.from_json(json_str)
+        assert restored.get_all_fields() == {}
+
+    def test_from_json_preserves_values(self) -> None:
+        """from_json should restore field values."""
+        state = ConcreteState()
+        state.set_field("name", "Alice")
+        state.set_field("age", "30")
+
+        json_str = state.to_json()
+        restored = ConcreteState.from_json(json_str)
+
+        # Values are parsed as-is (no value_parser in DAHState.from_json)
+        assert restored.get_field("name") is not None
+        assert restored.get_field("age") is not None
+
+    def test_from_json_preserves_dependencies(self) -> None:
+        """from_json should restore hyperedge dependencies."""
+        state = ConcreteState()
+        state.set_field("parent", "p")
+        state.set_field("child", "c")
+        state.add_field_dependency("parent", "child")
+
+        json_str = state.to_json()
+        restored = ConcreteState.from_json(json_str)
+
+        children = list(restored.get_children("parent"))
+        assert "child" in children
+
+
+class TestAddFieldDependencyEdgeCases:
+    """Additional edge cases for add_field_dependency."""
+
+    def test_self_referential_dependency_raises(self) -> None:
+        """Adding a field dependency on itself should raise a cycle error."""
+        state = ConcreteState()
+        state.set_field("a", "val")
+
+        with pytest.raises(ValueError):
+            state.add_field_dependency("a", "a")
+
+
+class TestGetDah:
+    """Tests for the get_dah() accessor."""
+
+    def test_get_dah_returns_dah(self) -> None:
+        from core.data_structure.dah.dah import DirectedAcyclicHypergraph
+
+        state = ConcreteState()
+        dah = state.get_dah()
+        assert isinstance(dah, DirectedAcyclicHypergraph)
+
+    def test_get_dah_reflects_state_changes(self) -> None:
+        state = ConcreteState()
+        state.set_field("x", "val")
+        dah = state.get_dah()
+        assert dah.get_node("x") is not None
+
+
+class TestIsFieldFilledBase:
+    """Tests for DAHState._is_field_filled default behavior."""
+
+    def test_none_is_not_filled(self) -> None:
+        state = ConcreteState()
+        assert state._is_field_filled(None) is False
+
+    def test_non_none_is_filled(self) -> None:
+        state = ConcreteState()
+        assert state._is_field_filled("value") is True
+
+    def test_empty_string_is_filled(self) -> None:
+        state = ConcreteState()
+        assert state._is_field_filled("") is True

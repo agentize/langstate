@@ -27,9 +27,6 @@ langstate/
 │   │   ├── base/
 │   │   │   ├── projector.py    # BaseProjector abstract class
 │   │   │   └── schema.py       # ProjectionContext, ProjectionResult
-│   │   ├── canonical/
-│   │   │   ├── projector.py    # BaseProjectorCanonicalState
-│   │   │   └── schema.py       # CanonicalProjectionContext, CanonicalProjectionResult
 │   │   └── ui/
 │   │       ├── projector.py    # BaseProjectorUI
 │   │       └── schema.py       # UIComponent, UIProjectionContext, UIProjectionResult

@@ -11,6 +11,7 @@ State uses DAH (Directed Acyclic Hypergraph) for internal storage where:
 - Values are stored directly (primitives for state, InterpretiveField for field-based state)
 """
 
+import copy
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 from typing_extensions import Self
 from uuid import UUID
@@ -207,9 +208,9 @@ class DAHState(BaseDAHState[TFieldData]):
         """
         new_state = self.__class__()
 
-        # Copy all nodes
+        # Copy all nodes (deep copy values to avoid shared references)
         for path, value in self.iter_fields():
-            new_state._dah.add_node(path, value)
+            new_state._dah.add_node(path, copy.deepcopy(value))
 
         # Copy all hyperedges
         for sources, target, metadata, _edge_id in self._dah.iter_hyperedges():

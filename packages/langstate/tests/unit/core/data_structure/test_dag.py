@@ -1326,3 +1326,419 @@ class TestDAGRemoveNodeEdgeCases:
 
         # path_to_uuid should be cleaned up
         assert "test_path" not in empty_dag.path_to_uuid
+
+
+# ════════════════════════════════════════════════════════════════════
+# Diamond traversal – ancestors / descendants dedup
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAGDiamondTraversal:
+    """Test that the 'already seen' continue branch fires in BFS dedup.
+
+    Set iteration order is non-deterministic, so we monkey-patch
+    ``prerequisites`` / ``dependents`` at the **class** level to return an
+    ``OrderedSet`` whose ``__iter__`` yields items in a controlled order that
+    *guarantees* the ``continue`` statement is reached.
+    """
+
+    def test_ancestors_diamond(self, empty_dag: DirectedAcyclicGraph[str, str]) -> None:
+        """
+        Topology: A→C, B→C, A→D, C→D
+          prereqs(D)={A,C}, prereqs(C)={A,B}
+
+        With ordered prereqs(D)=["A","C"]:
+          stack=["A","C"], pop C→extend ["A","B"]→stack=["A","A","B"]
+          pop B→seen={C,B}, pop A→seen={C,B,A}, pop A→in seen→CONTINUE
+        """
+        from unittest.mock import patch
+
+        class OrderedSet(set[str]):
+            def __init__(self, iterable: Any = ()) -> None:
+                self._items: list[str] = list(dict.fromkeys(iterable))
+                super().__init__(self._items)
+
+            def __iter__(self) -> Any:
+                return iter(self._items)
+
+            def __sub__(self, other: Any) -> "OrderedSet":
+                return OrderedSet(x for x in self._items if x not in other)
+
+        dag = empty_dag
+        for p in ("A", "B", "C", "D"):
+            dag.add_node(p)
+        dag.add_edge("A", "C")
+        dag.add_edge("B", "C")
+        dag.add_edge("A", "D")
+        dag.add_edge("C", "D")
+
+        original: Any = getattr(DirectedAcyclicGraph, "prerequisites")
+
+        def ordered_prereqs(self: Any, path: str) -> OrderedSet:
+            result = original(self, path)
+            if path == "D":
+                return OrderedSet(["A", "C"])
+            if path == "C":
+                return OrderedSet(["A", "B"])
+            return OrderedSet(sorted(result))
+
+        with patch.object(DirectedAcyclicGraph, "prerequisites", ordered_prereqs):
+            anc = dag.ancestors("D")
+        assert anc == {"A", "B", "C"}
+
+    def test_descendants_diamond(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ) -> None:
+        """
+        Topology: A→B, A→C, B→D, C→B
+          deps(A)={B,C}, deps(C)={B}
+
+        With ordered deps(A)=["B","C"]:
+          stack=["B","C"], pop C→extend ["B"]→stack=["B","B"]
+          pop B→seen={C,B}, pop B→in seen→CONTINUE
+        """
+        from unittest.mock import patch
+
+        class OrderedSet(set[str]):
+            def __init__(self, iterable: Any = ()) -> None:
+                self._items: list[str] = list(dict.fromkeys(iterable))
+                super().__init__(self._items)
+
+            def __iter__(self) -> Any:
+                return iter(self._items)
+
+            def __sub__(self, other: Any) -> "OrderedSet":
+                return OrderedSet(x for x in self._items if x not in other)
+
+        dag = empty_dag
+        for p in ("A", "B", "C", "D"):
+            dag.add_node(p)
+        dag.add_edge("A", "B")
+        dag.add_edge("A", "C")
+        dag.add_edge("B", "D")
+        dag.add_edge("C", "B")
+
+        original: Any = getattr(DirectedAcyclicGraph, "dependents")
+
+        def ordered_deps(self: Any, path: str) -> OrderedSet:
+            result = original(self, path)
+            if path == "A":
+                return OrderedSet(["B", "C"])
+            if path == "C":
+                return OrderedSet(["B"])
+            return OrderedSet(sorted(result))
+
+        with patch.object(DirectedAcyclicGraph, "dependents", ordered_deps):
+            desc = dag.descendants("A")
+        assert desc == {"B", "C", "D"}
+
+
+# ════════════════════════════════════════════════════════════════════
+# add_edge – idempotent update without metadata (branch 153→155)
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAGAddEdgeIdempotent:
+    """Re-adding an existing edge without metadata keeps old metadata."""
+
+    def test_re_add_edge_no_metadata(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ) -> None:
+        dag = empty_dag
+        dag.add_edge("a", "b", metadata="first")
+        dag.add_edge("a", "b")  # no metadata → branch 153→155
+        # Old metadata should be preserved
+        edges = list(dag.iter_edges())
+        found = [m for (f, t, m) in edges if f == "a" and t == "b"]
+        assert found == ["first"]
+
+
+# ════════════════════════════════════════════════════════════════════
+# to_json_dict serialization fallback chains
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAGToJsonDictFallbacks:
+    """Cover model_dump failure, vars failure, and str fallback paths."""
+
+    def test_node_model_dump_failure_falls_to_str(self) -> None:
+        """If model_dump raises, fallback to str(value)."""
+        dag: DirectedAcyclicGraph[Any, str] = DirectedAcyclicGraph()
+
+        class BrokenDump:
+            def model_dump(self) -> None:
+                raise RuntimeError("boom")
+
+            def __str__(self) -> str:
+                return "broken-dump-str"
+
+        dag.add_node("x", BrokenDump())
+        d = dag.to_json_dict()
+        val = d["nodes"][0]["value"]
+        assert val == "broken-dump-str"
+
+    def test_node_with_dict_attr_uses_vars(self) -> None:
+        """Object with __dict__ (no model_dump) → vars() path."""
+        dag: DirectedAcyclicGraph[Any, str] = DirectedAcyclicGraph()
+
+        class PlainObj:
+            def __init__(self) -> None:
+                self.x = 1
+                self.y = 2
+
+        dag.add_node("x", PlainObj())
+        d = dag.to_json_dict()
+        assert d["nodes"][0]["value"] == {"x": 1, "y": 2}
+
+    def test_node_plain_value_uses_str(self) -> None:
+        """No model_dump, no __dict__ → str fallback."""
+        dag: DirectedAcyclicGraph[int, str] = DirectedAcyclicGraph()
+        dag.add_node("x", 42)
+        d = dag.to_json_dict()
+        assert d["nodes"][0]["value"] == "42"
+
+    def test_edge_metadata_model_dump_failure(self) -> None:
+        """Edge metadata model_dump raises → str fallback."""
+        dag: DirectedAcyclicGraph[str, Any] = DirectedAcyclicGraph()
+
+        class BrokenMeta:
+            def model_dump(self) -> None:
+                raise RuntimeError("boom")
+
+            def __str__(self) -> str:
+                return "edge-broken"
+
+        dag.add_edge("a", "b", metadata=BrokenMeta())
+        d = dag.to_json_dict()
+        meta = d["edges"][0]["metadata"]
+        assert meta == "edge-broken"
+
+    def test_edge_metadata_with_dict(self) -> None:
+        """Edge metadata with __dict__ → vars path."""
+
+        class DictMeta:
+            def __init__(self) -> None:
+                self.x = 1
+
+        dag: DirectedAcyclicGraph[str, Any] = DirectedAcyclicGraph()
+        dag.add_edge("a", "b", metadata=DictMeta())
+        d = dag.to_json_dict()
+        assert d["edges"][0]["metadata"] == {"x": 1}
+
+    def test_edge_metadata_with_dict_falls_to_vars(self) -> None:
+        """Edge metadata with __dict__ (no model_dump) uses vars."""
+
+        class DictEdge:
+            def __init__(self) -> None:
+                self.val = "ok"
+
+        dag: DirectedAcyclicGraph[str, Any] = DirectedAcyclicGraph()
+        dag.add_edge("a", "b", metadata=DictEdge())
+        d = dag.to_json_dict()
+        assert d["edges"][0]["metadata"] == {"val": "ok"}
+
+    def test_edge_metadata_plain_str(self) -> None:
+        """Edge metadata with no model_dump/no __dict__ → str."""
+        dag: DirectedAcyclicGraph[str, int] = DirectedAcyclicGraph()
+        dag.add_edge("a", "b", metadata=99)
+        d = dag.to_json_dict()
+        assert d["edges"][0]["metadata"] == "99"
+
+    def test_node_vars_failure_falls_to_str(self) -> None:
+        """If vars() raises for a __dict__-bearing object → str fallback."""
+        import core.data_structure.dag.dag as dag_mod
+
+        class HasDict:
+            def __str__(self) -> str:
+                return "has-dict-str"
+
+        dag: DirectedAcyclicGraph[Any, str] = DirectedAcyclicGraph()
+        dag.add_node("x", HasDict())
+
+        _real_vars: Any = vars
+
+        def _patched_vars(o: Any) -> Any:
+            if isinstance(o, HasDict):
+                raise Exception("vars failed")
+            return _real_vars(o)
+
+        dag_mod.__dict__["vars"] = _patched_vars
+        try:
+            d = dag.to_json_dict()
+        finally:
+            dag_mod.__dict__.pop("vars", None)
+        assert d["nodes"][0]["value"] == "has-dict-str"
+
+    def test_edge_metadata_vars_failure_falls_to_str(self) -> None:
+        """If vars() raises for edge metadata with __dict__ → str fallback."""
+        import core.data_structure.dag.dag as dag_mod
+
+        class HasDictMeta:
+            def __str__(self) -> str:
+                return "meta-str"
+
+        dag: DirectedAcyclicGraph[str, Any] = DirectedAcyclicGraph()
+        dag.add_edge("a", "b", metadata=HasDictMeta())
+
+        _real_vars: Any = vars
+
+        def _patched_vars(o: Any) -> Any:
+            if isinstance(o, HasDictMeta):
+                raise Exception("vars failed")
+            return _real_vars(o)
+
+        dag_mod.__dict__["vars"] = _patched_vars
+        try:
+            d = dag.to_json_dict()
+        finally:
+            dag_mod.__dict__.pop("vars", None)
+        assert d["edges"][0]["metadata"] == "meta-str"
+
+
+# ════════════════════════════════════════════════════════════════════
+# to_ascii_tree edge-case coverage
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAGAsciiTreeEdgeCases:
+    """Cover error-handling paths inside to_ascii_tree."""
+
+    def test_nonexistent_root_node(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ) -> None:
+        """render_node returns early when node doesn't exist (line 399)."""
+        empty_dag.add_node("a")
+        tree = empty_dag.to_ascii_tree(root_nodes=["nonexistent"])
+        assert "Schema" in tree
+
+    def test_edge_label_fn_raises(
+        self, empty_dag: DirectedAcyclicGraph[str, str]
+    ) -> None:
+        """edge_label_fn that raises → edge_label = '' (lines 459-460)."""
+        dag = empty_dag
+        dag.add_edge("a", "b", metadata="m")
+        tree = dag.to_ascii_tree(edge_label_fn=lambda m: 1 / 0)  # type: ignore[return-value]
+        assert "a" in tree and "b" in tree
+
+    def test_constraint_exception_in_ascii(self) -> None:
+        """Node value whose .constraints raises → except pass (lines 479-480)."""
+
+        class BadConstraints:
+            @property
+            def constraints(self) -> list[Any]:
+                raise RuntimeError("bad constraints")
+
+        dag: DirectedAcyclicGraph[Any, str] = DirectedAcyclicGraph()
+        dag.add_node("a", BadConstraints())
+        dag.add_node("b", BadConstraints())
+        dag.add_edge("a", "b")
+        tree = dag.to_ascii_tree()
+        assert "a" in tree and "b" in tree
+
+    def test_constraint_no_to_dag_edge_name(self) -> None:
+        """Constraint objects without to_dag_edge_name → branch 473→469."""
+
+        class PlainConstraint:
+            """No to_dag_edge_name method."""
+
+            pass
+
+        class WithConstraints:
+            constraints = [PlainConstraint()]
+
+        dag: DirectedAcyclicGraph[Any, str] = DirectedAcyclicGraph()
+        dag.add_node("a", WithConstraints())
+        dag.add_node("b", WithConstraints())
+        dag.add_edge("a", "b")
+        tree = dag.to_ascii_tree()
+        assert "a" in tree
+
+    def test_constraint_empty_labels_list(self) -> None:
+        """All constraints lack to_dag_edge_name → constraint_labels empty (branch 475→482)."""
+
+        class NoNameConstraint:
+            pass
+
+        class ValWithConstraints:
+            constraints = [NoNameConstraint(), NoNameConstraint()]
+
+        dag: DirectedAcyclicGraph[Any, None] = DirectedAcyclicGraph()
+        dag.add_node("a", ValWithConstraints())
+        dag.add_node("b", ValWithConstraints())
+        dag.add_edge("a", "b")
+        tree = dag.to_ascii_tree()
+        assert "(a -> b)" in tree
+
+    def test_node_value_none_in_edge(self) -> None:
+        """Target node value is None → branch 464→482."""
+        dag: DirectedAcyclicGraph[Optional[str], None] = DirectedAcyclicGraph()
+        dag.add_node("a", None)
+        dag.add_node("b", None)
+        dag.add_edge("a", "b")
+        tree = dag.to_ascii_tree()
+        assert "(a -> b)" in tree
+
+
+# ════════════════════════════════════════════════════════════════════
+# to_mermaid edge-case coverage
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAGMermaidEdgeCases:
+    """Cover uncovered branches in to_mermaid."""
+
+    def test_constraint_no_to_dag_edge_name_attr(self) -> None:
+        """Constraint without to_dag_edge_name → branch 347→346."""
+
+        class ConstraintNoName:
+            pass
+
+        class ValWithConstraints:
+            constraints = [ConstraintNoName()]
+
+        dag: DirectedAcyclicGraph[Any, None] = DirectedAcyclicGraph()
+        dag.add_node("a", ValWithConstraints())
+        dag.add_node("b", ValWithConstraints())
+        dag.add_edge("a", "b")
+        mermaid = dag.to_mermaid()
+        assert "a" in mermaid and "b" in mermaid
+
+    def test_constraint_multiple_labels(self) -> None:
+        """Multiple constraints with to_dag_edge_name → '+N more' label (line 352)."""
+
+        class NamedConstraint:
+            def to_dag_edge_name(self) -> str:
+                return "rule"
+
+        class ValMulti:
+            constraints = [NamedConstraint(), NamedConstraint()]
+
+        dag: DirectedAcyclicGraph[Any, None] = DirectedAcyclicGraph()
+        dag.add_node("a")
+        dag.add_node("b", ValMulti())
+        dag.add_edge("a", "b")
+        mermaid = dag.to_mermaid()
+        assert "plus 1 more" in mermaid
+
+    def test_constraint_exception_in_mermaid(self) -> None:
+        """Constraint access raises → except: label_txt = None (lines 353-354)."""
+
+        class BadVal:
+            @property
+            def constraints(self) -> list[Any]:
+                raise RuntimeError("boom")
+
+        dag: DirectedAcyclicGraph[Any, None] = DirectedAcyclicGraph()
+        dag.add_node("a", BadVal())
+        dag.add_node("b", BadVal())
+        dag.add_edge("a", "b")
+        mermaid = dag.to_mermaid()
+        assert "-->" in mermaid
+
+    def test_fmt_label_returns_empty(self) -> None:
+        """edge_label_fn returning chars stripped by _fmt_label → branch 358→361."""
+        dag: DirectedAcyclicGraph[str, str] = DirectedAcyclicGraph()
+        dag.add_edge("a", "b", metadata="meta")
+        # _fmt_label strips (){}[]|
+        mermaid = dag.to_mermaid(edge_label_fn=lambda m: "(){}[]|")
+        assert "-->" in mermaid

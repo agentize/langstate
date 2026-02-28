@@ -40,11 +40,11 @@ class SchemaField(BaseModel):
     validation_rules: Annotated[
         Dict[str, object],
         Field(description="Validation rules for the field"),
-    ] = {}
+    ] = Field(default_factory=dict)
     metadata: Annotated[
         Dict[str, object],
         Field(description="Additional field metadata"),
-    ] = {}
+    ] = Field(default_factory=dict)
 
 
 class Schema(RootModel[Dict[str, SchemaField]]):

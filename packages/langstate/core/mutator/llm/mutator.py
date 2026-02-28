@@ -1,4 +1,5 @@
 import json
+from typing import Any, List, cast
 from uuid import uuid4
 
 from core.mutator.base.base import BaseMutator
@@ -6,7 +7,6 @@ from core.mutator.base.schema import MutationResult
 from core.mutator.llm.schema import MutationContext
 from core.mutator.llm.client.base import BaseLLMClient
 from core.mutator.llm.client.schema import FieldExtraction
-from core.state import ValueConfidence
 from core.state.state.schema import Inference, ValueConfidence
 
 _EXTRACTION_PROMPT = """You are a structured data extraction assistant.
@@ -58,15 +58,16 @@ class LLMMutator(BaseMutator[MutationContext]):
         raw_response = await self._llm_client.generate(prompt)
 
         # Parse the LLM response as a list
-        raw_data = json.loads(raw_response)
+        raw_data: Any = json.loads(raw_response)
         if not isinstance(raw_data, list):
             raise ValueError(
                 f"Expected a JSON array from LLM, got {type(raw_data).__name__}"
             )
 
         # Validate and parse extractions using Pydantic schemas
+        entries = cast(List[Any], raw_data)
         extractions: list[FieldExtraction] = []
-        for entry in raw_data:  # type: ignore[misc]
+        for entry in entries:
             extractions.append(FieldExtraction.model_validate(entry))
 
         # Apply extractions to the state copy

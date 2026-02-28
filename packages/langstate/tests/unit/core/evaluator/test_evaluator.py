@@ -534,3 +534,32 @@ class TestLLMEvaluatorEvaluate:
         )
         result = await ev.evaluate(ctx)
         assert result.comparison.overall_match is False
+
+
+# ============================================================================
+# Additional coverage tests
+# ============================================================================
+
+
+class TestBaseEvaluatorABC:
+    """Tests for BaseEvaluator abstract base class."""
+
+    def test_cannot_instantiate_directly(self) -> None:
+        from core.evaluator.base import BaseEvaluator
+
+        with pytest.raises(TypeError):
+            BaseEvaluator()  # type: ignore[abstract]
+
+
+class TestEvaluatorGetBestValueEdgeCases:
+    """Additional edge cases for _get_best_value."""
+
+    def test_equal_confidence_returns_one(self, evaluator: ConcreteEvaluator) -> None:
+        """When multiple values have equal confidence, one should be returned."""
+        state = State()
+        state.add_value("x", ValueConfidence(value="a", confidence=0.5))
+        state.add_value("x", ValueConfidence(value="b", confidence=0.5))
+        result = evaluator._get_best_value(state, "x")
+        assert result is not None
+        assert result.confidence == 0.5
+        assert result.value in ("a", "b")
