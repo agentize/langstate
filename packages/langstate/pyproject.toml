@@ -34,7 +34,7 @@ classifiers = [
 [project.urls]
 homepage = "https://github.com/agentize/langstate"
 repository = "https://github.com/agentize/langstate"
-documentation = "https://python-poetry.org/docs/"
+documentation = "https://docs.langstate.com"
 
 [tool.poetry]
 packages = [{ include = "core" }]
