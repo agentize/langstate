@@ -39,7 +39,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: packages/langstate/.venv
-          key: venv-${{ matrix.python-version }}-${{ hashFiles('packages/langstate/poetry.lock') }}
+          key: venv-${{ matrix.python-version }}-${{ hashFiles('packages/langstate/poetry.lock', 'packages/langstate/pyproject.toml') }}
+          restore-keys: |
+            venv-${{ matrix.python-version }}-
 
       - name: Install dependencies
         run: poetry install
