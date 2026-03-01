@@ -32,16 +32,16 @@ class ActionContext(BaseModel):
     ]
     action_type: Annotated[
         str,
-        Field(default="default", description="Type of action to perform"),
-    ]
+        Field(description="Type of action to perform"),
+    ] = "default"
     parameters: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional parameters for the action"),
-    ]
+        Field(description="Additional parameters for the action"),
+    ] = Field(default_factory=dict)
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional context metadata"),
-    ]
+        Field(description="Additional context metadata"),
+    ] = Field(default_factory=dict)
 
 
 class ActionResult(BaseModel):
@@ -53,13 +53,13 @@ class ActionResult(BaseModel):
     ]
     result_data: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Data returned by the action"),
-    ]
+        Field(description="Data returned by the action"),
+    ] = Field(default_factory=dict)
     error_message: Annotated[
         Optional[str],
-        Field(default=None, description="Error message if action failed"),
-    ]
+        Field(description="Error message if action failed"),
+    ] = None
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional metadata"),
-    ]
+        Field(description="Additional metadata"),
+    ] = Field(default_factory=dict)

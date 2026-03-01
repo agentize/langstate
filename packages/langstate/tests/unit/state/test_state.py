@@ -6,6 +6,10 @@ inference tracking, and value-confidence pairs.
 
 # pyright: reportPrivateUsage=false
 
+from typing import Any
+
+import pytest
+
 from core.state.state.schema import (
     Inference,
     InterpretiveField,
@@ -460,3 +464,147 @@ class TestStateEdgeCases:
         assert state.get_empty_fields() == []
         assert state.is_complete() is True
         assert state.get_all_fields() == {}
+
+
+# ════════════════════════════════════════════════════════════════════
+# State.from_json round-trip
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestStateFromJson:
+    """Tests for State.from_json deserialization."""
+
+    def test_from_json_empty_state(self) -> None:
+        """Empty state should round-trip through JSON."""
+        state = State()
+        json_str = state.to_json()
+        restored = State.from_json(json_str)
+        assert restored.get_all_fields() == {}
+
+    def test_from_json_preserves_values(self) -> None:
+        """Values should survive JSON round-trip."""
+        state = State()
+        state.add_value("name", ValueConfidence(value="Alice", confidence=0.9))
+        state.add_value("email", ValueConfidence(value="a@b.com", confidence=0.8))
+
+        json_str = state.to_json()
+        restored = State.from_json(json_str)
+
+        name_field = restored.get_field("name")
+        assert name_field is not None
+        assert len(name_field.values) == 1
+        assert name_field.values[0].value == "Alice"
+
+        email_field = restored.get_field("email")
+        assert email_field is not None
+        assert len(email_field.values) == 1
+
+    def test_from_json_preserves_inferences(self) -> None:
+        """Inferences should survive JSON round-trip."""
+        state = State()
+        state.add_inference("name", Inference(content="Extracted", mutator_id="m1"))
+        state.add_value("name", ValueConfidence(value="Bob", confidence=0.7))
+
+        json_str = state.to_json()
+        restored = State.from_json(json_str)
+
+        name_field = restored.get_field("name")
+        assert name_field is not None
+        assert name_field.inference is not None
+        assert name_field.inference.content == "Extracted"
+        assert name_field.inference.mutator_id == "m1"
+
+    def test_from_json_preserves_dependencies(self) -> None:
+        """Hyperedges (field dependencies) should survive JSON round-trip."""
+        state = State()
+        state.set_field("parent", InterpretiveField())
+        state.set_field("child", InterpretiveField())
+        state.add_field_dependency("parent", "child")
+
+        json_str = state.to_json()
+        restored = State.from_json(json_str)
+
+        children = list(restored.get_children("parent"))
+        assert "child" in children
+
+
+# ════════════════════════════════════════════════════════════════════
+# State.__get_pydantic_core_schema__
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestStatePydanticIntegration:
+    """Tests for State's pydantic-core schema hook."""
+
+    def test_pydantic_model_with_state_field(self) -> None:
+        """Pydantic model that contains a State field should work."""
+        from pydantic import BaseModel
+
+        class Container(BaseModel):
+            state: State
+
+        state = State()
+        container = Container(state=state)
+        assert container.state is state
+
+    def test_pydantic_rejects_non_state(self) -> None:
+        """Pydantic should reject a non-State value for a State field."""
+        from pydantic import BaseModel, ValidationError
+
+        class Container(BaseModel):
+            state: State
+
+        with pytest.raises(ValidationError):
+            Container(state="not_a_state")  # type: ignore[arg-type]
+
+
+# ════════════════════════════════════════════════════════════════════
+# State.copy edge cases
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestStateCopyEdgeCases:
+    """Additional copy edge cases."""
+
+    def test_copy_empty_state(self) -> None:
+        """Copying an empty state should produce an empty state."""
+        state = State()
+        copied = state.copy()
+        assert copied.get_all_fields() == {}
+        assert copied is not state
+
+    def test_copy_with_hyperedge_that_already_exists(self) -> None:
+        """copy() should handle pre-existing hyperedges gracefully."""
+        state = State()
+        state.set_field("a", InterpretiveField())
+        state.set_field("b", InterpretiveField())
+        state.add_field_dependency("a", "b")
+
+        copied = state.copy()
+        children = list(copied.get_children("a"))
+        assert "b" in children
+
+    def test_copy_catches_valueerror_from_bad_hyperedge(self) -> None:
+        """copy() catches ValueError when add_hyperedge fails (empty sources)."""
+        from unittest.mock import patch
+        from uuid import uuid4
+        from core.data_structure.dah.dah import DirectedAcyclicHypergraph
+
+        state = State()
+        state.set_field("a", InterpretiveField())
+        state.set_field("b", InterpretiveField())
+        state.add_field_dependency("a", "b")
+
+        original_dah = state._dah
+        original_method: Any = getattr(DirectedAcyclicHypergraph, "iter_hyperedges")
+
+        def _bad_iter(self_dah: Any) -> Any:
+            yield from original_method(self_dah)
+            if self_dah is original_dah:
+                yield (set(), "a", None, uuid4())
+
+        with patch.object(DirectedAcyclicHypergraph, "iter_hyperedges", _bad_iter):
+            copied = state.copy()
+
+        # Should not raise; the bad hyperedge is silently skipped
+        assert copied.get_all_fields() is not None

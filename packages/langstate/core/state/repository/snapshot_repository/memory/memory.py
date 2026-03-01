@@ -16,6 +16,7 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    cast,
 )
 
 from core.state.base.base import BaseDAHState
@@ -225,7 +226,7 @@ class InMemorySnapshotRepository(BaseSnapshotRepository[TState], Generic[TState]
         state = self._state_class.from_json(full_json_str)
         # The cast is safe because _state_class: Type[TState] and
         # from_json returns an instance of cls.
-        typed_state: TState = state  # type: ignore[assignment]
+        typed_state = cast(TState, state)
 
         return Snapshot(
             mutator_id=entry.mutator_id,

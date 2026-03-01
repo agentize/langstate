@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import pytest
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from uuid import UUID, uuid4
 
 from core.data_structure.dah.dah import DirectedAcyclicHypergraph
@@ -1563,3 +1563,446 @@ class TestDAHRemoveNodeEdgeCases:
 
         # path_to_uuid should be cleaned up
         assert "test_path" not in empty_dah.path_to_uuid
+
+
+# ════════════════════════════════════════════════════════════════════
+# Diamond traversal – ancestors / descendants dedup
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHDiamondTraversal:
+    """Test that the 'already seen' continue branch fires in BFS dedup.
+
+    Uses OrderedSet + class-level patching to control set iteration order.
+    """
+
+    def test_ancestors_diamond(
+        self, empty_dah: DirectedAcyclicHypergraph[str, str]
+    ) -> None:
+        """
+        Topology: A→C, B→C, A→D, C→D
+          prereq_paths(D)={A,C}, prereq_paths(C)={A,B}
+
+        With ordered prereq_paths(D)=["A","C"]:
+          stack=["A","C"], pop C→extend ["A","B"]→stack=["A","A","B"]
+          pop B→seen={C,B}, pop A→seen={C,B,A}, pop A→in seen→CONTINUE
+        """
+        from unittest.mock import patch
+
+        class OrderedSet(set[str]):
+            def __init__(self, iterable: Any = ()) -> None:
+                self._items: list[str] = list(dict.fromkeys(iterable))
+                super().__init__(self._items)
+
+            def __iter__(self) -> Any:
+                return iter(self._items)
+
+            def __sub__(self, other: Any) -> "OrderedSet":
+                return OrderedSet(x for x in self._items if x not in other)
+
+        dah = empty_dah
+        for p in ("A", "B", "C", "D"):
+            dah.add_node(p)
+        dah.add_hyperedge(["A"], "C")
+        dah.add_hyperedge(["B"], "C")
+        dah.add_hyperedge(["A"], "D")
+        dah.add_hyperedge(["C"], "D")
+
+        original: Any = getattr(DirectedAcyclicHypergraph, "prerequisite_paths")
+
+        def ordered_prereqs(self: Any, path: str) -> "OrderedSet":
+            result = original(self, path)
+            if path == "D":
+                return OrderedSet(["A", "C"])
+            if path == "C":
+                return OrderedSet(["A", "B"])
+            return OrderedSet(sorted(result))
+
+        with patch.object(
+            DirectedAcyclicHypergraph, "prerequisite_paths", ordered_prereqs
+        ):
+            anc = dah.ancestors("D")
+        assert anc == {"A", "B", "C"}
+
+    def test_descendants_diamond(
+        self, empty_dah: DirectedAcyclicHypergraph[str, str]
+    ) -> None:
+        """
+        Topology: A→B, A→C, B→D, C→B
+          deps(A)={B,C}, deps(C)={B}
+
+        With ordered deps(A)=["B","C"]:
+          stack=["B","C"], pop C→extend ["B"]→stack=["B","B"]
+          pop B→seen={C,B}, pop B→in seen→CONTINUE
+        """
+        from unittest.mock import patch
+
+        class OrderedSet(set[str]):
+            def __init__(self, iterable: Any = ()) -> None:
+                self._items: list[str] = list(dict.fromkeys(iterable))
+                super().__init__(self._items)
+
+            def __iter__(self) -> Any:
+                return iter(self._items)
+
+            def __sub__(self, other: Any) -> "OrderedSet":
+                return OrderedSet(x for x in self._items if x not in other)
+
+        dah = empty_dah
+        for p in ("A", "B", "C", "D"):
+            dah.add_node(p)
+        dah.add_hyperedge(["A"], "B")
+        dah.add_hyperedge(["A"], "C")
+        dah.add_hyperedge(["B"], "D")
+        dah.add_hyperedge(["C"], "B")
+
+        original: Any = getattr(DirectedAcyclicHypergraph, "dependents")
+
+        def ordered_deps(self: Any, path: str) -> "OrderedSet":
+            result = original(self, path)
+            if path == "A":
+                return OrderedSet(["B", "C"])
+            if path == "C":
+                return OrderedSet(["B"])
+            return OrderedSet(sorted(result))
+
+        with patch.object(DirectedAcyclicHypergraph, "dependents", ordered_deps):
+            desc = dah.descendants("A")
+        assert desc == {"B", "C", "D"}
+
+
+# ════════════════════════════════════════════════════════════════════
+# add_hyperedge – idempotent update without metadata (branch 188→192)
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHAddHyperedgeIdempotent:
+    def test_re_add_hyperedge_no_metadata(
+        self, empty_dah: DirectedAcyclicHypergraph[str, str]
+    ) -> None:
+        dah = empty_dah
+        eid = dah.add_hyperedge(["a"], "b", metadata="first")
+        dah.add_hyperedge(["a"], "b", edge_id=eid)  # no metadata
+        edges = list(dah.iter_hyperedges())
+        found = [m for (_s, t, m, _) in edges if t == "b"]
+        assert found == ["first"]
+
+
+# ════════════════════════════════════════════════════════════════════
+# remove_node – dependent's hedge doesn't include removed node (branch 131→130)
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHRemoveNodeBranch:
+    def test_remove_node_multiple_hedges(
+        self, empty_dah: DirectedAcyclicHypergraph[str, str]
+    ) -> None:
+        """Node Y depends on X and Z. Removing X iterates Y's edges; the Z-only edge triggers 131→130."""
+        dah = empty_dah
+        dah.add_hyperedge(["X"], "Y")
+        dah.add_hyperedge(["Z"], "Y")
+        dah.remove_node("X")
+        assert dah.get_node("X") is None
+        # Y still exists, Z→Y still exists
+        assert dah.get_node("Y") is not None
+
+
+# ════════════════════════════════════════════════════════════════════
+# ensure_node_hierarchy – duplicate call → ValueError catch (lines 255-257)
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHEnsureHierarchyDuplicate:
+    def test_ensure_hierarchy_catches_cycle_valueerror(
+        self, empty_dah: DirectedAcyclicHypergraph[str, str]
+    ) -> None:
+        """Create a reverse edge a.b→a, then ensure_node_hierarchy("a.b.c") hits ValueError catch."""
+        dah = empty_dah
+        dah.add_node("a")
+        dah.add_node("a.b")
+        dah.add_node("a.b.c")
+        # Create reverse edge with check_cycle=False (default) to allow it
+        dah.add_hyperedge(["a.b"], "a")
+        # Now ensure_node_hierarchy tries add_hyperedge(["a"], "a.b", check_cycle=True)
+        # which detects cycle a→a.b→a and raises ValueError → caught by except
+        dah.ensure_node_hierarchy("a.b.c")
+        # Should not raise; the cycle edge is skipped
+        assert dah.get_node("a.b.c") is not None
+        assert dah.get_node("a") is not None
+        assert dah.get_node("a.b") is not None
+        assert dah.get_node("a.b.c") is not None
+
+
+# ════════════════════════════════════════════════════════════════════
+# from_json malformed-input edge cases
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHFromJsonMalformed:
+    def test_non_dict_json(self) -> None:
+        """JSON that's not a dict → return empty DAH (line 496)."""
+        dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json('"just a string"'),
+        )
+        assert len(dah.path_to_uuid) == 0
+
+    def test_non_dict_node_entry(self) -> None:
+        """Node entry that's not a dict → continue (line 504)."""
+        dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json(
+                '{"nodes": [42, "bad"], "hyperedges": []}'
+            ),
+        )
+        assert len(dah.path_to_uuid) == 0
+
+    def test_node_missing_path(self) -> None:
+        """Node dict without 'path' key → continue (line 509)."""
+        dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json(
+                '{"nodes": [{"value": 1}], "hyperedges": []}'
+            ),
+        )
+        assert len(dah.path_to_uuid) == 0
+
+    def test_nodes_not_a_list(self) -> None:
+        """'nodes' is not a list → branch 500→517."""
+        dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json('{"nodes": "nope", "hyperedges": []}'),
+        )
+        assert len(dah.path_to_uuid) == 0
+
+    def test_hyperedges_not_a_list(self) -> None:
+        """'hyperedges' is not a list → branch 518→531."""
+        dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json(
+                '{"nodes": [{"path": "a", "value": null}], "hyperedges": "nope"}'
+            ),
+        )
+        assert len(dah.path_to_uuid) == 1
+
+    def test_hyperedge_missing_target(self) -> None:
+        """Hyperedge without 'target' → branch 526→520."""
+        dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json(
+                '{"nodes": [{"path": "a", "value": null}], "hyperedges": [{"sources": ["a"]}]}'
+            ),
+        )
+        assert len(list(dah.iter_hyperedges())) == 0
+
+    def test_hyperedge_add_fails(self) -> None:
+        """Hyperedge that triggers ValueError → except pass (lines 529-530)."""
+        # self-dependency via sources containing target
+        _dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json(
+                '{"nodes": [{"path": "a", "value": null}], "hyperedges": [{"sources": [], "target": "a"}]}'
+            ),
+        )
+        # Empty sources → ValueError in add_hyperedge
+
+    def test_non_dict_hyperedge_entry(self) -> None:
+        """Hyperedge entry that's not a dict → continue (line 522)."""
+        dah = cast(
+            DirectedAcyclicHypergraph[Any, Any],
+            DirectedAcyclicHypergraph.from_json(
+                '{"nodes": [{"path": "a", "value": null}], "hyperedges": [42, "bad"]}'
+            ),
+        )
+        assert len(list(dah.iter_hyperedges())) == 0
+        assert len(list(dah.iter_hyperedges())) == 0
+
+
+# ════════════════════════════════════════════════════════════════════
+# to_json_dict serialization fallback chains
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHToJsonDictFallbacks:
+    def test_node_model_dump_failure(self) -> None:
+        class BrokenDump:
+            def model_dump(self) -> None:
+                raise RuntimeError("boom")
+
+            def __str__(self) -> str:
+                return "broken"
+
+        dah: DirectedAcyclicHypergraph[Any, str] = DirectedAcyclicHypergraph()
+        dah.add_node("x", BrokenDump())
+        d = dah.to_json_dict()
+        assert d["nodes"][0]["value"] == "broken"
+
+    def test_node_with_dict_attr_uses_vars(self) -> None:
+        class PlainObj:
+            def __init__(self) -> None:
+                self.x = 1
+
+        dah: DirectedAcyclicHypergraph[Any, str] = DirectedAcyclicHypergraph()
+        dah.add_node("x", PlainObj())
+        d = dah.to_json_dict()
+        assert d["nodes"][0]["value"] == {"x": 1}
+
+    def test_node_plain_str(self) -> None:
+        dah: DirectedAcyclicHypergraph[int, str] = DirectedAcyclicHypergraph()
+        dah.add_node("x", 42)
+        d = dah.to_json_dict()
+        assert d["nodes"][0]["value"] == "42"
+
+    def test_edge_metadata_model_dump_failure(self) -> None:
+        class BrokenMeta:
+            def model_dump(self) -> None:
+                raise RuntimeError("boom")
+
+            def __str__(self) -> str:
+                return "em-broken"
+
+        dah: DirectedAcyclicHypergraph[str, Any] = DirectedAcyclicHypergraph()
+        dah.add_hyperedge(["a"], "b", metadata=BrokenMeta())
+        d = dah.to_json_dict()
+        assert d["hyperedges"][0]["metadata"] == "em-broken"
+
+    def test_edge_metadata_with_dict(self) -> None:
+        class DictMeta:
+            def __init__(self) -> None:
+                self.x = 1
+
+        dah: DirectedAcyclicHypergraph[str, Any] = DirectedAcyclicHypergraph()
+        dah.add_hyperedge(["a"], "b", metadata=DictMeta())
+        d = dah.to_json_dict()
+        assert d["hyperedges"][0]["metadata"] == {"x": 1}
+
+    def test_edge_metadata_with_dict_falls_to_vars(self) -> None:
+        class DictMeta:
+            def __init__(self) -> None:
+                self.v = 2
+
+        dah: DirectedAcyclicHypergraph[str, Any] = DirectedAcyclicHypergraph()
+        dah.add_hyperedge(["a"], "b", metadata=DictMeta())
+        d = dah.to_json_dict()
+        assert d["hyperedges"][0]["metadata"] == {"v": 2}
+
+    def test_edge_metadata_plain_str(self) -> None:
+        dah: DirectedAcyclicHypergraph[str, int] = DirectedAcyclicHypergraph()
+        dah.add_hyperedge(["a"], "b", metadata=99)
+        d = dah.to_json_dict()
+        assert d["hyperedges"][0]["metadata"] == "99"
+
+    def test_node_vars_failure_falls_to_str(self) -> None:
+        """If vars() raises for a __dict__-bearing object → str fallback."""
+        import core.data_structure.dah.dah as dah_mod
+
+        class HasDict:
+            def __str__(self) -> str:
+                return "has-dict-str"
+
+        dah: DirectedAcyclicHypergraph[Any, str] = DirectedAcyclicHypergraph()
+        dah.add_node("x", HasDict())
+
+        _real_vars: Any = vars
+
+        def _patched_vars(o: Any) -> Any:
+            if isinstance(o, HasDict):
+                raise Exception("vars failed")
+            return _real_vars(o)
+
+        dah_mod.__dict__["vars"] = _patched_vars
+        try:
+            d = dah.to_json_dict()
+        finally:
+            dah_mod.__dict__.pop("vars", None)
+        assert d["nodes"][0]["value"] == "has-dict-str"
+
+    def test_edge_metadata_vars_failure_falls_to_str(self) -> None:
+        """If vars() raises for edge metadata with __dict__ → str fallback."""
+        import core.data_structure.dah.dah as dah_mod
+
+        class HasDictMeta:
+            def __str__(self) -> str:
+                return "meta-str"
+
+        dah: DirectedAcyclicHypergraph[str, Any] = DirectedAcyclicHypergraph()
+        dah.add_hyperedge(["a"], "b", metadata=HasDictMeta())
+
+        _real_vars: Any = vars
+
+        def _patched_vars(o: Any) -> Any:
+            if isinstance(o, HasDictMeta):
+                raise Exception("vars failed")
+            return _real_vars(o)
+
+        dah_mod.__dict__["vars"] = _patched_vars
+        try:
+            d = dah.to_json_dict()
+        finally:
+            dah_mod.__dict__.pop("vars", None)
+        assert d["hyperedges"][0]["metadata"] == "meta-str"
+
+
+# ════════════════════════════════════════════════════════════════════
+# to_ascii_tree edge-case coverage
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHAsciiTreeEdgeCases:
+    def test_nonexistent_root_node(
+        self, empty_dah: DirectedAcyclicHypergraph[str, str]
+    ) -> None:
+        empty_dah.add_node("a")
+        tree = empty_dah.to_ascii_tree(root_nodes=["nonexistent"])
+        assert "Schema" in tree
+
+    def test_edge_label_fn_raises(
+        self, empty_dah: DirectedAcyclicHypergraph[str, str]
+    ) -> None:
+        dah = empty_dah
+        dah.add_hyperedge(["a"], "b", metadata="m")
+        tree = dah.to_ascii_tree(edge_label_fn=lambda m: 1 / 0)  # type: ignore[return-value]
+        assert "a" in tree
+
+    def test_constraint_exception_in_ascii(self) -> None:
+        class BadConstraints:
+            @property
+            def constraints(self) -> list[Any]:
+                raise RuntimeError("bad")
+
+        dah: DirectedAcyclicHypergraph[Any, str] = DirectedAcyclicHypergraph()
+        dah.add_node("a", BadConstraints())
+        dah.add_node("b", BadConstraints())
+        dah.add_hyperedge(["a"], "b")
+        tree = dah.to_ascii_tree()
+        assert "a" in tree
+
+    def test_constraint_no_edge_name(self) -> None:
+        """Constraint without to_dag_edge_name → branch 612→610."""
+
+        class NoNameC:
+            pass
+
+        class ValC:
+            constraints = [NoNameC()]
+
+        dah: DirectedAcyclicHypergraph[Any, None] = DirectedAcyclicHypergraph()
+        dah.add_node("a", ValC())
+        dah.add_node("b", ValC())
+        dah.add_hyperedge(["a"], "b")
+        tree = dah.to_ascii_tree()
+        assert "a" in tree
+
+
+# ════════════════════════════════════════════════════════════════════
+# to_mermaid edge-case coverage
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestDAHMermaidEdgeCases:
+    def test_fmt_label_returns_empty(self) -> None:
+        """edge_label_fn returns stripped chars → branch 401→403."""
+        dah: DirectedAcyclicHypergraph[str, str] = DirectedAcyclicHypergraph()
+        dah.add_hyperedge(["a"], "b", metadata="meta")
+        mermaid = dah.to_mermaid(edge_label_fn=lambda m: "(){}[]|")
+        assert "-->" in mermaid

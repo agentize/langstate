@@ -6,11 +6,11 @@ The **Evaluator** module is responsible for testing how well a `Mutator` transfo
 
 ## Architecture overview
 
-```
+```python
 EvaluationContext
   ├── mutator          BaseMutator[MutationContext]
-  ├── pre_state        BaseInterpretiveState
-  ├── expected_post_state  BaseInterpretiveState
+  ├── pre_state        BaseState
+  ├── expected_post_state  BaseState
   ├── mutation_input   StructuredInput
   └── metadata?        Dict[str, Any]
 
@@ -20,7 +20,7 @@ BaseEvaluator (ABC)
 
 EvaluationResult
   ├── comparison       StateComparison
-  ├── actual_post_state  BaseInterpretiveState
+  ├── actual_post_state  BaseState
   ├── accuracy_score   float  [0.0 – 1.0]
   ├── time_used        float  (seconds)
   └── metadata?        Dict[str, Any]
@@ -34,10 +34,10 @@ EvaluationResult
 
 Abstract base class. All evaluator implementations must subclass this and provide:
 
-| Method            | Signature                                                            | Description                                  |
-| ----------------- | -------------------------------------------------------------------- | -------------------------------------------- |
-| `evaluate`        | `async (context: EvaluationContext) -> EvaluationResult`             | Orchestrates mutation and comparison.        |
-| `_compare_states` | `async (expected, actual: BaseInterpretiveState) -> StateComparison` | Produces a field-by-field comparison report. |
+| Method            | Signature                                                | Description                                  |
+| ----------------- | -------------------------------------------------------- | -------------------------------------------- |
+| `evaluate`        | `async (context: EvaluationContext) -> EvaluationResult` | Orchestrates mutation and comparison.        |
+| `_compare_states` | `async (expected, actual: BaseState) -> StateComparison` | Produces a field-by-field comparison report. |
 
 ---
 
@@ -72,7 +72,7 @@ The production-ready implementation of `Evaluator`. Inherits `_compare_states` f
 
 Execution steps:
 
-1. **Copy pre-state** — calls `context.pre_state.copy()` so the original is not modified. Raises `TypeError` if the copy is not an `InterpretiveState`.
+1. **Copy pre-state** — calls `context.pre_state.copy()` so the original is not modified. Raises `TypeError` if the copy is not a `State`.
 2. **Build `MutationContext`** — wraps the state copy, input (`StructuredInput`), and optional metadata.
 3. **Run mutator** — calls `context.mutator.mutate(mutation_context)` and measures wall-clock time with `time.monotonic`.
 4. **Compare states** — delegates to `_compare_states(expected_post_state, actual_post_state)`.
@@ -88,8 +88,8 @@ Execution steps:
 | Field                 | Type                           | Description                                     |
 | --------------------- | ------------------------------ | ----------------------------------------------- |
 | `mutator`             | `BaseMutator[MutationContext]` | The mutator instance to evaluate.               |
-| `pre_state`           | `BaseInterpretiveState`        | The interpretive state before mutation.         |
-| `expected_post_state` | `BaseInterpretiveState`        | The expected interpretive state after mutation. |
+| `pre_state`           | `BaseState`                    | The interpretive state before mutation.         |
+| `expected_post_state` | `BaseState`                    | The expected interpretive state after mutation. |
 | `mutation_input`      | `StructuredInput`              | The structured input fed to the mutator.        |
 | `metadata`            | `Dict[str, Any] \| None`       | Optional additional metadata.                   |
 
@@ -129,7 +129,7 @@ Aggregated result of comparing two interpretive states.
 | Field               | Type                     | Description                                                         |
 | ------------------- | ------------------------ | ------------------------------------------------------------------- |
 | `comparison`        | `StateComparison`        | Detailed field-by-field comparison report.                          |
-| `actual_post_state` | `BaseInterpretiveState`  | The actual post-state produced by the mutator.                      |
+| `actual_post_state` | `BaseState`              | The actual post-state produced by the mutator.                      |
 | `accuracy_score`    | `float`                  | `matching / (matching + mismatched + missing)`, range `[0.0, 1.0]`. |
 | `time_used`         | `float`                  | Wall-clock time of the `mutate()` call, in seconds.                 |
 | `metadata`          | `Dict[str, Any] \| None` | Optional metadata echoed from the evaluation context.               |

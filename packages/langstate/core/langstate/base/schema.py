@@ -70,59 +70,55 @@ class AgentInput(BaseModel):
 
     input_type: Annotated[
         InputType,
-        Field(default=InputType.TEXT, description="Type of input being provided"),
-    ]
+        Field(description="Type of input being provided"),
+    ] = InputType.TEXT
     text: Annotated[
         Optional[str],
         Field(
-            default=None,
             description="Text content (for TEXT type or accompanying other types)",
         ),
-    ]
+    ] = None
 
     action: Annotated[
         Optional[str],
         Field(
-            default=None,
             description="Action identifier (for ACTION type, e.g., button_id, form_name)",
         ),
-    ]
+    ] = None
 
     action_data: Annotated[
         Optional[Dict[str, object]],
         Field(
-            default=None,
             description="Additional data for the action (form fields, parameters)",
         ),
-    ]
+    ] = None
 
     selection: Annotated[
         Optional[List[object]],
-        Field(default=None, description="Selected option(s) for SELECTION type"),
-    ]
+        Field(description="Selected option(s) for SELECTION type"),
+    ] = None
 
     field_id: Annotated[
         Optional[str],
         Field(
-            default=None,
             description="Target field identifier (if input is for a specific field)",
         ),
-    ]
+    ] = None
 
     confirmed: Annotated[
         Optional[bool],
-        Field(default=None, description="Confirmation status for CONFIRMATION type"),
-    ]
+        Field(description="Confirmation status for CONFIRMATION type"),
+    ] = None
 
     files: Annotated[
         Optional[List[Dict[str, object]]],
-        Field(default=None, description="List of file references for FILE type"),
-    ]
+        Field(description="List of file references for FILE type"),
+    ] = None
 
     metadata: Annotated[
         Optional[Dict[str, object]],
-        Field(default=None, description="Additional context or metadata"),
-    ]
+        Field(description="Additional context or metadata"),
+    ] = None
 
     @classmethod
     def from_text(cls, text: str) -> "AgentInput":
@@ -348,20 +344,20 @@ class LangStateDeps(BaseModel, Generic[TContext, TInput]):
 
     mutator: Annotated[
         Optional[BaseMutator[TContext]],
-        Field(default=None, description="Mutator instance"),
-    ]
+        Field(description="Mutator instance"),
+    ] = None
     spec_extractor: Annotated[
         Optional[BaseSpecExtractor],
-        Field(default=None, description="Spec extractor instance"),
-    ]
+        Field(description="Spec extractor instance"),
+    ] = None
     projectors: Annotated[
         Optional[List[BaseProjector[ProjectionContext, ProjectionResult]]],
-        Field(default=None, description="List of projector instances"),
-    ]
+        Field(description="List of projector instances"),
+    ] = None
     repository: Annotated[
         Optional[BaseSnapshotRepository[BaseState]],
-        Field(default=None, description="Snapshot repository for state persistence"),
-    ]
+        Field(description="Snapshot repository for state persistence"),
+    ] = None
     context_factory: Annotated[
         Callable[[TInput, BaseState], TContext],
         Field(description="Callable that bridges TInput + current state → TContext"),
@@ -369,7 +365,6 @@ class LangStateDeps(BaseModel, Generic[TContext, TInput]):
     state_id: Annotated[
         Optional[str],
         Field(
-            default=None,
             description="Unique identifier for the state. Defaults to a generated UUID.",
         ),
-    ]
+    ] = None

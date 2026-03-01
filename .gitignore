@@ -8,3 +8,4 @@ __pycache__/
 
 # Project:
 packages/langstate/tests/integration/core/test_outputs
+packages/langstate/dist

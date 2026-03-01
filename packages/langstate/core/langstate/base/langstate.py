@@ -183,7 +183,7 @@ class LangState(
     ) -> None:
         self._state_repository = repository
 
-    def attach(  # type: ignore[override]
+    def attach(
         self,
         observer: BaseObserver[ProjectionContext],
     ) -> None:
@@ -191,9 +191,9 @@ class LangState(
             raise TypeError("LangState observers must be BaseProjector instances.")
         super().attach(cast(BaseObserver[ProjectionContext], observer))
 
-    def detach(  # type: ignore[override]
+    def detach(
         self,
-        observer: BaseProjector[ProjectionContext, ProjectionResult],
+        observer: BaseObserver[ProjectionContext],
     ) -> None:
         super().detach(observer)
 

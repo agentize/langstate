@@ -43,35 +43,34 @@ class UIComponent(BaseModel):
     ]
     label: Annotated[
         str,
-        Field(default="", description="Display label for the component"),
-    ]
+        Field(description="Display label for the component"),
+    ] = ""
     placeholder: Annotated[
         str,
-        Field(default="", description="Placeholder text"),
-    ]
+        Field(description="Placeholder text"),
+    ] = ""
     options: Annotated[
         List[Dict[str, object]],
         Field(
-            default_factory=list,
             description="Options for select/radio/checkbox components",
         ),
-    ]
+    ] = []
     validation_rules: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Client-side validation rules"),
-    ]
+        Field(description="Client-side validation rules"),
+    ] = Field(default_factory=dict)
     disabled: Annotated[
         bool,
-        Field(default=False, description="Whether the component is disabled"),
-    ]
+        Field(description="Whether the component is disabled"),
+    ] = False
     required: Annotated[
         bool,
-        Field(default=False, description="Whether the field is required"),
-    ]
+        Field(description="Whether the field is required"),
+    ] = False
     metadata: Annotated[
         Dict[str, object],
-        Field(default_factory=dict, description="Additional component metadata"),
-    ]
+        Field(description="Additional component metadata"),
+    ] = Field(default_factory=dict)
 
 
 class UIProjectionContext(ProjectionContext):
@@ -88,23 +87,21 @@ class UIProjectionResult(ProjectionResult):
 
     prompt: Annotated[
         str,
-        Field(default="", description="The generated prompt/message for the user"),
-    ]
+        Field(description="The generated prompt/message for the user"),
+    ] = ""
     components: Annotated[
         List[UIComponent],
-        Field(default_factory=list, description="List of UI components to display"),
-    ]
+        Field(description="List of UI components to display"),
+    ] = []
     suggestions: Annotated[
         Dict[str, List[object]],
-        Field(
-            default_factory=dict, description="Suggested values/options for the user"
-        ),
-    ]
+        Field(description="Suggested values/options for the user"),
+    ] = Field(default_factory=dict)
     is_complete: Annotated[
         bool,
-        Field(default=False, description="Whether the form/flow is complete"),
-    ]
+        Field(description="Whether the form/flow is complete"),
+    ] = False
     next_fields: Annotated[
         List[str],
-        Field(default_factory=list, description="Fields to focus on next"),
-    ]
+        Field(description="Fields to focus on next"),
+    ] = Field(default_factory=list)
