@@ -1,50 +1,48 @@
-name: release
+name: Release
 
 on:
   push:
-    tags:
-      - "*-release"
-      - "*-beta"
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   details:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/langstate
     outputs:
       package_name: ${{ steps.package_information.outputs.package_name }}
       new_version: ${{ steps.release.outputs.new_version }}
       suffix: ${{ steps.release.outputs.suffix }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Extract tag and Details
+      - uses: actions/checkout@v4
+
+      - name: Extract tag details
         id: release
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            TAG_NAME=${GITHUB_REF#refs/tags/}
-            NEW_VERSION=$(echo $TAG_NAME | awk -F'-' '{print $1}')
-            SUFFIX=$(echo $TAG_NAME | awk -F'-' '{print $2}')
-            echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-            echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
-            echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-            echo "Version is $NEW_VERSION"
-            echo "Suffix is $SUFFIX"
-            echo "Tag name is $TAG_NAME"
-          else
-            echo "No tag found"
-            exit 1
-          fi
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          NEW_VERSION=$(echo "$TAG_NAME" | awk -F'-' '{print $1}')
+          SUFFIX=$(echo "$TAG_NAME" | awk -F'-' '{print $2}')
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "Version: $NEW_VERSION | Suffix: $SUFFIX | Tag: $TAG_NAME"
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "poetry"
 
-      - name: Get Name of Package
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v4
+
+      - name: Get package name
         id: package_information
         run: |
-          package_information=$(poetry version)
-          PACKAGE_NAME=$(echo $package_information | awk '{print $1}')
+          PACKAGE_NAME=$(poetry version | awk '{print $1}')
           echo "Package name: $PACKAGE_NAME"
           echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
 
@@ -52,130 +50,143 @@ jobs:
     needs: details
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch information from PyPI
+      - name: Check version on PyPI
         run: |
-          PACKAGE_NAME=${{ needs.details.outputs.package_name}}
-          response=$(curl -s https://pypi.org/pypi/$PACKAGE_NAME/json || echo "{}")
-          latest_previous_version=$(echo $response | grep -oP '"releases":\{"\K[^"]+' | sort -rV | head -n 1)
-          if [ -z "$latest_previous_version" ]; then
-            echo "Package not found on PyPI."
-            latest_previous_version="0.0.0"
-          fi
-          echo "Latest version on PyPI: $latest_previous_version"
-          echo "latest_previous_version=$latest_previous_version" >> $GITHUB_ENV
+          PACKAGE_NAME="${{ needs.details.outputs.package_name }}"
+          NEW_VERSION="${{ needs.details.outputs.new_version }}"
 
-      - name: Compare versions and exit if not newer
-        run: |
-          NEW_VERSION=${{ needs.details.outputs.new_version }}
-          LATEST_VERSION=$latest_previous_version
-          if [ "$(printf '%s\n' "$LATEST_VERSION" "$NEW_VERSION" | sort -rV | head -n 1)" != "$NEW_VERSION" ] || [ "$NEW_VERSION" == "$LATEST_VERSION" ]; then
-            echo "The new version $NEW_VERSION is not greater than the latest version $LATEST_VERSION on PyPI."
+          response=$(curl -s "https://pypi.org/pypi/${PACKAGE_NAME}/json" || echo "{}")
+          latest_version=$(echo "$response" | jq -r '.releases | keys[]' 2>/dev/null | sort -rV | head -n 1)
+
+          if [ -z "$latest_version" ]; then
+            echo "Package not found on PyPI. Proceeding with first release."
+            exit 0
+          fi
+
+          echo "Latest version on PyPI: $latest_version"
+          echo "New version: $NEW_VERSION"
+
+          if [ "$(printf '%s\n' "$latest_version" "$NEW_VERSION" | sort -rV | head -n 1)" != "$NEW_VERSION" ] || [ "$NEW_VERSION" == "$latest_version" ]; then
+            echo "::error::Version $NEW_VERSION is not greater than $latest_version on PyPI."
             exit 1
-          else
-            echo "The new version $NEW_VERSION is greater than the latest version $LATEST_VERSION on PyPI."
           fi
 
-  setup_and_build:
-    needs: details
+          echo "Version $NEW_VERSION is greater than $latest_version. Proceeding."
+
+  build:
+    needs: [details, check_pypi]
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/langstate
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "poetry"
 
-      - name: Set project version with Poetry
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v4
+
+      - name: Configure local virtual environment
         run: |
-          poetry version ${{ needs.details.outputs.new_version }}
+          poetry config virtualenvs.create true --local
+          poetry config virtualenvs.in-project true --local
 
-      - name: Bump version in pyproject.toml
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git checkout -b version-bump-${{ needs.details.outputs.new_version }}
-          git add pyproject.toml
-          git commit -m "Bump version to $VERSION"
-          git push origin version-bump-${{ needs.details.outputs.new_version }}
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v4
-        with:
-          branch: version-bump-${{ needs.details.outputs.new_version }}
-          title: "Bump version to ${{ needs.details.outputs.new_version }}"
-          body: "This PR bumps the version to ${{ needs.details.outputs.new_version }}."
-          labels: "version-bump"
+      - name: Set project version
+        run: poetry version ${{ needs.details.outputs.new_version }}
 
       - name: Install dependencies
         run: poetry install --sync --no-interaction
 
-      - name: Build source and wheel distribution
-        run: |
-          poetry build
+      - name: Run tests
+        run: poetry run pytest -v
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Build distribution
+        run: poetry build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/
+          path: packages/langstate/dist/
+          retention-days: 5
+
+  version_bump:
+    name: Bump version in repository
+    needs: [details, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v4
+
+      - name: Bump version in pyproject.toml
+        working-directory: packages/langstate
+        run: poetry version ${{ needs.details.outputs.new_version }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: version-bump-${{ needs.details.outputs.new_version }}
+          base: main
+          commit-message: "chore: bump version to ${{ needs.details.outputs.new_version }}"
+          title: "chore: bump version to ${{ needs.details.outputs.new_version }}"
+          body: |
+            Automated version bump to `${{ needs.details.outputs.new_version }}` triggered by tag `${{ needs.details.outputs.tag_name }}`.
+          labels: version-bump
 
   pypi_publish:
-    name: Upload release to PyPI
-    needs: [setup_and_build, details]
+    name: Publish to PyPI
+    needs: [build, details]
     runs-on: ubuntu-latest
     environment:
       name: release
     permissions:
-      # In order to use Trusted Publisher
       id-token: write
       contents: read
-
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
 
-      - name: Publish distribution to PyPI
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-
-      # Alternatively, use this one
-      # - name: Mint token
-      #   id: mint
-      #   uses: tschm/token-mint-action@v1.0.3
-
-      #  Requires poetry to be installed
-      # - name: Install Poetry
-      #   uses: snok/install-poetry@v1
-
-      # - name: Publish the package with poetry
-      #   run: |
-      #     poetry publish -u __token__ -p '${{ steps.mint.outputs.api-token }}'
 
   github_release:
     name: Create GitHub Release
-    needs: [setup_and_build, details]
+    needs: [build, details]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
           name: dist
-          path: ./dist/
+          path: dist/
 
       - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.details.outputs.new_version }}
-          release_name: ${{ needs.details.outputs.tag_name }}
+          tag_name: ${{ needs.details.outputs.tag_name }}
+          name: ${{ needs.details.outputs.tag_name }}
           body: "Release of version ${{ needs.details.outputs.new_version }}"
           draft: false
-          prerelease: ${{ needs.details.outputs.suffix != 'release' }} # Mark as prerelease for non-release
+          prerelease: ${{ needs.details.outputs.suffix != 'release' }}
+          files: dist/*
